@@ -1,0 +1,44 @@
+fixture_id: v05_low_risk_assumption
+expected:
+  validation_pass: true
+constructability_review:
+  review_id: CRR-V05
+  architect_package_ref: ARCH-PKG-V05
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_with_logged_assumption
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  logged_assumptions:
+    - assumption_id: ASM-V05
+      description: reversible spacing value logged for later review
+      risk_level: low
+      reversible: true
+      visible_in_output: true
+      crosses_architecture_boundary: false
+  reviewed_nodes:
+    - node_id: section-root
+      node_type: Flexbox
+      action_proposed: apply reversible spacing value
+      node_status: executable_with_logged_assumption
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: false
+        geometry_proven: null
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: false
+        overlay_strategy_proven: null
+        responsive_behavior: not_applicable
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: true
+        requires_class_change: false
+        requires_structure_change: false
