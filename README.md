@@ -241,6 +241,7 @@ R12 production_ready requires separate QA evidence.
 R13 logged assumptions must be low-risk, reversible, visible, and boundary-safe.
 R14 any blocked node blocks executable_ready.
 R15 selected_candidate_id and approved class names must remain locked.
+R16 accessibility_claims require evidence.
 ```
 
 ---
