@@ -1,0 +1,62 @@
+fixture_id: i09_blocked_review_with_builder_package
+expected:
+  validation_pass: false
+  rules_violated: [R19_NON_EXECUTABLE_REVIEW_MUST_NOT_EMIT_BUILDER_PACKAGE]
+constructability_review:
+  review_id: CRR-I09
+  architect_package_ref: ARCH-PKG-I09
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: blocked
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: root
+      node_type: Flexbox
+      action_proposed: hold package emission while review is blocked
+      node_status: blocked
+      blocking_reason: execution data is incomplete
+      interrogation_result:
+        geometry_required: false
+        geometry_proven: null
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: false
+        overlay_strategy_proven: null
+        responsive_behavior: not_applicable
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: true
+        requires_class_change: false
+        requires_structure_change: false
+builder_executable_package:
+  package_id: BEP-I09
+  review_ref: CRR-I09
+  strategy_map_ref: null
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names: [root-class]
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-I09
+    confirmed_action_ids: [A01]
+    expected_user_token: تایید I09
+  first_safe_builder_batch:
+    batch_id: BATCH-I09
+    actions:
+      - action_id: A01
+        action_type: create_element
+        target_node: root
+        parameters: {}
+        requires_decision: false
