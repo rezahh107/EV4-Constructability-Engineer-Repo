@@ -2,22 +2,30 @@ from pathlib import Path
 import subprocess
 import sys
 
-from validator.behavioral_rule_coverage import parse, validate_coverage_file, validate_rows
+from validator.behavioral_rule_coverage import parse_coverage_markdown, validate_coverage_file, validate_rows
 
 ROOT = Path(__file__).resolve().parents[1]
 COVERAGE = ROOT / "docs/BEHAVIORAL_RULE_COVERAGE.md"
 
 
-def row(rule_id: str, risk: str, status: str) -> dict[str, str]:
+def _row(rule_id: str, risk: str, status: str) -> dict[str, str]:
     return {
         "rule_id": rule_id,
+        "concept": "test rule",
         "risk": risk,
+        "prose_source": "docs/test.md",
+        "schema_carrier": "field",
+        "validator_rule": "R_TEST",
+        "valid_fixture": "tests/valid/test.json",
+        "invalid_fixture": "tests/invalid/test.json",
+        "CI_step": "pytest -q",
+        "downstream_contract": "consumer rejects invalid package",
         "status": status,
         "line": "1",
     }
 
 
-def test_current_coverage_file_passes() -> None:
+def test_current_behavioral_rule_coverage_passes() -> None:
     result = validate_coverage_file(COVERAGE)
 
     assert result["passed"] is True
@@ -25,40 +33,70 @@ def test_current_coverage_file_passes() -> None:
     assert result["high_count"] >= 1
 
 
-def test_parser_extracts_rule_rows() -> None:
-    rows = parse(COVERAGE.read_text(encoding="utf-8"))
-    rule_ids = {item["rule_id"] for item in rows}
+def test_parse_coverage_markdown_extracts_matrix_rows() -> None:
+    rows = parse_coverage_markdown(COVERAGE.read_text(encoding="utf-8"))
 
+    rule_ids = {row["rule_id"] for row in rows}
     assert "R-CE-PAR-01" in rule_ids
     assert "R-CE-BATCH-01" in rule_ids
 
 
-def test_parser_allows_leading_whitespace_and_one_dash_separator() -> None:
+def test_parse_coverage_markdown_allows_leading_whitespace_and_one_dash_separator() -> None:
     doc = "\n".join(
         [
             "# Coverage",
+            "",
             "   | rule_id | concept | risk | prose_source | schema_carrier | validator_rule | valid_fixture | invalid_fixture | CI_step | downstream_contract | status |",
             "   |-|-|-:|-|-|-|-|-|-|-|-|",
             "   | `R-TEST-SPACE` | Test | High | `docs/test.md` | `field` | `R_TEST` | `tests/valid/test.json` | `tests/invalid/test.json` | `pytest -q` | consumer | `validator_backed` |",
         ]
     )
 
-    rows = parse(doc)
+    rows = parse_coverage_markdown(doc)
 
     assert rows[0]["rule_id"] == "R-TEST-SPACE"
 
 
-def test_critical_schema_backed_rule_fails() -> None:
-    errors = validate_rows([row("R-TEST-CRITICAL", "Critical", "schema_backed")])
+def test_parse_coverage_markdown_allows_spaced_header_cells() -> None:
+    doc = "\n".join(
+        [
+            "# Coverage",
+            "",
+            "| rule_id   | concept | risk | prose_source | schema_carrier | validator_rule | valid_fixture | invalid_fixture | CI_step | downstream_contract | status |",
+            "|---|---|---:|---|---|---|---|---|---|---|---|",
+            "| `R-TEST-SPACED-HEADER` | Test | High | `docs/test.md` | `field` | `R_TEST` | `tests/valid/test.json` | `tests/invalid/test.json` | `pytest -q` | consumer | `validator_backed` |",
+        ]
+    )
+
+    rows = parse_coverage_markdown(doc)
+
+    assert rows[0]["rule_id"] == "R-TEST-SPACED-HEADER"
+
+
+def test_critical_schema_backed_rule_fails_closed() -> None:
+    errors = validate_rows([_row("R-TEST-CRITICAL", "Critical", "schema_backed")])
 
     assert errors
     assert "R-TEST-CRITICAL" in errors[0]
 
 
+def test_critical_prose_only_rule_fails_closed() -> None:
+    errors = validate_rows([_row("R-TEST-PROSE", "Critical", "prose_only")])
+
+    assert errors
+    assert "R-TEST-PROSE" in errors[0]
+
+
+def test_high_schema_backed_rule_is_allowed_temporarily() -> None:
+    errors = validate_rows([_row("R-TEST-HIGH", "High", "schema_backed")])
+
+    assert errors == []
+
+
 def test_duplicate_rule_id_fails() -> None:
     errors = validate_rows([
-        row("R-TEST-DUP", "High", "validator_backed"),
-        row("R-TEST-DUP", "High", "validator_backed"),
+        _row("R-TEST-DUP", "High", "validator_backed"),
+        _row("R-TEST-DUP", "High", "validator_backed"),
     ])
 
     assert any("duplicate rule_id R-TEST-DUP" in error for error in errors)
@@ -70,6 +108,7 @@ def test_cli_rejects_invalid_critical_gap(tmp_path: Path) -> None:
         "\n".join(
             [
                 "# Coverage",
+                "",
                 "| rule_id | concept | risk | prose_source | schema_carrier | validator_rule | valid_fixture | invalid_fixture | CI_step | downstream_contract | status |",
                 "|---|---|---:|---|---|---|---|---|---|---|---|",
                 "| `R-TEST-001` | Test | Critical | `docs/test.md` | `field` | `None` | `None` | `None` | `None` | `None` | `schema_backed` |",
