@@ -57,6 +57,20 @@ def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> 
     return errors
 
 
+def _mode_preflight_violations(document: dict[str, Any], mode: ValidationMode) -> list[ConstructabilityViolation]:
+    review = document.get("constructability_review") or document
+    if mode == "report" and review.get("constructability_status") == "executable_ready":
+        return [
+            ConstructabilityViolation(
+                rule_id="R21_REPORT_MODE_MUST_BE_NON_EXECUTABLE",
+                status="blocked",
+                message="report mode validates non-executable reviews only; status must not be executable_ready.",
+                location="constructability_review.constructability_status",
+            )
+        ]
+    return []
+
+
 def validate_document(
     document: dict[str, Any],
     *,
@@ -67,7 +81,8 @@ def validate_document(
         raise ValueError(f"Unsupported validation mode: {mode}")
 
     schema_errors = schema_validate(document, repo_root=repo_root)
-    rule_violations = evaluate_document(document, mode=mode)
+    rule_violations = _mode_preflight_violations(document, mode)
+    rule_violations.extend(evaluate_document(document, mode=mode))
     expected = document.get("expected") or {}
     expected_pass = expected.get("validation_pass")
     passed = not schema_errors and not rule_violations
