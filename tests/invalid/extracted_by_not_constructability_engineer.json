@@ -1,0 +1,22 @@
+{
+  "reference_paradigm_lock": {
+    "schema": "ev4-reference-paradigm-lock@1.0.0",
+    "source_reference_id": "sshot-2168",
+    "extracted_by": "builder",
+    "paradigm_locked": true,
+    "layout_paradigm": "center-anchored-symmetric",
+    "primary_anchor": "house-center",
+    "distribution_model": "3-left-3-right",
+    "repeated_unit_form": "pill-card",
+    "connector_model": "card-edge-to-house-edge",
+    "spatial_symmetry": "horizontal-bilateral",
+    "completion_signature": ["reference paradigm extracted"]
+  },
+  "paradigm_to_structure_map": {
+    "primary_anchor": {"node": "Visual Core", "role": "central-house-anchor"},
+    "regions": [{"id": "left", "distribution": "left", "expected_count": 3, "nodes": ["Feature Card 01"]}],
+    "repeated_units": {"form": "pill-card", "required_children": ["title", "subtitle", "icon"]},
+    "connector_layer": {"node": "Connector Layer", "model": "card-edge-to-house-edge"},
+    "first_batch_requirements": ["establish central anchor"]
+  }
+}
