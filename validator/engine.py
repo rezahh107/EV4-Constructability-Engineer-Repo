@@ -18,6 +18,7 @@ SCHEMA_BY_KIND = {
     "implementation_strategy_map": "schemas/implementation_strategy_map.schema.json",
     "builder_executable_package": "schemas/builder_executable_package.schema.json",
 }
+REFERENCE_PARADIGM_SCHEMA = "schemas/reference-paradigm-lock.schema.json"
 VALIDATION_MODES = {"report", "package", "full"}
 
 
@@ -37,6 +38,15 @@ def load_json(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def _collect_schema_errors(schema: dict[str, Any], document: dict[str, Any], prefix: str) -> list[str]:
+    validator = Draft202012Validator(schema)
+    errors = []
+    for error in sorted(validator.iter_errors(document), key=lambda item: list(item.path)):
+        path = ".".join(str(part) for part in error.path) or prefix
+        errors.append(f"{path}: {error.message}")
+    return errors
+
+
 def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> list[str]:
     root = repo_root or Path.cwd()
     errors: list[str] = []
@@ -45,11 +55,11 @@ def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> 
         if key not in document:
             continue
         schema = load_json(root / schema_path)
-        validator = Draft202012Validator(schema)
-        schema_errors = sorted(validator.iter_errors(document[key]), key=lambda item: list(item.path))
-        for error in schema_errors:
-            path = ".".join(str(part) for part in error.path) or key
-            errors.append(f"{key}.{path}: {error.message}")
+        errors.extend(_collect_schema_errors(schema, document[key], key))
+
+    if "reference_paradigm_lock" in document or "paradigm_to_structure_map" in document:
+        schema = load_json(root / REFERENCE_PARADIGM_SCHEMA)
+        errors.extend(_collect_schema_errors(schema, document, "reference_paradigm_lock"))
 
     return errors
 
@@ -123,7 +133,7 @@ def validate_file(path: str | Path, *, repo_root: Path | None = None, mode: Vali
 
 
 def _fixture_paths(directory: Path) -> list[Path]:
-    return sorted([*directory.rglob("*.yaml"), *directory.rglob("*.yml")])
+    return sorted([*directory.rglob("*.json"), *directory.rglob("*.yaml"), *directory.rglob("*.yml")])
 
 
 def validate_path(path: str | Path, *, repo_root: Path | None = None, mode: ValidationMode = "full") -> dict[str, Any]:
