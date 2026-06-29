@@ -127,6 +127,8 @@ def _paths(path: Path) -> list[Path]:
 
 def validate_path(path: str | Path, *, repo_root: Path | None = None) -> dict[str, Any]:
     target = Path(path)
+def validate_path(path: str | Path, *, repo_root: Path | None = None) -> dict[str, Any]:
+    target = Path(path)
     if not target.exists():
         raise FileNotFoundError(f"Path does not exist: {target}")
     results = []
