@@ -41,6 +41,22 @@ def test_parse_coverage_markdown_extracts_matrix_rows() -> None:
     assert "R-CE-BATCH-01" in rule_ids
 
 
+def test_parse_coverage_markdown_allows_leading_whitespace_and_one_dash_separator() -> None:
+    doc = "\n".join(
+        [
+            "# Coverage",
+            "",
+            "   | rule_id | concept | risk | prose_source | schema_carrier | validator_rule | valid_fixture | invalid_fixture | CI_step | downstream_contract | status |",
+            "   |-|-|-:|-|-|-|-|-|-|-|-|",
+            "   | `R-TEST-SPACE` | Test | High | `docs/test.md` | `field` | `R_TEST` | `tests/valid/test.json` | `tests/invalid/test.json` | `pytest -q` | consumer | `validator_backed` |",
+        ]
+    )
+
+    rows = parse_coverage_markdown(doc)
+
+    assert rows[0]["rule_id"] == "R-TEST-SPACE"
+
+
 def test_critical_schema_backed_rule_fails_closed() -> None:
     errors = validate_rows([_row("R-TEST-CRITICAL", "Critical", "schema_backed")])
 
@@ -95,3 +111,20 @@ def test_cli_rejects_invalid_critical_gap(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "FAIL-CLOSED" in result.stdout
+
+
+def test_cli_reports_malformed_file_without_traceback(tmp_path: Path) -> None:
+    malformed = tmp_path / "coverage.md"
+    malformed.write_text("# Missing table\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "scripts/validate-behavioral-rule-coverage.py", str(malformed)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "FAIL-CLOSED" in result.stdout
+    assert "Traceback" not in result.stderr
