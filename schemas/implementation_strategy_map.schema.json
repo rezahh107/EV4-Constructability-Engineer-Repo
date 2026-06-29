@@ -5,10 +5,10 @@
   "required": ["strategy_map_id", "review_ref", "selected_candidate_id", "strategies"],
   "additionalProperties": true,
   "properties": {
-    "strategy_map_id": {"type": "string"},
-    "review_ref": {"type": "string"},
-    "selected_candidate_id": {"type": "string"},
-    "strategies": {"type": "array", "items": {"$ref": "#/$defs/strategy"}}
+    "strategy_map_id": {"type": "string", "minLength": 1},
+    "review_ref": {"type": "string", "minLength": 1},
+    "selected_candidate_id": {"type": "string", "minLength": 1},
+    "strategies": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/strategy"}}
   },
   "$defs": {
     "strategy": {
@@ -16,9 +16,9 @@
       "required": ["strategy_id", "node_id", "strategy_selected", "builder_decisions_required", "architect_amendment_required", "class_names_affected"],
       "additionalProperties": true,
       "properties": {
-        "strategy_id": {"type": "string"},
-        "node_id": {"type": "string"},
-        "strategy_selected": {"type": "string"},
+        "strategy_id": {"type": "string", "minLength": 1},
+        "node_id": {"type": "string", "minLength": 1},
+        "strategy_selected": {"type": "string", "minLength": 1},
         "alternatives_considered": {"type": "array", "items": {"type": "string"}},
         "rationale": {"type": "string"},
         "evidence_source": {"type": "string", "enum": ["user_statement", "screenshot", "measured", "architect_package", "official_docs", "assumed_low_risk"]},
