@@ -1,0 +1,38 @@
+fixture_id: i06_semantic_claim_without_evidence
+expected:
+  validation_pass: false
+  rules_violated: [R16_ACCESSIBILITY_CLAIM_REQUIRES_EVIDENCE]
+constructability_review:
+  review_id: CRR-I06
+  architect_package_ref: ARCH-PKG-I06
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: semantic-node
+      node_type: ContentBlock
+      action_proposed: semantic claim without evidence
+      node_status: executable_ready
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: false
+        geometry_proven: null
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: false
+        overlay_strategy_proven: null
+        responsive_behavior: not_applicable
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: true
+        accessibility_evidenced: false
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: true
+        requires_class_change: false
+        requires_structure_change: false
