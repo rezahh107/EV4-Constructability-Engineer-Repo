@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -24,6 +25,12 @@ def test_invalid_reference_paradigm_lock_fails(path: Path) -> None:
     assert result["passed"] is False
 
 
+def test_missing_reference_paradigm_path_fails_closed() -> None:
+    missing = ROOT / "tests/valid/not-a-real-reference-paradigm-file.json"
+    with pytest.raises(FileNotFoundError):
+        validate_path(missing, repo_root=ROOT)
+
+
 def test_engine_schema_validates_reference_paradigm_lock() -> None:
     result = validate_file(VALID, repo_root=ROOT)
     assert result["passed"] is True
@@ -35,6 +42,7 @@ def test_builder_ready_unknown_layout_is_blocked_by_engine() -> None:
     assert "R30_REFERENCE_PARADIGM_UNKNOWN_BLOCKS_BUILDER_READY" in result["rules_violated"]
 
 
+@pytest.mark.skipif(shutil.which("node") is None, reason="node executable not found")
 def test_node_wrapper_validates_reference_paradigm_lock() -> None:
     result = subprocess.run(
         ["node", "scripts/validate-reference-paradigm-lock.mjs", str(VALID), "--repo-root", str(ROOT)],
