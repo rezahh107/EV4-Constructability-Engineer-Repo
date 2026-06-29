@@ -61,8 +61,6 @@ def _status(doc: dict[str, Any]) -> str | None:
 
 
 def _blocking_dependencies(doc: dict[str, Any]) -> list[Any]:
-    """Combine review-level and package-level blocking dependencies."""
-
     pkg = _package(doc)
     deps = list(_review(doc).get("blocking_dependencies") or [])
     if pkg is not None:
@@ -71,8 +69,6 @@ def _blocking_dependencies(doc: dict[str, Any]) -> list[Any]:
 
 
 def _builder_decisions_required(doc: dict[str, Any]) -> int | None:
-    """Return the strictest known Builder decision count."""
-
     values: list[int] = []
     review_value = _review(doc).get("builder_decisions_required")
     if isinstance(review_value, int):
@@ -93,17 +89,10 @@ def _evaluate_mode_contract(
 ) -> list[ConstructabilityViolation]:
     violations: list[ConstructabilityViolation] = []
     review_status = _review_status(doc)
-    pkg = _package(doc)
-    package_present = pkg is not None
+    package_present = _package(doc) is not None
 
     if mode not in VALIDATION_MODES:
-        violations.append(
-            _rule(
-                "R00_INVALID_VALIDATION_MODE",
-                "blocked",
-                f"Unsupported validation mode: {mode}.",
-            )
-        )
+        violations.append(_rule("R00_INVALID_VALIDATION_MODE", "blocked", f"Unsupported mode: {mode}."))
         return violations
 
     if mode == "report" and package_present:
@@ -111,7 +100,7 @@ def _evaluate_mode_contract(
             _rule(
                 "R17_REPORT_MODE_MUST_NOT_EMIT_BUILDER_PACKAGE",
                 "blocked",
-                "report mode validates review output only; builder_executable_package must be absent.",
+                "report mode validates review output only; package must be absent.",
             )
         )
 
@@ -129,7 +118,7 @@ def _evaluate_mode_contract(
             _rule(
                 "R19_NON_EXECUTABLE_REVIEW_MUST_NOT_EMIT_BUILDER_PACKAGE",
                 "blocked",
-                "A non-executable constructability review must not include a Builder package.",
+                "A non-executable review must not include a Builder package.",
             )
         )
 
@@ -150,8 +139,6 @@ def evaluate_document(
     *,
     mode: ValidationMode = "full",
 ) -> list[ConstructabilityViolation]:
-    """Return fail-closed violations for a constructability fixture or package."""
-
     violations: list[ConstructabilityViolation] = []
     review = _review(doc)
     pkg = _package(doc)
@@ -164,29 +151,23 @@ def evaluate_document(
     builder_decisions_required = _builder_decisions_required(doc)
     if executable and builder_decisions_required != 0:
         violations.append(
-            _rule(
-                "R01_BUILDER_DECISIONS_ZERO",
-                "blocked",
-                "executable_ready requires builder_decisions_required == 0.",
-            )
+            _rule("R01_BUILDER_DECISIONS_ZERO", "blocked", "executable_ready requires zero Builder decisions.")
         )
 
     if executable and _blocking_dependencies(doc):
         violations.append(
-            _rule(
-                "R02_BLOCKING_DEPENDENCIES_EMPTY",
-                "blocked",
-                "executable_ready requires blocking_dependencies == [].",
-            )
+            _rule("R02_BLOCKING_DEPENDENCIES_EMPTY", "blocked", "executable_ready requires no blockers.")
         )
 
     for index, node in enumerate(_nodes(doc)):
         location = f"reviewed_nodes[{index}]"
+        node_status = node.get("node_status")
+        node_claims_executable = executable or node_status == "executable_ready"
         interrogation = node.get("interrogation_result") or {}
 
-        if _is_true(interrogation.get("geometry_required")) and not _is_true(
-            interrogation.get("geometry_proven")
-        ):
+        if node_claims_executable and _is_true(
+            interrogation.get("geometry_required")
+        ) and not _is_true(interrogation.get("geometry_proven")):
             violations.append(
                 _rule(
                     "R03_GEOMETRY_MUST_BE_PROVEN",
@@ -196,7 +177,7 @@ def evaluate_document(
                 )
             )
 
-        if _is_true(interrogation.get("asset_required")):
+        if node_claims_executable and _is_true(interrogation.get("asset_required")):
             has_asset = _is_true(interrogation.get("asset_source_present"))
             has_placeholder = _is_true(interrogation.get("placeholder_policy_present"))
             if not (has_asset or has_placeholder):
@@ -209,9 +190,9 @@ def evaluate_document(
                     )
                 )
 
-        if _is_true(interrogation.get("overlay_strategy_required")) and not _is_true(
-            interrogation.get("overlay_strategy_proven")
-        ):
+        if node_claims_executable and _is_true(
+            interrogation.get("overlay_strategy_required")
+        ) and not _is_true(interrogation.get("overlay_strategy_proven")):
             violations.append(
                 _rule(
                     "R05_OVERLAY_STRATEGY_MUST_BE_PROVEN",
@@ -221,7 +202,7 @@ def evaluate_document(
                 )
             )
 
-        if _is_true(interrogation.get("action_targets_responsive")):
+        if node_claims_executable and _is_true(interrogation.get("action_targets_responsive")):
             responsive_behavior = interrogation.get("responsive_behavior", "unknown")
             if responsive_behavior not in RESPONSIVE_ALLOWED:
                 violations.append(
@@ -233,9 +214,9 @@ def evaluate_document(
                     )
                 )
 
-        if _is_true(interrogation.get("interaction_implied")) and not _is_true(
-            interrogation.get("interaction_approved")
-        ):
+        if node_claims_executable and _is_true(
+            interrogation.get("interaction_implied")
+        ) and not _is_true(interrogation.get("interaction_approved")):
             violations.append(
                 _rule(
                     "R07_INTERACTION_REQUIRES_APPROVAL",
@@ -245,9 +226,9 @@ def evaluate_document(
                 )
             )
 
-        if _is_true(interrogation.get("dynamic_loop_implied")) and not _is_true(
-            interrogation.get("dynamic_loop_approved")
-        ):
+        if node_claims_executable and _is_true(
+            interrogation.get("dynamic_loop_implied")
+        ) and not _is_true(interrogation.get("dynamic_loop_approved")):
             violations.append(
                 _rule(
                     "R08_DYNAMIC_LOOP_REQUIRES_APPROVAL",
@@ -260,7 +241,7 @@ def evaluate_document(
         needs_structure_or_class_change = _is_true(
             interrogation.get("requires_structure_change")
         ) or _is_true(interrogation.get("requires_class_change"))
-        if needs_structure_or_class_change and not _is_true(
+        if node_claims_executable and needs_structure_or_class_change and not _is_true(
             interrogation.get("architect_decomposition_permission")
         ):
             violations.append(
@@ -272,9 +253,9 @@ def evaluate_document(
                 )
             )
 
-        if _is_true(interrogation.get("exact_ui_control_path_used")) and not _is_true(
-            interrogation.get("ui_control_evidence_present")
-        ):
+        if node_claims_executable and _is_true(
+            interrogation.get("exact_ui_control_path_used")
+        ) and not _is_true(interrogation.get("ui_control_evidence_present")):
             violations.append(
                 _rule(
                     "R10_UI_CONTROL_PATH_REQUIRES_EVIDENCE",
@@ -284,9 +265,9 @@ def evaluate_document(
                 )
             )
 
-        if _is_true(interrogation.get("accessibility_claimed")) and not _is_true(
-            interrogation.get("accessibility_evidenced")
-        ):
+        if node_claims_executable and _is_true(
+            interrogation.get("accessibility_claimed")
+        ) and not _is_true(interrogation.get("accessibility_evidenced")):
             violations.append(
                 _rule(
                     "R16_ACCESSIBILITY_CLAIM_REQUIRES_EVIDENCE",
@@ -296,7 +277,6 @@ def evaluate_document(
                 )
             )
 
-        node_status = node.get("node_status")
         if executable and node_status in BLOCKING_NODE_STATUSES:
             violations.append(
                 _rule(
@@ -352,11 +332,7 @@ def evaluate_document(
             qa_block.get("full_qa_evidence_present")
         ):
             violations.append(
-                _rule(
-                    "R12_PRODUCTION_READY_REQUIRES_QA_EVIDENCE",
-                    "blocked",
-                    "production_ready true requires separate QA evidence.",
-                )
+                _rule("R12_PRODUCTION_READY_REQUIRES_QA_EVIDENCE", "blocked", "production_ready true requires QA evidence.")
             )
             break
 
