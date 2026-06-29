@@ -44,11 +44,20 @@ def _schema_errors(document: dict[str, Any], repo_root: Path) -> list[str]:
     return errors
 
 
+def _builder_ready_requested(document: dict[str, Any]) -> bool:
+    package = document.get("builder_executable_package")
+    return bool(
+        document.get("visual_parity_build") is True
+        or document.get("builder_ready") is True
+        or (isinstance(package, dict) and package.get("visual_parity_build") is True)
+    )
+
+
 def _rule_errors(document: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     lock = document.get("reference_paradigm_lock")
     structure_map = document.get("paradigm_to_structure_map")
-    builder_ready = document.get("builder_ready") is True or "builder_executable_package" in document
+    builder_ready = _builder_ready_requested(document)
 
     if not isinstance(lock, dict):
         return ["reference_paradigm_lock is required"]
@@ -118,6 +127,8 @@ def _paths(path: Path) -> list[Path]:
 
 def validate_path(path: str | Path, *, repo_root: Path | None = None) -> dict[str, Any]:
     target = Path(path)
+    if not target.exists():
+        raise FileNotFoundError(f"Path does not exist: {target}")
     results = []
     for fixture_path in _paths(target):
         result = validate_reference_paradigm_lock(_load_document(fixture_path), repo_root=repo_root)
