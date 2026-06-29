@@ -1,0 +1,30 @@
+[project]
+name = "ev4-constructability-engineer"
+version = "0.1.0"
+description = "Fail-closed implementation strategy gate between EV4 Architect and EV4 Builder Assistant."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "jsonschema>=4.22.0",
+  "pyyaml>=6.0.1"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2.0",
+  "ruff>=0.5.0"
+]
+
+[project.scripts]
+ev4-constructability = "validator.engine:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
