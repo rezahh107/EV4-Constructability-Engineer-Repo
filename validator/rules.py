@@ -10,6 +10,31 @@ BLOCKING_NODE_STATUSES = {"blocked", "needs_user_evidence", "needs_architect_ame
 NON_EXECUTABLE_REVIEW_STATUSES = {"blocked", "needs_user_evidence", "needs_architect_amendment"}
 RESPONSIVE_ALLOWED = {"blocked", "evidence_backed", "not_applicable"}
 VALIDATION_MODES = {"report", "package", "full"}
+UNRESOLVED_DECISION_KEYS = {
+    "architect_decision_required",
+    "builder_decision_required",
+    "choose_between",
+    "decision_to_make",
+    "open_question",
+    "requires_architect_amendment",
+    "requires_builder_decision",
+    "requires_user_choice",
+    "tbd",
+    "todo",
+    "unknown_control",
+    "unresolved_decision",
+    "user_decision_required",
+}
+UNRESOLVED_DECISION_VALUES = {
+    "architect_choice_required",
+    "builder_decision_required",
+    "choose_in_builder",
+    "tbd",
+    "todo",
+    "unknown",
+    "unresolved",
+    "user_choice_required",
+}
 
 
 def _is_true(value: Any) -> bool:
@@ -30,6 +55,11 @@ def _review(doc: dict[str, Any]) -> dict[str, Any]:
 
 def _package(doc: dict[str, Any]) -> dict[str, Any] | None:
     return doc.get("builder_executable_package")
+
+
+def _strategy_map(doc: dict[str, Any]) -> dict[str, Any] | None:
+    strategy_map = doc.get("implementation_strategy_map")
+    return strategy_map if isinstance(strategy_map, dict) else None
 
 
 def _nodes(doc: dict[str, Any]) -> list[dict[str, Any]]:
@@ -84,6 +114,21 @@ def _same_class_contract(actual: Any, expected: Any) -> bool:
     return len(actual_classes) == len(expected_classes) and set(actual_classes) == set(expected_classes)
 
 
+def _contains_unresolved_decision(value: Any) -> bool:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key).strip().lower() in UNRESOLVED_DECISION_KEYS:
+                return True
+            if _contains_unresolved_decision(child):
+                return True
+        return False
+    if isinstance(value, list):
+        return any(_contains_unresolved_decision(item) for item in value)
+    if isinstance(value, str):
+        return value.strip().lower() in UNRESOLVED_DECISION_VALUES
+    return False
+
+
 def _evaluate_architect_contract(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
     violations: list[ConstructabilityViolation] = []
     pkg = _package(doc)
@@ -109,6 +154,120 @@ def _evaluate_architect_contract(doc: dict[str, Any]) -> list[ConstructabilityVi
 
     if not _same_class_contract(pkg.get("approved_class_names"), contract.get("approved_class_names")):
         violations.append(_rule("R23_ARCHITECT_CONTRACT_MISMATCH", "blocked", "approved_class_names must match architect_contract exactly; Builder may not add or remove classes.", "builder_executable_package.approved_class_names"))
+
+    return violations
+
+
+def _evaluate_strategy_map_contract(doc: dict[str, Any], *, executable: bool) -> list[ConstructabilityViolation]:
+    violations: list[ConstructabilityViolation] = []
+    if not executable:
+        return violations
+
+    pkg = _package(doc)
+    review = _review(doc)
+    strategy_map = _strategy_map(doc)
+    strategy_map_ref = (pkg or {}).get("strategy_map_ref")
+
+    if strategy_map_ref and strategy_map is None:
+        violations.append(
+            _rule(
+                "R33_IMPLEMENTATION_STRATEGY_MAP_REQUIRED",
+                "blocked",
+                "Executable package with strategy_map_ref requires implementation_strategy_map.",
+                "implementation_strategy_map",
+            )
+        )
+        return violations
+
+    if strategy_map is None:
+        return violations
+
+    expected_candidate = (pkg or review).get("selected_candidate_id")
+    if expected_candidate and strategy_map.get("selected_candidate_id") != expected_candidate:
+        violations.append(
+            _rule(
+                "R33_IMPLEMENTATION_STRATEGY_MAP_CANDIDATE_MISMATCH",
+                "blocked",
+                "implementation_strategy_map.selected_candidate_id must match executable package candidate.",
+                "implementation_strategy_map.selected_candidate_id",
+            )
+        )
+
+    strategies = strategy_map.get("strategies")
+    if not isinstance(strategies, list) or not strategies:
+        violations.append(
+            _rule(
+                "R33_IMPLEMENTATION_STRATEGY_MAP_STRATEGIES_REQUIRED",
+                "blocked",
+                "Executable implementation_strategy_map requires at least one strategy.",
+                "implementation_strategy_map.strategies",
+            )
+        )
+        return violations
+
+    for index, strategy in enumerate(strategies):
+        location = f"implementation_strategy_map.strategies[{index}]"
+        if not isinstance(strategy, dict):
+            violations.append(_rule("R33_IMPLEMENTATION_STRATEGY_MAP_STRATEGY_OBJECT_REQUIRED", "blocked", "Each strategy must be an object.", location))
+            continue
+        if strategy.get("builder_decisions_required") != 0:
+            violations.append(
+                _rule(
+                    "R33_IMPLEMENTATION_STRATEGY_ZERO_BUILDER_DECISIONS",
+                    "blocked",
+                    "Executable strategy map requires every strategy.builder_decisions_required == 0.",
+                    f"{location}.builder_decisions_required",
+                )
+            )
+        if strategy.get("architect_amendment_required") is True:
+            violations.append(
+                _rule(
+                    "R33_IMPLEMENTATION_STRATEGY_NO_ARCHITECT_AMENDMENT",
+                    "blocked",
+                    "Executable strategy map must not require Architect amendment.",
+                    f"{location}.architect_amendment_required",
+                )
+            )
+
+    return violations
+
+
+def _evaluate_first_batch_decision_contract(doc: dict[str, Any], *, executable: bool) -> list[ConstructabilityViolation]:
+    violations: list[ConstructabilityViolation] = []
+    if not executable:
+        return violations
+
+    pkg = _package(doc)
+    first_batch = (pkg or {}).get("first_safe_builder_batch")
+    if not isinstance(first_batch, dict):
+        return violations
+
+    actions = first_batch.get("actions")
+    if not isinstance(actions, list):
+        return violations
+
+    for index, action in enumerate(actions):
+        location = f"builder_executable_package.first_safe_builder_batch.actions[{index}]"
+        if not isinstance(action, dict):
+            continue
+        if action.get("requires_decision") is not False:
+            violations.append(
+                _rule(
+                    "R34_FIRST_BATCH_ACTION_REQUIRES_DECISION_FALSE",
+                    "blocked",
+                    "First Builder batch actions must have requires_decision false.",
+                    f"{location}.requires_decision",
+                )
+            )
+        if _contains_unresolved_decision(action.get("parameters")):
+            violations.append(
+                _rule(
+                    "R34_FIRST_BATCH_PARAMETERS_NO_UNRESOLVED_DECISIONS",
+                    "blocked",
+                    "First Builder batch parameters must not contain unresolved Builder, user, or Architect decisions.",
+                    f"{location}.parameters",
+                )
+            )
 
     return violations
 
@@ -142,6 +301,8 @@ def evaluate_document(doc: dict[str, Any], *, mode: ValidationMode = "full") -> 
 
     violations.extend(_evaluate_mode_contract(doc, mode))
     violations.extend(_evaluate_architect_contract(doc))
+    violations.extend(_evaluate_strategy_map_contract(doc, executable=executable))
+    violations.extend(_evaluate_first_batch_decision_contract(doc, executable=executable))
 
     builder_decisions_required = _builder_decisions_required(doc)
     if executable and builder_decisions_required != 0:
