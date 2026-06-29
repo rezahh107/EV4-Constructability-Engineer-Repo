@@ -1,0 +1,79 @@
+fixture_id: v03_six_independent_connectors_ready
+expected:
+  validation_pass: true
+constructability_review:
+  review_id: CRR-V03
+  architect_package_ref: ARCH-PKG-V03
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: connector-layer
+      node_type: SVGWidgets
+      action_proposed: add six independent connectors with proven strategy
+      node_status: executable_ready
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: true
+        geometry_proven: true
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: true
+        overlay_strategy_proven: true
+        responsive_behavior: blocked
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: true
+        requires_class_change: false
+        requires_structure_change: false
+implementation_strategy_map:
+  strategy_map_id: ISM-V03
+  review_ref: CRR-V03
+  selected_candidate_id: ARCH-FAM-C
+  strategies:
+    - strategy_id: STR-V03-CONNECTORS
+      node_id: connector-layer
+      strategy_selected: six_independent_svg_connectors
+      alternatives_considered: [unified_svg_connector, css_lines, temporary_skip]
+      rationale: independent connectors reduce drift repair risk
+      evidence_source: user_statement
+      builder_decisions_required: 0
+      architect_amendment_required: false
+      class_names_affected: []
+builder_executable_package:
+  package_id: BEP-V03
+  review_ref: CRR-V03
+  strategy_map_ref: ISM-V03
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names: [smart-home__association-lines]
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-BATCH-003
+    confirmed_action_ids: [BATCH-003-A01]
+    expected_user_token: تایید BATCH-003
+  first_safe_builder_batch:
+    batch_id: BATCH-003
+    risk: high
+    actions:
+      - action_id: BATCH-003-A01
+        action_type: add_independent_connectors
+        target_node: connector-layer
+        parameters:
+          connector_count: 6
+        requires_decision: false
+  qa_status:
+    production_ready: false
