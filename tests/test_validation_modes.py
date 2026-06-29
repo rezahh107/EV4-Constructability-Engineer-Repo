@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from validator.engine import validate_file
+from validator.engine import validate_document, validate_file
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,6 +15,46 @@ def test_report_mode_accepts_non_executable_review_without_package() -> None:
     assert result["passed"] is True
     assert result["mode"] == "report"
     assert result["rules_violated"] == []
+
+
+def test_report_mode_rejects_executable_ready_review_without_package() -> None:
+    result = validate_document(
+        {
+            "constructability_review": {
+                "review_id": "CRR-REPORT-EXEC",
+                "architect_package_ref": "ARCH-PKG-REPORT-EXEC",
+                "selected_candidate_id": "ARCH-FAM-C",
+                "constructability_status": "executable_ready",
+                "builder_decisions_required": 0,
+                "blocking_dependencies": [],
+                "reviewed_nodes": [
+                    {
+                        "node_id": "root",
+                        "node_type": "Flexbox",
+                        "action_proposed": "report incorrectly claims executable status",
+                        "node_status": "executable_ready",
+                        "interrogation_result": {
+                            "geometry_required": False,
+                            "asset_required": False,
+                            "overlay_strategy_required": False,
+                            "responsive_behavior": "not_applicable",
+                            "interaction_implied": False,
+                            "dynamic_loop_implied": False,
+                            "accessibility_claimed": False,
+                            "exact_ui_control_path_used": False,
+                            "requires_class_change": False,
+                            "requires_structure_change": False,
+                        },
+                    }
+                ],
+            }
+        },
+        repo_root=ROOT,
+        mode="report",
+    )
+
+    assert result["passed"] is False
+    assert "R21_REPORT_MODE_MUST_BE_NON_EXECUTABLE" in result["rules_violated"]
 
 
 def test_package_mode_requires_builder_package() -> None:
