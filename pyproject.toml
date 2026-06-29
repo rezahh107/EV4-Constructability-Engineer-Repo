@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ev4-constructability-engineer"
 version = "0.1.0"
-description = "Fail-closed implementation strategy gate between EV4 Architect and EV4 Builder Assistant."
+description = "EV4 constructability validator"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -17,6 +21,9 @@ dev = [
 
 [project.scripts]
 ev4-constructability = "validator.engine:main"
+
+[tool.setuptools]
+packages = ["validator"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
