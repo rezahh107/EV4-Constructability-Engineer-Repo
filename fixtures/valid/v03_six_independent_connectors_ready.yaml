@@ -1,4 +1,4 @@
-fixture_id: v03_six_independent_connectors_ready
+fixture_id: v03_decorative_layer_ready
 expected:
   validation_pass: true
 constructability_review:
@@ -9,20 +9,20 @@ constructability_review:
   builder_decisions_required: 0
   blocking_dependencies: []
   reviewed_nodes:
-    - node_id: connector-layer
-      node_type: SVGWidgets
-      action_proposed: add six independent connectors with proven strategy
+    - node_id: decorative-layer
+      node_type: Layer
+      action_proposed: add approved decorative layer
       node_status: executable_ready
       blocking_reason: null
       interrogation_result:
-        geometry_required: true
-        geometry_proven: true
+        geometry_required: false
+        geometry_proven: null
         asset_required: false
         asset_source_present: null
         placeholder_policy_present: null
-        overlay_strategy_required: true
-        overlay_strategy_proven: true
-        responsive_behavior: blocked
+        overlay_strategy_required: false
+        overlay_strategy_proven: null
+        responsive_behavior: not_applicable
         action_targets_responsive: false
         interaction_implied: false
         interaction_approved: null
@@ -40,11 +40,11 @@ implementation_strategy_map:
   review_ref: CRR-V03
   selected_candidate_id: ARCH-FAM-C
   strategies:
-    - strategy_id: STR-V03-CONNECTORS
-      node_id: connector-layer
-      strategy_selected: six_independent_svg_connectors
-      alternatives_considered: [unified_svg_connector, css_lines, temporary_skip]
-      rationale: independent connectors reduce drift repair risk
+    - strategy_id: STR-V03
+      node_id: decorative-layer
+      strategy_selected: approved_decorative_layer
+      alternatives_considered: [temporary_skip]
+      rationale: approved structure preserved
       evidence_source: user_statement
       builder_decisions_required: 0
       architect_amendment_required: false
@@ -53,6 +53,10 @@ builder_executable_package:
   package_id: BEP-V03
   review_ref: CRR-V03
   strategy_map_ref: ISM-V03
+  architect_contract:
+    source_ref: ARCH-PKG-V03
+    selected_candidate_id: ARCH-FAM-C
+    approved_class_names: [smart-home__association-lines]
   selected_candidate_id: ARCH-FAM-C
   approved_class_names: [smart-home__association-lines]
   builder_package_status: executable_ready
@@ -67,13 +71,13 @@ builder_executable_package:
     expected_user_token: تایید BATCH-003
   first_safe_builder_batch:
     batch_id: BATCH-003
-    risk: high
+    risk: medium
     actions:
       - action_id: BATCH-003-A01
-        action_type: add_independent_connectors
-        target_node: connector-layer
+        action_type: create_element
+        target_node: decorative-layer
         parameters:
-          connector_count: 6
+          element_type: Layer
         requires_decision: false
   qa_status:
     production_ready: false

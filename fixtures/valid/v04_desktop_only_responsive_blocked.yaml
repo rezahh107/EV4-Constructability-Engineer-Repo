@@ -39,6 +39,10 @@ builder_executable_package:
   package_id: BEP-V04
   review_ref: CRR-V04
   strategy_map_ref: null
+  architect_contract:
+    source_ref: ARCH-PKG-V04
+    selected_candidate_id: ARCH-FAM-C
+    approved_class_names: [smart-home__feature-grid--primary]
   selected_candidate_id: ARCH-FAM-C
   approved_class_names: [smart-home__feature-grid--primary]
   builder_package_status: executable_ready

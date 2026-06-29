@@ -5,6 +5,7 @@
   "required": [
     "package_id",
     "review_ref",
+    "architect_contract",
     "selected_candidate_id",
     "approved_class_names",
     "builder_package_status",
@@ -21,6 +22,7 @@
     "package_id": {"type": "string"},
     "review_ref": {"type": "string"},
     "strategy_map_ref": {"type": ["string", "null"]},
+    "architect_contract": {"$ref": "#/$defs/architect_contract"},
     "selected_candidate_id": {"type": "string"},
     "approved_class_names": {"type": "array", "items": {"type": "string"}},
     "builder_package_status": {"type": "string", "const": "executable_ready"},
@@ -36,6 +38,20 @@
     "qa_status": {"type": "object", "additionalProperties": true}
   },
   "$defs": {
+    "architect_contract": {
+      "type": "object",
+      "required": ["source_ref", "selected_candidate_id", "approved_class_names"],
+      "additionalProperties": true,
+      "properties": {
+        "source_ref": {"type": "string", "minLength": 1},
+        "selected_candidate_id": {"type": "string", "minLength": 1},
+        "approved_class_names": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        }
+      }
+    },
     "confirmation_request": {
       "type": "object",
       "required": ["confirmation_id", "confirmed_action_ids", "expected_user_token"],
