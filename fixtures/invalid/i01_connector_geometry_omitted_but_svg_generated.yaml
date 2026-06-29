@@ -1,0 +1,63 @@
+fixture_id: i01_connector_geometry_omitted_but_svg_generated
+expected:
+  validation_pass: false
+  rules_violated:
+    - R03_GEOMETRY_MUST_BE_PROVEN
+    - R05_OVERLAY_STRATEGY_MUST_BE_PROVEN
+constructability_review:
+  review_id: CRR-I01
+  architect_package_ref: ARCH-PKG-I01
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: connector-layer
+      node_type: SVGWidget
+      action_proposed: add connector lines without anchor proof
+      node_status: executable_ready
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: true
+        geometry_proven: false
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: true
+        overlay_strategy_proven: false
+        responsive_behavior: blocked
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: false
+        requires_class_change: false
+        requires_structure_change: false
+builder_executable_package:
+  package_id: BEP-I01
+  review_ref: CRR-I01
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names: [connector-class]
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-I01
+    confirmed_action_ids: [A01]
+    expected_user_token: تایید I01
+  first_safe_builder_batch:
+    batch_id: BATCH-I01
+    actions:
+      - action_id: A01
+        action_type: add_unified_connector
+        target_node: connector-layer
+        parameters: {}
+        requires_decision: false
