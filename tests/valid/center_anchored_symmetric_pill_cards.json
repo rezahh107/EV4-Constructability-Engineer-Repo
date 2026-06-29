@@ -1,0 +1,35 @@
+{
+  "reference_paradigm_lock": {
+    "schema": "ev4-reference-paradigm-lock@1.0.0",
+    "source_reference_id": "sshot-2168",
+    "extracted_by": "constructability_engineer",
+    "paradigm_locked": true,
+    "layout_paradigm": "center-anchored-symmetric",
+    "primary_anchor": "house-center",
+    "distribution_model": "3-left-3-right",
+    "repeated_unit_form": "pill-card",
+    "connector_model": "card-edge-to-house-edge",
+    "spatial_symmetry": "horizontal-bilateral",
+    "completion_signature": [
+      "central house is the dominant visual anchor",
+      "exactly 3 feature cards on the left",
+      "exactly 3 feature cards on the right",
+      "each feature is a pill card with title subtitle and icon",
+      "relationship lines run from card edges to house edges"
+    ]
+  },
+  "paradigm_to_structure_map": {
+    "primary_anchor": {"node": "Smart Home Section / Visual Core", "role": "central-house-anchor"},
+    "regions": [
+      {"id": "left_feature_column", "distribution": "left", "expected_count": 3, "nodes": ["Feature Card 01", "Feature Card 02", "Feature Card 03"]},
+      {"id": "right_feature_column", "distribution": "right", "expected_count": 3, "nodes": ["Feature Card 04", "Feature Card 05", "Feature Card 06"]}
+    ],
+    "repeated_units": {"form": "pill-card", "required_children": ["title", "subtitle", "icon"]},
+    "connector_layer": {"node": "Smart Home Section / Decorative Connector Layer", "model": "card-edge-to-house-edge"},
+    "first_batch_requirements": [
+      "must establish central visual anchor region",
+      "must establish left and right feature regions or explicitly stage them",
+      "must not start as a single vertical feature list when distribution_model is 3-left-3-right"
+    ]
+  }
+}
