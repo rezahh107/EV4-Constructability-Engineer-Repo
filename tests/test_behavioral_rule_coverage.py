@@ -57,6 +57,22 @@ def test_parse_coverage_markdown_allows_leading_whitespace_and_one_dash_separato
     assert rows[0]["rule_id"] == "R-TEST-SPACE"
 
 
+def test_parse_coverage_markdown_allows_spaced_header_cells() -> None:
+    doc = "\n".join(
+        [
+            "# Coverage",
+            "",
+            "| rule_id   | concept | risk | prose_source | schema_carrier | validator_rule | valid_fixture | invalid_fixture | CI_step | downstream_contract | status |",
+            "|---|---|---:|---|---|---|---|---|---|---|---|",
+            "| `R-TEST-SPACED-HEADER` | Test | High | `docs/test.md` | `field` | `R_TEST` | `tests/valid/test.json` | `tests/invalid/test.json` | `pytest -q` | consumer | `validator_backed` |",
+        ]
+    )
+
+    rows = parse_coverage_markdown(doc)
+
+    assert rows[0]["rule_id"] == "R-TEST-SPACED-HEADER"
+
+
 def test_critical_schema_backed_rule_fails_closed() -> None:
     errors = validate_rows([_row("R-TEST-CRITICAL", "Critical", "schema_backed")])
 
