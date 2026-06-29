@@ -48,17 +48,11 @@ def test_parser_allows_leading_whitespace_and_one_dash_separator() -> None:
     assert rows[0]["rule_id"] == "R-TEST-SPACE"
 
 
-def test_critical_schema_backed_rule_fails_unless_deferred() -> None:
+def test_critical_schema_backed_rule_fails() -> None:
     errors = validate_rows([row("R-TEST-CRITICAL", "Critical", "schema_backed")])
 
     assert errors
     assert "R-TEST-CRITICAL" in errors[0]
-
-
-def test_deferred_strategy_gap_is_allowed_temporarily() -> None:
-    errors = validate_rows([row("R-CE-ISM-01", "Critical", "schema_backed")])
-
-    assert errors == []
 
 
 def test_duplicate_rule_id_fails() -> None:

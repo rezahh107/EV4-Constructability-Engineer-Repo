@@ -1,0 +1,60 @@
+fixture_id: i11_batch_parameters_hide_decision
+expected:
+  validation_pass: false
+  rules_violated:
+    - R34_FIRST_BATCH_PARAMETERS_NO_UNRESOLVED_DECISIONS
+constructability_review:
+  review_id: CRR-I11
+  architect_package_ref: ARCH-PKG-I11
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: root
+      node_type: Flexbox
+      action_proposed: create root
+      node_status: executable_ready
+      interrogation_result:
+        geometry_required: false
+        asset_required: false
+        overlay_strategy_required: false
+        responsive_behavior: not_applicable
+        action_targets_responsive: false
+        interaction_implied: false
+        dynamic_loop_implied: false
+        accessibility_claimed: false
+        exact_ui_control_path_used: false
+        requires_class_change: false
+        requires_structure_change: false
+builder_executable_package:
+  package_id: BEP-I11
+  review_ref: CRR-I11
+  strategy_map_ref: null
+  architect_contract:
+    source_ref: ARCH-PKG-I11
+    selected_candidate_id: ARCH-FAM-C
+    approved_class_names: [root-class]
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names: [root-class]
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-I11
+    confirmed_action_ids: [A01]
+    expected_user_token: confirm I11
+  first_safe_builder_batch:
+    batch_id: BATCH-I11
+    actions:
+      - action_id: A01
+        action_type: create_element
+        target_node: root
+        parameters:
+          choose_between:
+            - left
+            - right
+        requires_decision: false

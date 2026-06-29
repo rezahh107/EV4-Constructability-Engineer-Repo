@@ -1,0 +1,68 @@
+fixture_id: i10_strategy_map_requires_builder_decision
+expected:
+  validation_pass: false
+  rules_violated:
+    - R33_IMPLEMENTATION_STRATEGY_ZERO_BUILDER_DECISIONS
+constructability_review:
+  review_id: CRR-I10
+  architect_package_ref: ARCH-PKG-I10
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: root
+      node_type: Flexbox
+      action_proposed: create root
+      node_status: executable_ready
+      interrogation_result:
+        geometry_required: false
+        asset_required: false
+        overlay_strategy_required: false
+        responsive_behavior: not_applicable
+        action_targets_responsive: false
+        interaction_implied: false
+        dynamic_loop_implied: false
+        accessibility_claimed: false
+        exact_ui_control_path_used: false
+        requires_class_change: false
+        requires_structure_change: false
+implementation_strategy_map:
+  strategy_map_id: ISM-I10
+  review_ref: CRR-I10
+  selected_candidate_id: ARCH-FAM-C
+  strategies:
+    - strategy_id: STR-I10
+      node_id: root
+      strategy_selected: approved_structure
+      builder_decisions_required: 1
+      architect_amendment_required: false
+      class_names_affected: []
+builder_executable_package:
+  package_id: BEP-I10
+  review_ref: CRR-I10
+  strategy_map_ref: ISM-I10
+  architect_contract:
+    source_ref: ARCH-PKG-I10
+    selected_candidate_id: ARCH-FAM-C
+    approved_class_names: [root-class]
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names: [root-class]
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-I10
+    confirmed_action_ids: [A01]
+    expected_user_token: confirm I10
+  first_safe_builder_batch:
+    batch_id: BATCH-I10
+    actions:
+      - action_id: A01
+        action_type: create_element
+        target_node: root
+        parameters: {}
+        requires_decision: false
