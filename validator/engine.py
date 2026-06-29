@@ -35,8 +35,6 @@ def load_json(path: str | Path) -> dict[str, Any]:
 
 
 def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> list[str]:
-    """Validate embedded package sections against JSON Schemas when present."""
-
     root = repo_root or Path.cwd()
     errors: list[str] = []
 
@@ -45,7 +43,11 @@ def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> 
             continue
         schema = load_json(root / schema_path)
         validator = Draft202012Validator(schema)
-        for error in sorted(validator.iter_errors(document[key]), key=lambda item: list(item.path)):
+        schema_errors = sorted(
+            validator.iter_errors(document[key]),
+            key=lambda item: list(item.path),
+        )
+        for error in schema_errors:
             path = ".".join(str(part) for part in error.path) or key
             errors.append(f"{key}.{path}: {error.message}")
 
@@ -55,10 +57,8 @@ def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> 
 def validate_document(document: dict[str, Any], *, repo_root: Path | None = None) -> dict[str, Any]:
     schema_errors = schema_validate(document, repo_root=repo_root)
     rule_violations = evaluate_document(document)
-
     expected = document.get("expected") or {}
     expected_pass = expected.get("validation_pass")
-
     passed = not schema_errors and not rule_violations
     result = {
         "passed": passed,
@@ -79,12 +79,18 @@ def validate_document(document: dict[str, Any], *, repo_root: Path | None = None
     return result
 
 
-def validate_file(path: str | Path, *, repo_root: Path | None = None, strict: bool = False) -> dict[str, Any]:
+def validate_file(
+    path: str | Path,
+    *,
+    repo_root: Path | None = None,
+    strict: bool = False,
+) -> dict[str, Any]:
     document = load_yaml(path)
     result = validate_document(document, repo_root=repo_root)
     if strict and not result["passed"]:
         violations = [
-            ConstructabilityViolation(**violation) for violation in result.get("violations", [])
+            ConstructabilityViolation(**violation)
+            for violation in result.get("violations", [])
         ]
         raise ConstructabilityException(violations)
     return result
