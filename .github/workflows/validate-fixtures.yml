@@ -11,6 +11,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e '.[dev]'
       - run: pytest -q
+      - run: npm run test:reference-paradigm-lock

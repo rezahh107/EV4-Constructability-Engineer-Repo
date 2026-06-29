@@ -1,0 +1,10 @@
+{
+  "name": "ev4-constructability-engineer-reference-paradigm-lock",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate:reference-paradigm-lock": "node scripts/validate-reference-paradigm-lock.mjs tests/valid/center_anchored_symmetric_pill_cards.json --repo-root .",
+    "validate:reference-paradigm-lock:invalid": "node scripts/validate-reference-paradigm-lock.mjs tests/invalid --repo-root .",
+    "test:reference-paradigm-lock": "npm run validate:reference-paradigm-lock && npm run validate:reference-paradigm-lock:invalid --silent; test $? -ne 0"
+  }
+}

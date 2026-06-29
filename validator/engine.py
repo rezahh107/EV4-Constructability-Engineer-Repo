@@ -18,6 +18,7 @@ SCHEMA_BY_KIND = {
     "implementation_strategy_map": "schemas/implementation_strategy_map.schema.json",
     "builder_executable_package": "schemas/builder_executable_package.schema.json",
 }
+REFERENCE_PARADIGM_SCHEMA = "schemas/reference-paradigm-lock.schema.json"
 VALIDATION_MODES = {"report", "package", "full"}
 
 
@@ -37,6 +38,15 @@ def load_json(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def _collect_schema_errors(schema: dict[str, Any], document: dict[str, Any], prefix: str) -> list[str]:
+    validator = Draft202012Validator(schema)
+    errors = []
+    for error in sorted(validator.iter_errors(document), key=lambda item: list(item.path)):
+        path = ".".join(str(part) for part in error.path) or prefix
+        errors.append(f"{path}: {error.message}")
+    return errors
+
+
 def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> list[str]:
     root = repo_root or Path.cwd()
     errors: list[str] = []
@@ -45,11 +55,11 @@ def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> 
         if key not in document:
             continue
         schema = load_json(root / schema_path)
-        validator = Draft202012Validator(schema)
-        schema_errors = sorted(validator.iter_errors(document[key]), key=lambda item: list(item.path))
-        for error in schema_errors:
-            path = ".".join(str(part) for part in error.path) or key
-            errors.append(f"{key}.{path}: {error.message}")
+        errors.extend(_collect_schema_errors(schema, document[key], key))
+
+    if "reference_paradigm_lock" in document or "paradigm_to_structure_map" in document:
+        schema = load_json(root / REFERENCE_PARADIGM_SCHEMA)
+        errors.extend(_collect_schema_errors(schema, document, "reference_paradigm_lock"))
 
     return errors
 
@@ -83,12 +93,73 @@ def _mode_preflight_violations(document: dict[str, Any], mode: ValidationMode) -
     return []
 
 
+def _visual_parity_requested(document: dict[str, Any]) -> bool:
+    package = document.get("builder_executable_package")
+    return bool(
+        document.get("visual_parity_build") is True
+        or document.get("builder_ready") is True
+        or (isinstance(package, dict) and package.get("visual_parity_build") is True)
+    )
+
+
+def _reference_paradigm_preflight_violations(document: dict[str, Any]) -> list[ConstructabilityViolation]:
+    if not _visual_parity_requested(document):
+        return []
+
+    violations: list[ConstructabilityViolation] = []
+    lock = document.get("reference_paradigm_lock")
+    structure_map = document.get("paradigm_to_structure_map")
+
+    if not isinstance(lock, dict) or lock.get("paradigm_locked") is not True:
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R29_REFERENCE_PARADIGM_LOCK_REQUIRED",
+                status="blocked",
+                message="visual-parity Builder-ready output requires locked reference_paradigm_lock.",
+                location="reference_paradigm_lock",
+            )
+        )
+        return violations
+
+    if lock.get("layout_paradigm") == "unknown":
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R30_REFERENCE_PARADIGM_UNKNOWN_BLOCKS_BUILDER_READY",
+                status="blocked",
+                message="layout_paradigm unknown blocks Builder-ready visual-parity output.",
+                location="reference_paradigm_lock.layout_paradigm",
+            )
+        )
+
+    if not isinstance(structure_map, dict):
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R31_REFERENCE_PARADIGM_STRUCTURE_MAP_REQUIRED",
+                status="blocked",
+                message="visual-parity Builder-ready output requires paradigm_to_structure_map.",
+                location="paradigm_to_structure_map",
+            )
+        )
+    elif not isinstance(structure_map.get("first_batch_requirements"), list) or not structure_map.get("first_batch_requirements"):
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R32_REFERENCE_PARADIGM_FIRST_BATCH_REQUIREMENTS_REQUIRED",
+                status="blocked",
+                message="visual-parity Builder-ready output requires first_batch_requirements.",
+                location="paradigm_to_structure_map.first_batch_requirements",
+            )
+        )
+
+    return violations
+
+
 def validate_document(document: dict[str, Any], *, repo_root: Path | None = None, mode: ValidationMode = "full") -> dict[str, Any]:
     if mode not in VALIDATION_MODES:
         raise ValueError(f"Unsupported validation mode: {mode}")
 
     schema_errors = schema_validate(document, repo_root=repo_root)
     rule_violations = _mode_preflight_violations(document, mode)
+    rule_violations.extend(_reference_paradigm_preflight_violations(document))
     rule_violations.extend(evaluate_document(document, mode=mode))
     expected = document.get("expected") or {}
     expected_pass = expected.get("validation_pass")
@@ -123,7 +194,7 @@ def validate_file(path: str | Path, *, repo_root: Path | None = None, mode: Vali
 
 
 def _fixture_paths(directory: Path) -> list[Path]:
-    return sorted([*directory.rglob("*.yaml"), *directory.rglob("*.yml")])
+    return sorted([*directory.rglob("*.json"), *directory.rglob("*.yaml"), *directory.rglob("*.yml")])
 
 
 def validate_path(path: str | Path, *, repo_root: Path | None = None, mode: ValidationMode = "full") -> dict[str, Any]:
@@ -142,13 +213,7 @@ def validate_path(path: str | Path, *, repo_root: Path | None = None, mode: Vali
         result["path"] = str(fixture_path)
         results.append(result)
 
-    return {
-        "passed": all(item["passed"] for item in results),
-        "mode": mode,
-        "path": str(target),
-        "count": len(results),
-        "results": results,
-    }
+    return {"passed": all(item["passed"] for item in results), "mode": mode, "path": str(target), "count": len(results), "results": results}
 
 
 def main(argv: list[str] | None = None) -> int:
