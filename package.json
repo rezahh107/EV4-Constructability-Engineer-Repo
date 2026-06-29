@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "validate:reference-paradigm-lock": "node scripts/validate-reference-paradigm-lock.mjs tests/valid/center_anchored_symmetric_pill_cards.json --repo-root .",
-    "test:reference-paradigm-lock": "npm run validate:reference-paradigm-lock && if python -m validator.reference_paradigm_lock tests/invalid --repo-root .; then echo 'Invalid reference paradigm fixtures unexpectedly passed'; exit 1; else echo 'Invalid reference paradigm fixtures correctly failed'; fi"
+    "validate:reference-paradigm-lock:invalid": "node scripts/validate-reference-paradigm-lock.mjs tests/invalid --repo-root .",
+    "test:reference-paradigm-lock": "npm run validate:reference-paradigm-lock && npm run validate:reference-paradigm-lock:invalid --silent; test $? -ne 0"
   }
 }
