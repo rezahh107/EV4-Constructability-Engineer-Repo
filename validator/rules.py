@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from .exceptions import ConstructabilityViolation
 
+ValidationMode = Literal["report", "package", "full"]
+
 BLOCKING_NODE_STATUSES = {"blocked", "needs_user_evidence", "needs_architect_amendment"}
+NON_EXECUTABLE_REVIEW_STATUSES = {"blocked", "needs_user_evidence", "needs_architect_amendment"}
 RESPONSIVE_ALLOWED = {"blocked", "evidence_backed", "not_applicable"}
+VALIDATION_MODES = {"report", "package", "full"}
 
 
 def _is_true(value: Any) -> bool:
@@ -38,19 +42,26 @@ def _nodes(doc: dict[str, Any]) -> list[dict[str, Any]]:
     return list((_review(doc).get("reviewed_nodes") or []))
 
 
-def _status(doc: dict[str, Any]) -> str | None:
-    pkg = _package(doc)
-    if pkg:
-        return pkg.get("builder_package_status")
+def _review_status(doc: dict[str, Any]) -> str | None:
     return _review(doc).get("constructability_status")
 
 
-def _blocking_dependencies(doc: dict[str, Any]) -> list[Any]:
-    """Combine review-level and package-level blocking dependencies.
+def _package_status(doc: dict[str, Any]) -> str | None:
+    pkg = _package(doc)
+    if pkg is None:
+        return None
+    return pkg.get("builder_package_status")
 
-    A Builder package cannot hide global review blockers by setting its own
-    `blocking_dependencies` list to an empty list.
-    """
+
+def _status(doc: dict[str, Any]) -> str | None:
+    package_status = _package_status(doc)
+    if package_status:
+        return package_status
+    return _review_status(doc)
+
+
+def _blocking_dependencies(doc: dict[str, Any]) -> list[Any]:
+    """Combine review-level and package-level blocking dependencies."""
 
     pkg = _package(doc)
     deps = list(_review(doc).get("blocking_dependencies") or [])
@@ -60,11 +71,7 @@ def _blocking_dependencies(doc: dict[str, Any]) -> list[Any]:
 
 
 def _builder_decisions_required(doc: dict[str, Any]) -> int | None:
-    """Return the strictest known Builder decision count.
-
-    If both review and package provide the field, any non-zero value must block
-    `executable_ready`. Taking the maximum prevents package-level shadowing.
-    """
+    """Return the strictest known Builder decision count."""
 
     values: list[int] = []
     review_value = _review(doc).get("builder_decisions_required")
@@ -80,19 +87,79 @@ def _builder_decisions_required(doc: dict[str, Any]) -> int | None:
     return max(values) if values else None
 
 
-def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
-    """Return fail-closed violations for a constructability fixture or package.
+def _evaluate_mode_contract(
+    doc: dict[str, Any],
+    mode: ValidationMode,
+) -> list[ConstructabilityViolation]:
+    violations: list[ConstructabilityViolation] = []
+    review_status = _review_status(doc)
+    pkg = _package(doc)
+    package_present = pkg is not None
 
-    The engine intentionally uses redundant gates. A package must satisfy
-    schema-level structure and rule-level execution proof. Architect silence is
-    never treated as proof.
-    """
+    if mode not in VALIDATION_MODES:
+        violations.append(
+            _rule(
+                "R00_INVALID_VALIDATION_MODE",
+                "blocked",
+                f"Unsupported validation mode: {mode}.",
+            )
+        )
+        return violations
+
+    if mode == "report" and package_present:
+        violations.append(
+            _rule(
+                "R17_REPORT_MODE_MUST_NOT_EMIT_BUILDER_PACKAGE",
+                "blocked",
+                "report mode validates review output only; builder_executable_package must be absent.",
+            )
+        )
+
+    if mode == "package" and not package_present:
+        violations.append(
+            _rule(
+                "R18_PACKAGE_MODE_REQUIRES_BUILDER_PACKAGE",
+                "blocked",
+                "package mode requires builder_executable_package.",
+            )
+        )
+
+    if package_present and review_status in NON_EXECUTABLE_REVIEW_STATUSES:
+        violations.append(
+            _rule(
+                "R19_NON_EXECUTABLE_REVIEW_MUST_NOT_EMIT_BUILDER_PACKAGE",
+                "blocked",
+                "A non-executable constructability review must not include a Builder package.",
+            )
+        )
+
+    if mode == "package" and review_status != "executable_ready":
+        violations.append(
+            _rule(
+                "R20_PACKAGE_MODE_REQUIRES_EXECUTABLE_REVIEW",
+                "blocked",
+                "package mode requires constructability_status == executable_ready.",
+            )
+        )
+
+    return violations
+
+
+def evaluate_document(
+    doc: dict[str, Any],
+    *,
+    mode: ValidationMode = "full",
+) -> list[ConstructabilityViolation]:
+    """Return fail-closed violations for a constructability fixture or package."""
 
     violations: list[ConstructabilityViolation] = []
     review = _review(doc)
     pkg = _package(doc)
     status = _status(doc)
+    review_status = _review_status(doc)
     executable = status == "executable_ready"
+
+    violations.extend(_evaluate_mode_contract(doc, mode))
 
     builder_decisions_required = _builder_decisions_required(doc)
     if executable and builder_decisions_required != 0:
@@ -293,7 +360,7 @@ def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
             )
             break
 
-    if status == "executable_with_logged_assumption":
+    if review_status == "executable_with_logged_assumption":
         assumptions = review.get("logged_assumptions") or (pkg or {}).get("logged_assumptions") or []
         if not assumptions:
             violations.append(
