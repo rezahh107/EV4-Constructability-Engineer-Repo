@@ -12,8 +12,18 @@ def _is_true(value: Any) -> bool:
     return value is True
 
 
-def _rule(rule_id: str, status: str, message: str, location: str = "document") -> ConstructabilityViolation:
-    return ConstructabilityViolation(rule_id=rule_id, status=status, message=message, location=location)
+def _rule(
+    rule_id: str,
+    status: str,
+    message: str,
+    location: str = "document",
+) -> ConstructabilityViolation:
+    return ConstructabilityViolation(
+        rule_id=rule_id,
+        status=status,
+        message=message,
+        location=location,
+    )
 
 
 def _review(doc: dict[str, Any]) -> dict[str, Any]:
@@ -36,17 +46,46 @@ def _status(doc: dict[str, Any]) -> str | None:
 
 
 def _blocking_dependencies(doc: dict[str, Any]) -> list[Any]:
+    """Combine review-level and package-level blocking dependencies.
+
+    A Builder package cannot hide global review blockers by setting its own
+    `blocking_dependencies` list to an empty list.
+    """
+
+    pkg = _package(doc)
+    deps = list(_review(doc).get("blocking_dependencies") or [])
+    if pkg is not None:
+        deps.extend(pkg.get("blocking_dependencies") or [])
+    return deps
+
+
+def _builder_decisions_required(doc: dict[str, Any]) -> int | None:
+    """Return the strictest known Builder decision count.
+
+    If both review and package provide the field, any non-zero value must block
+    `executable_ready`. Taking the maximum prevents package-level shadowing.
+    """
+
+    values: list[int] = []
+    review_value = _review(doc).get("builder_decisions_required")
+    if isinstance(review_value, int):
+        values.append(review_value)
+
     pkg = _package(doc)
     if pkg is not None:
-        return list(pkg.get("blocking_dependencies") or [])
-    return list(_review(doc).get("blocking_dependencies") or [])
+        package_value = pkg.get("builder_decisions_required")
+        if isinstance(package_value, int):
+            values.append(package_value)
+
+    return max(values) if values else None
 
 
 def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
     """Return fail-closed violations for a constructability fixture or package.
 
-    The engine intentionally uses redundant gates. A package must satisfy schema-level
-    structure and rule-level execution proof. Architect silence is never treated as proof.
+    The engine intentionally uses redundant gates. A package must satisfy
+    schema-level structure and rule-level execution proof. Architect silence is
+    never treated as proof.
     """
 
     violations: list[ConstructabilityViolation] = []
@@ -55,9 +94,7 @@ def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
     status = _status(doc)
     executable = status == "executable_ready"
 
-    builder_decisions_required = (
-        pkg.get("builder_decisions_required") if pkg is not None else review.get("builder_decisions_required")
-    )
+    builder_decisions_required = _builder_decisions_required(doc)
     if executable and builder_decisions_required != 0:
         violations.append(
             _rule(
@@ -175,7 +212,19 @@ def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
                 _rule(
                     "R10_UI_CONTROL_PATH_REQUIRES_EVIDENCE",
                     "needs_user_evidence",
-                    "Exact Elementor UI path requires current UI, user, version, or official-doc evidence.",
+                    "Exact Elementor UI path requires current UI or official-doc evidence.",
+                    location,
+                )
+            )
+
+        if _is_true(interrogation.get("accessibility_claimed")) and not _is_true(
+            interrogation.get("accessibility_evidenced")
+        ):
+            violations.append(
+                _rule(
+                    "R16_ACCESSIBILITY_CLAIM_REQUIRES_EVIDENCE",
+                    "blocked",
+                    "Accessibility claims require supporting evidence.",
                     location,
                 )
             )
@@ -199,7 +248,7 @@ def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
                 _rule(
                     "R11_EXECUTABLE_REQUIRES_CONFIRMATION_AND_BATCH",
                     "blocked",
-                    "executable_ready requires structured confirmation_request and first_safe_builder_batch.",
+                    "executable_ready requires confirmation_request and first_safe_builder_batch.",
                 )
             )
         elif not all(
@@ -210,7 +259,7 @@ def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
                 _rule(
                     "R11_EXECUTABLE_REQUIRES_STRUCTURED_CONFIRMATION",
                     "blocked",
-                    "confirmation_request must include confirmation_id, confirmed_action_ids, expected_user_token.",
+                    "confirmation_request is missing required structured fields.",
                 )
             )
 
@@ -228,15 +277,21 @@ def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
                     )
                 )
 
-    qa = doc.get("qa_status") or review.get("qa_status") or (pkg or {}).get("qa_status") or {}
-    if qa.get("production_ready") is True and not _is_true(qa.get("full_qa_evidence_present")):
-        violations.append(
-            _rule(
-                "R12_PRODUCTION_READY_REQUIRES_QA_EVIDENCE",
-                "blocked",
-                "production_ready true requires separate frontend/responsive/accessibility/browser/export QA evidence.",
+    for qa_source in (doc, review, pkg or {}):
+        qa_block = qa_source.get("qa_status")
+        if not isinstance(qa_block, dict):
+            continue
+        if qa_block.get("production_ready") is True and not _is_true(
+            qa_block.get("full_qa_evidence_present")
+        ):
+            violations.append(
+                _rule(
+                    "R12_PRODUCTION_READY_REQUIRES_QA_EVIDENCE",
+                    "blocked",
+                    "production_ready true requires separate QA evidence.",
+                )
             )
-        )
+            break
 
     if status == "executable_with_logged_assumption":
         assumptions = review.get("logged_assumptions") or (pkg or {}).get("logged_assumptions") or []
@@ -250,11 +305,13 @@ def evaluate_document(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
             )
         for index, assumption in enumerate(assumptions):
             location = f"logged_assumptions[{index}]"
-            if assumption.get("risk_level") != "low" or not _is_true(
-                assumption.get("reversible")
-            ) or not _is_true(assumption.get("visible_in_output")) or _is_true(
-                assumption.get("crosses_architecture_boundary")
-            ):
+            invalid_assumption = (
+                assumption.get("risk_level") != "low"
+                or not _is_true(assumption.get("reversible"))
+                or not _is_true(assumption.get("visible_in_output"))
+                or _is_true(assumption.get("crosses_architecture_boundary"))
+            )
+            if invalid_assumption:
                 violations.append(
                     _rule(
                         "R13_LOGGED_ASSUMPTION_GATE",
