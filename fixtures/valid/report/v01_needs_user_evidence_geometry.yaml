@@ -1,0 +1,39 @@
+fixture_id: v01_needs_user_evidence_geometry
+expected:
+  validation_pass: true
+constructability_review:
+  review_id: CRR-REPORT-V01
+  architect_package_ref: ARCH-PKG-REPORT-V01
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: needs_user_evidence
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  engineer_questions:
+    - Provide connector anchor evidence before Builder package emission.
+  reviewed_nodes:
+    - node_id: connector-layer
+      node_type: SVGLayer
+      action_proposed: request connector geometry evidence
+      node_status: needs_user_evidence
+      blocking_reason: connector anchors are not proven yet
+      interrogation_result:
+        geometry_required: true
+        geometry_proven: false
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: true
+        overlay_strategy_proven: false
+        responsive_behavior: blocked
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: false
+        requires_class_change: false
+        requires_structure_change: false
