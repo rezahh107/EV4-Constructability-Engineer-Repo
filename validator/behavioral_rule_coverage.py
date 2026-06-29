@@ -53,15 +53,17 @@ def _is_separator_row(cells: list[str]) -> bool:
 
 def _find_coverage_table(lines: list[str]) -> tuple[int, list[str]]:
     for index, line in enumerate(lines):
-        if not line.strip().startswith("| rule_id |"):
+        if not line.strip().startswith("|"):
             continue
         headers = _split_row(line)
+        if not headers or headers[0] != "rule_id":
+            continue
         if headers != REQUIRED_HEADERS:
             raise ValueError(f"Unexpected coverage table headers at line {index + 1}: {headers}")
         if index + 1 >= len(lines):
             raise ValueError("Coverage table is missing separator row.")
         separator = _split_row(lines[index + 1])
-        if not _is_separator_row(separator):
+        if len(separator) != len(headers) or not _is_separator_row(separator):
             raise ValueError(f"Coverage table separator is invalid at line {index + 2}.")
         return index + 2, headers
     raise ValueError("Coverage table with rule_id header was not found.")
