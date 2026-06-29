@@ -29,7 +29,6 @@ STATUSES = {
     "downstream_contract_enforced",
 }
 WEAK = {"prose_only", "schema_backed"}
-DEFERRED = {"R-CE-ISM-01"}
 
 
 def clean(value: str) -> str:
@@ -100,7 +99,7 @@ def validate_rows(rows: list[dict[str, str]]) -> list[str]:
             errors.append(f"line {line}: invalid risk {risk}")
         if status not in STATUSES:
             errors.append(f"line {line}: invalid status {status}")
-        if risk == "Critical" and status in WEAK and rule_id not in DEFERRED:
+        if risk == "Critical" and status in WEAK:
             errors.append(f"line {line}: weak critical rule {rule_id}")
     return errors
 
