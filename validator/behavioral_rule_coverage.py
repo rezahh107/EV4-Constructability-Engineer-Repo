@@ -39,16 +39,21 @@ def _clean_cell(value: str) -> str:
 
 
 def _split_row(line: str) -> list[str]:
-    return [_clean_cell(cell) for cell in line.strip().strip("|").split("|")]
+    parts = line.strip().split("|")
+    if parts and parts[0] == "":
+        parts = parts[1:]
+    if parts and parts[-1] == "":
+        parts = parts[:-1]
+    return [_clean_cell(cell) for cell in parts]
 
 
 def _is_separator_row(cells: list[str]) -> bool:
-    return all(re.fullmatch(r":?-{3,}:?", cell.strip()) for cell in cells)
+    return all(re.fullmatch(r":?-+:?", cell.strip()) for cell in cells)
 
 
 def _find_coverage_table(lines: list[str]) -> tuple[int, list[str]]:
     for index, line in enumerate(lines):
-        if not line.startswith("| rule_id |"):
+        if not line.strip().startswith("| rule_id |"):
             continue
         headers = _split_row(line)
         if headers != REQUIRED_HEADERS:
@@ -68,7 +73,7 @@ def parse_coverage_markdown(content: str) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
     for line_number, line in enumerate(lines[start_index:], start=start_index + 1):
-        if not line.startswith("|"):
+        if not line.strip().startswith("|"):
             break
         cells = _split_row(line)
         if len(cells) != len(headers):
@@ -132,7 +137,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
-    result = validate_coverage_file(args.path)
+    try:
+        result = validate_coverage_file(args.path)
+    except Exception as exc:
+        if args.json:
+            print(json.dumps({"passed": False, "errors": [str(exc)]}, indent=2, ensure_ascii=False))
+        else:
+            print("FAIL-CLOSED")
+            print(f"Error: {exc}")
+        return 1
+
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
