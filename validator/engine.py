@@ -46,15 +46,27 @@ def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> 
             continue
         schema = load_json(root / schema_path)
         validator = Draft202012Validator(schema)
-        schema_errors = sorted(
-            validator.iter_errors(document[key]),
-            key=lambda item: list(item.path),
-        )
+        schema_errors = sorted(validator.iter_errors(document[key]), key=lambda item: list(item.path))
         for error in schema_errors:
             path = ".".join(str(part) for part in error.path) or key
             errors.append(f"{key}.{path}: {error.message}")
 
     return errors
+
+
+def validate_schemas(repo_root: Path | None = None) -> dict[str, Any]:
+    root = repo_root or Path.cwd()
+    errors: list[str] = []
+    checked: list[str] = []
+
+    for schema_path in sorted((root / "schemas").glob("*.schema.json")):
+        checked.append(str(schema_path.relative_to(root)))
+        try:
+            Draft202012Validator.check_schema(load_json(schema_path))
+        except Exception as exc:  # pragma: no cover - exact jsonschema exception varies
+            errors.append(f"{schema_path.relative_to(root)}: {exc}")
+
+    return {"passed": not errors, "checked": checked, "schema_errors": errors}
 
 
 def _mode_preflight_violations(document: dict[str, Any], mode: ValidationMode) -> list[ConstructabilityViolation]:
@@ -71,12 +83,7 @@ def _mode_preflight_violations(document: dict[str, Any], mode: ValidationMode) -
     return []
 
 
-def validate_document(
-    document: dict[str, Any],
-    *,
-    repo_root: Path | None = None,
-    mode: ValidationMode = "full",
-) -> dict[str, Any]:
+def validate_document(document: dict[str, Any], *, repo_root: Path | None = None, mode: ValidationMode = "full") -> dict[str, Any]:
     if mode not in VALIDATION_MODES:
         raise ValueError(f"Unsupported validation mode: {mode}")
 
@@ -106,51 +113,69 @@ def validate_document(
     return result
 
 
-def validate_file(
-    path: str | Path,
-    *,
-    repo_root: Path | None = None,
-    mode: ValidationMode = "full",
-    strict: bool = False,
-) -> dict[str, Any]:
+def validate_file(path: str | Path, *, repo_root: Path | None = None, mode: ValidationMode = "full", strict: bool = False) -> dict[str, Any]:
     document = load_yaml(path)
     result = validate_document(document, repo_root=repo_root, mode=mode)
     if strict and not result["passed"]:
-        violations = [
-            ConstructabilityViolation(**violation)
-            for violation in result.get("violations", [])
-        ]
+        violations = [ConstructabilityViolation(**violation) for violation in result.get("violations", [])]
         raise ConstructabilityException(violations)
     return result
 
 
+def _fixture_paths(directory: Path) -> list[Path]:
+    return sorted([*directory.rglob("*.yaml"), *directory.rglob("*.yml")])
+
+
+def validate_path(path: str | Path, *, repo_root: Path | None = None, mode: ValidationMode = "full") -> dict[str, Any]:
+    target = Path(path)
+    if target.is_file():
+        result = validate_file(target, repo_root=repo_root, mode=mode)
+        result["path"] = str(target)
+        return result
+
+    if not target.is_dir():
+        raise FileNotFoundError(target)
+
+    results = []
+    for fixture_path in _fixture_paths(target):
+        result = validate_file(fixture_path, repo_root=repo_root, mode=mode)
+        result["path"] = str(fixture_path)
+        results.append(result)
+
+    return {
+        "passed": all(item["passed"] for item in results),
+        "mode": mode,
+        "path": str(target),
+        "count": len(results),
+        "results": results,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate EV4 constructability fixtures/packages.")
-    parser.add_argument("path", help="YAML fixture or package path")
+    parser.add_argument("path", nargs="?", help="YAML fixture, package path, or directory")
     parser.add_argument("--repo-root", default=".", help="Repository root containing schemas/")
-    parser.add_argument(
-        "--mode",
-        choices=sorted(VALIDATION_MODES),
-        default="full",
-        help="Validation contract to apply.",
-    )
+    parser.add_argument("--mode", choices=sorted(VALIDATION_MODES), default="full", help="Validation contract to apply.")
+    parser.add_argument("--schema-self-check", action="store_true", help="Validate repository JSON schemas themselves")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON output")
     args = parser.parse_args(argv)
 
-    result = validate_file(args.path, repo_root=Path(args.repo_root), mode=args.mode)
+    if args.schema_self_check:
+        result = validate_schemas(repo_root=Path(args.repo_root))
+    else:
+        if not args.path:
+            parser.error("path is required unless --schema-self-check is used")
+        result = validate_path(args.path, repo_root=Path(args.repo_root), mode=args.mode)
+
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         label = "PASS" if result["passed"] else "FAIL-CLOSED"
-        print(f"{label} mode={result['mode']}")
-        if result["schema_errors"]:
-            print("schema_errors:")
-            for error in result["schema_errors"]:
-                print(f"- {error}")
-        if result["rules_violated"]:
-            print("rules_violated:")
-            for rule_id in result["rules_violated"]:
-                print(f"- {rule_id}")
+        print(f"{label} mode={result.get('mode', 'schemas')}")
+        for error in result.get("schema_errors", []):
+            print(f"- {error}")
+        for rule_id in result.get("rules_violated", []):
+            print(f"- {rule_id}")
     return 0 if result["passed"] else 1
 
 
