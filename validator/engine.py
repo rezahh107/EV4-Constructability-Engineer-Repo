@@ -102,13 +102,63 @@ def _visual_parity_requested(document: dict[str, Any]) -> bool:
     )
 
 
+def _package_requires_reference_carriers(document: dict[str, Any]) -> bool:
+    package = document.get("builder_executable_package")
+    return isinstance(package, dict) and _visual_parity_requested(document)
+
+
+def _reference_carriers(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    package = document.get("builder_executable_package")
+    if _package_requires_reference_carriers(document) and isinstance(package, dict):
+        lock = package.get("reference_paradigm_lock")
+        structure_map = package.get("paradigm_to_structure_map")
+        return (lock if isinstance(lock, dict) else None, structure_map if isinstance(structure_map, dict) else None)
+    lock = document.get("reference_paradigm_lock")
+    structure_map = document.get("paradigm_to_structure_map")
+    return (lock if isinstance(lock, dict) else None, structure_map if isinstance(structure_map, dict) else None)
+
+
+def _package_carrier_violations(document: dict[str, Any]) -> list[ConstructabilityViolation]:
+    if not _package_requires_reference_carriers(document):
+        return []
+
+    package = document.get("builder_executable_package") or {}
+    violations: list[ConstructabilityViolation] = []
+    package_lock = package.get("reference_paradigm_lock")
+    package_map = package.get("paradigm_to_structure_map")
+
+    if not isinstance(package_lock, dict) or package_lock.get("paradigm_locked") is not True:
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R35_REFERENCE_PARADIGM_LOCK_MUST_BE_CARRIED_IN_PACKAGE",
+                status="blocked",
+                message="visual-parity Builder package must carry locked reference_paradigm_lock inside builder_executable_package.",
+                location="builder_executable_package.reference_paradigm_lock",
+            )
+        )
+    if not isinstance(package_map, dict):
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R36_REFERENCE_PARADIGM_STRUCTURE_MAP_MUST_BE_CARRIED_IN_PACKAGE",
+                status="blocked",
+                message="visual-parity Builder package must carry paradigm_to_structure_map inside builder_executable_package.",
+                location="builder_executable_package.paradigm_to_structure_map",
+            )
+        )
+
+    return violations
+
+
 def _reference_paradigm_preflight_violations(document: dict[str, Any]) -> list[ConstructabilityViolation]:
     if not _visual_parity_requested(document):
         return []
 
     violations: list[ConstructabilityViolation] = []
-    lock = document.get("reference_paradigm_lock")
-    structure_map = document.get("paradigm_to_structure_map")
+    violations.extend(_package_carrier_violations(document))
+    if violations:
+        return violations
+
+    lock, structure_map = _reference_carriers(document)
 
     if not isinstance(lock, dict) or lock.get("paradigm_locked") is not True:
         violations.append(
