@@ -93,12 +93,73 @@ def _mode_preflight_violations(document: dict[str, Any], mode: ValidationMode) -
     return []
 
 
+def _visual_parity_requested(document: dict[str, Any]) -> bool:
+    package = document.get("builder_executable_package")
+    return bool(
+        document.get("visual_parity_build") is True
+        or document.get("builder_ready") is True
+        or (isinstance(package, dict) and package.get("visual_parity_build") is True)
+    )
+
+
+def _reference_paradigm_preflight_violations(document: dict[str, Any]) -> list[ConstructabilityViolation]:
+    if not _visual_parity_requested(document):
+        return []
+
+    violations: list[ConstructabilityViolation] = []
+    lock = document.get("reference_paradigm_lock")
+    structure_map = document.get("paradigm_to_structure_map")
+
+    if not isinstance(lock, dict) or lock.get("paradigm_locked") is not True:
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R29_REFERENCE_PARADIGM_LOCK_REQUIRED",
+                status="blocked",
+                message="visual-parity Builder-ready output requires locked reference_paradigm_lock.",
+                location="reference_paradigm_lock",
+            )
+        )
+        return violations
+
+    if lock.get("layout_paradigm") == "unknown":
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R30_REFERENCE_PARADIGM_UNKNOWN_BLOCKS_BUILDER_READY",
+                status="blocked",
+                message="layout_paradigm unknown blocks Builder-ready visual-parity output.",
+                location="reference_paradigm_lock.layout_paradigm",
+            )
+        )
+
+    if not isinstance(structure_map, dict):
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R31_REFERENCE_PARADIGM_STRUCTURE_MAP_REQUIRED",
+                status="blocked",
+                message="visual-parity Builder-ready output requires paradigm_to_structure_map.",
+                location="paradigm_to_structure_map",
+            )
+        )
+    elif not isinstance(structure_map.get("first_batch_requirements"), list) or not structure_map.get("first_batch_requirements"):
+        violations.append(
+            ConstructabilityViolation(
+                rule_id="R32_REFERENCE_PARADIGM_FIRST_BATCH_REQUIREMENTS_REQUIRED",
+                status="blocked",
+                message="visual-parity Builder-ready output requires first_batch_requirements.",
+                location="paradigm_to_structure_map.first_batch_requirements",
+            )
+        )
+
+    return violations
+
+
 def validate_document(document: dict[str, Any], *, repo_root: Path | None = None, mode: ValidationMode = "full") -> dict[str, Any]:
     if mode not in VALIDATION_MODES:
         raise ValueError(f"Unsupported validation mode: {mode}")
 
     schema_errors = schema_validate(document, repo_root=repo_root)
     rule_violations = _mode_preflight_violations(document, mode)
+    rule_violations.extend(_reference_paradigm_preflight_violations(document))
     rule_violations.extend(evaluate_document(document, mode=mode))
     expected = document.get("expected") or {}
     expected_pass = expected.get("validation_pass")
@@ -152,13 +213,7 @@ def validate_path(path: str | Path, *, repo_root: Path | None = None, mode: Vali
         result["path"] = str(fixture_path)
         results.append(result)
 
-    return {
-        "passed": all(item["passed"] for item in results),
-        "mode": mode,
-        "path": str(target),
-        "count": len(results),
-        "results": results,
-    }
+    return {"passed": all(item["passed"] for item in results), "mode": mode, "path": str(target), "count": len(results), "results": results}
 
 
 def main(argv: list[str] | None = None) -> int:
