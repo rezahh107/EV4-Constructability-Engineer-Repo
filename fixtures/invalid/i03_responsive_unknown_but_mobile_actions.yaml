@@ -1,0 +1,61 @@
+fixture_id: i03_responsive_unknown_but_mobile_actions
+expected:
+  validation_pass: false
+  rules_violated: [R06_RESPONSIVE_ACTION_REQUIRES_STRATEGY_OR_BLOCK]
+constructability_review:
+  review_id: CRR-I03
+  architect_package_ref: ARCH-PKG-I03
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: feature-grid
+      node_type: Grid
+      action_proposed: set mobile layout without responsive evidence
+      node_status: executable_ready
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: false
+        geometry_proven: null
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: false
+        overlay_strategy_proven: null
+        responsive_behavior: unknown
+        action_targets_responsive: true
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: true
+        requires_class_change: false
+        requires_structure_change: false
+builder_executable_package:
+  package_id: BEP-I03
+  review_ref: CRR-I03
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names: [grid-class]
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-I03
+    confirmed_action_ids: [A01]
+    expected_user_token: تایید I03
+  first_safe_builder_batch:
+    batch_id: BATCH-I03
+    actions:
+      - action_id: A01
+        action_type: set_mobile_layout
+        target_node: feature-grid
+        parameters: {}
+        requires_decision: false
