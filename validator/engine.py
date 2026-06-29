@@ -280,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         if not args.path:
             parser.error("path is required unless --schema-self-check is used")
-        result = validate_path(args.path, repo_root=Path(args.repo_root), mode=mode)
+        result = validate_path(args.path, repo_root=Path(args.repo_root), mode=args.mode)
 
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
