@@ -18,6 +18,17 @@
     "first_safe_builder_batch"
   ],
   "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "required": ["visual_parity_build"],
+        "properties": {"visual_parity_build": {"const": true}}
+      },
+      "then": {
+        "required": ["reference_paradigm_lock", "paradigm_to_structure_map"]
+      }
+    }
+  ],
   "properties": {
     "package_id": {"type": "string"},
     "review_ref": {"type": "string"},
@@ -33,6 +44,9 @@
     "approved_class_names_unchanged": {"type": "boolean", "const": true},
     "confirmation_request": {"$ref": "#/$defs/confirmation_request"},
     "first_safe_builder_batch": {"$ref": "#/$defs/builder_batch"},
+    "visual_parity_build": {"type": "boolean"},
+    "reference_paradigm_lock": {"$ref": "#/$defs/reference_paradigm_lock"},
+    "paradigm_to_structure_map": {"$ref": "#/$defs/paradigm_to_structure_map"},
     "known_unknowns": {"type": "object", "additionalProperties": true},
     "logged_assumptions": {"type": "array", "items": {"type": "object"}},
     "qa_status": {"type": "object", "additionalProperties": true}
@@ -82,6 +96,109 @@
         "target_node": {"type": "string"},
         "parameters": {"type": "object"},
         "requires_decision": {"type": "boolean", "const": false}
+      }
+    },
+    "reference_paradigm_lock": {
+      "type": "object",
+      "required": [
+        "schema",
+        "source_reference_id",
+        "extracted_by",
+        "paradigm_locked",
+        "layout_paradigm",
+        "primary_anchor",
+        "distribution_model",
+        "repeated_unit_form",
+        "connector_model",
+        "spatial_symmetry",
+        "completion_signature"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema": {"const": "ev4-reference-paradigm-lock@1.0.0"},
+        "source_reference_id": {"type": "string", "minLength": 1},
+        "extracted_by": {"const": "constructability_engineer"},
+        "paradigm_locked": {"const": true},
+        "layout_paradigm": {
+          "enum": [
+            "center-anchored-symmetric",
+            "vertical-list",
+            "grid",
+            "split-hero",
+            "radial-diagram",
+            "unknown"
+          ]
+        },
+        "primary_anchor": {"type": "string", "minLength": 1},
+        "distribution_model": {"type": "string", "minLength": 1},
+        "repeated_unit_form": {"type": "string", "minLength": 1},
+        "connector_model": {"type": "string", "minLength": 1},
+        "spatial_symmetry": {"type": "string", "minLength": 1},
+        "completion_signature": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "paradigm_to_structure_map": {
+      "type": "object",
+      "required": [
+        "primary_anchor",
+        "regions",
+        "repeated_units",
+        "connector_layer",
+        "first_batch_requirements"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "primary_anchor": {
+          "type": "object",
+          "required": ["node", "role"],
+          "additionalProperties": true,
+          "properties": {
+            "node": {"type": "string", "minLength": 1},
+            "role": {"type": "string", "minLength": 1}
+          }
+        },
+        "regions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "distribution", "expected_count", "nodes"],
+            "additionalProperties": true,
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "distribution": {"type": "string", "minLength": 1},
+              "expected_count": {"type": "integer", "minimum": 1},
+              "nodes": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+            }
+          }
+        },
+        "repeated_units": {
+          "type": "object",
+          "required": ["form", "required_children"],
+          "additionalProperties": true,
+          "properties": {
+            "form": {"type": "string", "minLength": 1},
+            "required_children": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+          }
+        },
+        "connector_layer": {
+          "type": "object",
+          "required": ["node", "model"],
+          "additionalProperties": true,
+          "properties": {
+            "node": {"type": "string", "minLength": 1},
+            "model": {"type": "string", "minLength": 1}
+          }
+        },
+        "first_batch_requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        }
       }
     }
   }
