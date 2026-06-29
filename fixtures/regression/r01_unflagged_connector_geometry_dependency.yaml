@@ -1,0 +1,69 @@
+fixture_id: r01_unflagged_connector_geometry_dependency
+expected:
+  validation_pass: false
+  rules_violated:
+    - R03_GEOMETRY_MUST_BE_PROVEN
+    - R05_OVERLAY_STRATEGY_MUST_BE_PROVEN
+constructability_review:
+  review_id: CRR-R01
+  architect_package_ref: SMART-HOME-CONNECTOR
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: connector-layer
+      node_type: SVGWidget
+      action_proposed: generate unified connector SVG between feature cards and central visual
+      node_status: executable_ready
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: true
+        geometry_proven: false
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: true
+        overlay_strategy_proven: false
+        responsive_behavior: blocked
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: false
+        requires_class_change: false
+        requires_structure_change: false
+builder_executable_package:
+  package_id: BEP-R01-INVALID
+  review_ref: CRR-R01
+  strategy_map_ref: null
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names:
+    - smart-home__association-lines
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-BATCH-R01
+    confirmed_action_ids: [BATCH-R01-A01]
+    expected_user_token: تایید BATCH-R01
+  first_safe_builder_batch:
+    batch_id: BATCH-R01
+    risk: high
+    actions:
+      - action_id: BATCH-R01-A01
+        action_type: add_unified_svg_connector
+        target_node: connector-layer
+        parameters:
+          repair_attempt: scale_and_transform_guess
+        requires_decision: false
+  qa_status:
+    production_ready: false

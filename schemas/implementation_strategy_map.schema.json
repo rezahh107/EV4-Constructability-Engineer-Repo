@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EV4 Implementation Strategy Map",
+  "type": "object",
+  "required": ["strategy_map_id", "review_ref", "selected_candidate_id", "strategies"],
+  "additionalProperties": true,
+  "properties": {
+    "strategy_map_id": {"type": "string"},
+    "review_ref": {"type": "string"},
+    "selected_candidate_id": {"type": "string"},
+    "strategies": {"type": "array", "items": {"$ref": "#/$defs/strategy"}}
+  },
+  "$defs": {
+    "strategy": {
+      "type": "object",
+      "required": ["strategy_id", "node_id", "strategy_selected", "builder_decisions_required", "architect_amendment_required", "class_names_affected"],
+      "additionalProperties": true,
+      "properties": {
+        "strategy_id": {"type": "string"},
+        "node_id": {"type": "string"},
+        "strategy_selected": {"type": "string"},
+        "alternatives_considered": {"type": "array", "items": {"type": "string"}},
+        "rationale": {"type": "string"},
+        "evidence_source": {"type": "string", "enum": ["user_statement", "screenshot", "measured", "architect_package", "official_docs", "assumed_low_risk"]},
+        "builder_decisions_required": {"type": "integer", "minimum": 0},
+        "architect_amendment_required": {"type": "boolean"},
+        "class_names_affected": {"type": "array", "items": {"type": "string"}},
+        "structure_change_required": {"type": "boolean"}
+      }
+    }
+  }
+}

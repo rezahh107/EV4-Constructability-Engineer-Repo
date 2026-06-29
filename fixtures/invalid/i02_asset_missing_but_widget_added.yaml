@@ -1,0 +1,61 @@
+fixture_id: i02_asset_missing_but_widget_added
+expected:
+  validation_pass: false
+  rules_violated: [R04_ASSET_SOURCE_OR_PLACEHOLDER]
+constructability_review:
+  review_id: CRR-I02
+  architect_package_ref: ARCH-PKG-I02
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: visual-asset
+      node_type: MediaWidget
+      action_proposed: add media without source
+      node_status: executable_ready
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: false
+        geometry_proven: null
+        asset_required: true
+        asset_source_present: false
+        placeholder_policy_present: false
+        overlay_strategy_required: false
+        overlay_strategy_proven: null
+        responsive_behavior: not_applicable
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: true
+        requires_class_change: false
+        requires_structure_change: false
+builder_executable_package:
+  package_id: BEP-I02
+  review_ref: CRR-I02
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names: [asset-class]
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-I02
+    confirmed_action_ids: [A01]
+    expected_user_token: تایید I02
+  first_safe_builder_batch:
+    batch_id: BATCH-I02
+    actions:
+      - action_id: A01
+        action_type: add_widget
+        target_node: visual-asset
+        parameters: {}
+        requires_decision: false

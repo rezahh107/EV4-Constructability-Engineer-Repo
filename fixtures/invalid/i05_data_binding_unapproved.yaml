@@ -1,0 +1,39 @@
+fixture_id: i05_data_binding_unapproved
+expected:
+  validation_pass: false
+  rules_violated: [R08_DYNAMIC_LOOP_REQUIRES_APPROVAL]
+constructability_review:
+  review_id: CRR-I05
+  architect_package_ref: ARCH-PKG-I05
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: feature-list
+      node_type: RepeatedCards
+      action_proposed: create data-bound repeated cards without approval
+      node_status: executable_ready
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: false
+        geometry_proven: null
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: false
+        overlay_strategy_proven: null
+        responsive_behavior: not_applicable
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: true
+        dynamic_loop_approved: false
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: false
+        requires_class_change: false
+        requires_structure_change: true
+        architect_decomposition_permission: false

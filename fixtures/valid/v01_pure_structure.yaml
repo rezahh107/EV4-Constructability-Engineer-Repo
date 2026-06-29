@@ -1,0 +1,67 @@
+fixture_id: v01_pure_structure
+expected:
+  validation_pass: true
+constructability_review:
+  review_id: CRR-V01
+  architect_package_ref: ARCH-PKG-V01
+  selected_candidate_id: ARCH-FAM-C
+  constructability_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  reviewed_nodes:
+    - node_id: section-root
+      node_type: Flexbox
+      action_proposed: create approved root structure
+      node_status: executable_ready
+      blocking_reason: null
+      interrogation_result:
+        geometry_required: false
+        geometry_proven: null
+        asset_required: false
+        asset_source_present: null
+        placeholder_policy_present: null
+        overlay_strategy_required: false
+        overlay_strategy_proven: null
+        responsive_behavior: not_applicable
+        action_targets_responsive: false
+        interaction_implied: false
+        interaction_approved: null
+        dynamic_loop_implied: false
+        dynamic_loop_approved: null
+        accessibility_claimed: false
+        accessibility_evidenced: null
+        exact_ui_control_path_used: false
+        ui_control_evidence_present: null
+        reversible_if_wrong: true
+        requires_class_change: false
+        requires_structure_change: false
+builder_executable_package:
+  package_id: BEP-V01
+  review_ref: CRR-V01
+  strategy_map_ref: null
+  selected_candidate_id: ARCH-FAM-C
+  approved_class_names:
+    - smart-home__section--root
+  builder_package_status: executable_ready
+  builder_decisions_required: 0
+  blocking_dependencies: []
+  selected_candidate_locked: true
+  selected_candidate_id_unchanged: true
+  approved_class_names_unchanged: true
+  confirmation_request:
+    confirmation_id: CONFIRM-BATCH-001
+    confirmed_action_ids: [BATCH-001-A01]
+    expected_user_token: تایید BATCH-001
+  first_safe_builder_batch:
+    batch_id: BATCH-001
+    risk: low
+    actions:
+      - action_id: BATCH-001-A01
+        action_type: create_element
+        target_node: section-root
+        parameters:
+          element_type: Flexbox
+          class_name: smart-home__section--root
+        requires_decision: false
+  qa_status:
+    production_ready: false
