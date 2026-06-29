@@ -5,8 +5,8 @@ import sys
 
 import pytest
 
-from validator.engine import validate_file
-from validator.reference_paradigm_lock import validate_path
+from validator.engine import load_json, validate_file
+from validator.reference_paradigm_lock import validate_path, validate_reference_paradigm_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 VALID = ROOT / "tests/valid/center_anchored_symmetric_pill_cards.json"
@@ -40,6 +40,17 @@ def test_builder_ready_unknown_layout_is_blocked_by_engine() -> None:
     result = validate_file(ROOT / "tests/invalid/unknown_layout_paradigm_marked_builder_ready.json", repo_root=ROOT)
     assert result["passed"] is False
     assert "R30_REFERENCE_PARADIGM_UNKNOWN_BLOCKS_BUILDER_READY" in result["rules_violated"]
+
+
+def test_visual_parity_flag_uses_same_readiness_gate() -> None:
+    document = load_json(VALID)
+    document["visual_parity_build"] = True
+    document["reference_paradigm_lock"]["layout_paradigm"] = "unknown"
+
+    result = validate_reference_paradigm_lock(document, repo_root=ROOT)
+
+    assert result["passed"] is False
+    assert "layout_paradigm cannot be unknown for builder-ready output" in result["rule_errors"]
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node executable not found")
