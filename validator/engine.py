@@ -108,8 +108,8 @@ def _package_requires_reference_carriers(document: dict[str, Any]) -> bool:
 
 
 def _reference_carriers(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    package = document.get("builder_executable_package")
-    if _package_requires_reference_carriers(document) and isinstance(package, dict):
+    if _package_requires_reference_carriers(document):
+        package = document["builder_executable_package"]
         lock = package.get("reference_paradigm_lock")
         structure_map = package.get("paradigm_to_structure_map")
         return (lock if isinstance(lock, dict) else None, structure_map if isinstance(structure_map, dict) else None)
@@ -280,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         if not args.path:
             parser.error("path is required unless --schema-self-check is used")
-        result = validate_path(args.path, repo_root=Path(args.repo_root), mode=args.mode)
+        result = validate_path(args.path, repo_root=Path(args.repo_root), mode=mode)
 
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
