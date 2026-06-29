@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EV4 Builder Executable Package",
+  "type": "object",
+  "required": [
+    "package_id",
+    "review_ref",
+    "selected_candidate_id",
+    "approved_class_names",
+    "builder_package_status",
+    "builder_decisions_required",
+    "blocking_dependencies",
+    "selected_candidate_locked",
+    "selected_candidate_id_unchanged",
+    "approved_class_names_unchanged",
+    "confirmation_request",
+    "first_safe_builder_batch"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "package_id": {"type": "string"},
+    "review_ref": {"type": "string"},
+    "strategy_map_ref": {"type": ["string", "null"]},
+    "selected_candidate_id": {"type": "string"},
+    "approved_class_names": {"type": "array", "items": {"type": "string"}},
+    "builder_package_status": {"type": "string", "const": "executable_ready"},
+    "builder_decisions_required": {"type": "integer", "const": 0},
+    "blocking_dependencies": {"type": "array", "maxItems": 0},
+    "selected_candidate_locked": {"type": "boolean", "const": true},
+    "selected_candidate_id_unchanged": {"type": "boolean", "const": true},
+    "approved_class_names_unchanged": {"type": "boolean", "const": true},
+    "confirmation_request": {"$ref": "#/$defs/confirmation_request"},
+    "first_safe_builder_batch": {"$ref": "#/$defs/builder_batch"},
+    "known_unknowns": {"type": "object", "additionalProperties": true},
+    "logged_assumptions": {"type": "array", "items": {"type": "object"}},
+    "qa_status": {"type": "object", "additionalProperties": true}
+  },
+  "$defs": {
+    "confirmation_request": {
+      "type": "object",
+      "required": ["confirmation_id", "confirmed_action_ids", "expected_user_token"],
+      "additionalProperties": true,
+      "properties": {
+        "confirmation_id": {"type": "string"},
+        "confirmed_action_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "expected_user_token": {"type": "string"}
+      }
+    },
+    "builder_batch": {
+      "type": "object",
+      "required": ["batch_id", "actions"],
+      "additionalProperties": true,
+      "properties": {
+        "batch_id": {"type": "string"},
+        "risk": {"type": "string", "enum": ["low", "medium", "high"]},
+        "actions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/builder_action"}}
+      }
+    },
+    "builder_action": {
+      "type": "object",
+      "required": ["action_id", "action_type", "target_node", "parameters", "requires_decision"],
+      "additionalProperties": true,
+      "properties": {
+        "action_id": {"type": "string"},
+        "action_type": {"type": "string"},
+        "target_node": {"type": "string"},
+        "parameters": {"type": "object"},
+        "requires_decision": {"type": "boolean", "const": false}
+      }
+    }
+  }
+}
