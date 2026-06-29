@@ -16,6 +16,10 @@ def _is_true(value: Any) -> bool:
     return value is True
 
 
+def _has_object(value: Any) -> bool:
+    return isinstance(value, dict) and bool(value)
+
+
 def _rule(rule_id: str, status: str, message: str, location: str = "document") -> ConstructabilityViolation:
     return ConstructabilityViolation(rule_id=rule_id, status=status, message=message, location=location)
 
@@ -101,24 +105,10 @@ def _evaluate_architect_contract(doc: dict[str, Any]) -> list[ConstructabilityVi
     package_candidate = pkg.get("selected_candidate_id")
     contract_candidate = contract.get("selected_candidate_id")
     if package_candidate != contract_candidate or review_candidate != contract_candidate:
-        violations.append(
-            _rule(
-                "R23_ARCHITECT_CONTRACT_MISMATCH",
-                "blocked",
-                "selected_candidate_id must match architect_contract in review and package.",
-                "builder_executable_package.selected_candidate_id",
-            )
-        )
+        violations.append(_rule("R23_ARCHITECT_CONTRACT_MISMATCH", "blocked", "selected_candidate_id must match architect_contract in review and package.", "builder_executable_package.selected_candidate_id"))
 
     if not _same_class_contract(pkg.get("approved_class_names"), contract.get("approved_class_names")):
-        violations.append(
-            _rule(
-                "R23_ARCHITECT_CONTRACT_MISMATCH",
-                "blocked",
-                "approved_class_names must match architect_contract exactly; Builder may not add or remove classes.",
-                "builder_executable_package.approved_class_names",
-            )
-        )
+        violations.append(_rule("R23_ARCHITECT_CONTRACT_MISMATCH", "blocked", "approved_class_names must match architect_contract exactly; Builder may not add or remove classes.", "builder_executable_package.approved_class_names"))
 
     return violations
 
@@ -167,6 +157,8 @@ def evaluate_document(doc: dict[str, Any], *, mode: ValidationMode = "full") -> 
 
         if node_claims_executable and _is_true(interrogation.get("geometry_required")) and not _is_true(interrogation.get("geometry_proven")):
             violations.append(_rule("R03_GEOMETRY_MUST_BE_PROVEN", "needs_user_evidence", "Geometry-dependent action lacks proven anchors, coordinates, or strategy.", location))
+        if node_claims_executable and _is_true(interrogation.get("geometry_proven")) and not _has_object(interrogation.get("geometry_proof")):
+            violations.append(_rule("R24_GEOMETRY_PROOF_OBJECT_REQUIRED", "blocked", "geometry_proven true requires geometry_proof object.", location))
 
         if node_claims_executable and _is_true(interrogation.get("asset_required")):
             has_asset = _is_true(interrogation.get("asset_source_present"))
@@ -176,6 +168,8 @@ def evaluate_document(doc: dict[str, Any], *, mode: ValidationMode = "full") -> 
 
         if node_claims_executable and _is_true(interrogation.get("overlay_strategy_required")) and not _is_true(interrogation.get("overlay_strategy_proven")):
             violations.append(_rule("R05_OVERLAY_STRATEGY_MUST_BE_PROVEN", "blocked", "Overlay action requires containment, positioning, and z-index strategy.", location))
+        if node_claims_executable and _is_true(interrogation.get("overlay_strategy_proven")) and not _has_object(interrogation.get("overlay_strategy")):
+            violations.append(_rule("R25_OVERLAY_STRATEGY_OBJECT_REQUIRED", "blocked", "overlay_strategy_proven true requires overlay_strategy object.", location))
 
         if node_claims_executable and _is_true(interrogation.get("action_targets_responsive")):
             responsive_behavior = interrogation.get("responsive_behavior", "unknown")
@@ -187,6 +181,8 @@ def evaluate_document(doc: dict[str, Any], *, mode: ValidationMode = "full") -> 
 
         if node_claims_executable and _is_true(interrogation.get("dynamic_loop_implied")) and not _is_true(interrogation.get("dynamic_loop_approved")):
             violations.append(_rule("R08_DYNAMIC_LOOP_REQUIRES_APPROVAL", "needs_architect_amendment", "Dynamic Loop or data binding is implied but not approved.", location))
+        if node_claims_executable and _is_true(interrogation.get("dynamic_loop_approved")) and not _has_object(interrogation.get("dynamic_loop_binding_map")):
+            violations.append(_rule("R26_DYNAMIC_LOOP_BINDING_MAP_REQUIRED", "blocked", "dynamic_loop_approved true requires dynamic_loop_binding_map object.", location))
 
         needs_structure_or_class_change = _is_true(interrogation.get("requires_structure_change")) or _is_true(interrogation.get("requires_class_change"))
         if node_claims_executable and needs_structure_or_class_change and not _is_true(interrogation.get("architect_decomposition_permission")):
@@ -194,6 +190,8 @@ def evaluate_document(doc: dict[str, Any], *, mode: ValidationMode = "full") -> 
 
         if node_claims_executable and _is_true(interrogation.get("exact_ui_control_path_used")) and not _is_true(interrogation.get("ui_control_evidence_present")):
             violations.append(_rule("R10_UI_CONTROL_PATH_REQUIRES_EVIDENCE", "needs_user_evidence", "Exact Elementor UI path requires current UI or official-doc evidence.", location))
+        if node_claims_executable and _is_true(interrogation.get("ui_control_evidence_present")) and not _has_object(interrogation.get("ui_control_evidence")):
+            violations.append(_rule("R27_UI_CONTROL_EVIDENCE_OBJECT_REQUIRED", "blocked", "ui_control_evidence_present true requires ui_control_evidence object.", location))
 
         if node_claims_executable and _is_true(interrogation.get("accessibility_claimed")) and not _is_true(interrogation.get("accessibility_evidenced")):
             violations.append(_rule("R16_ACCESSIBILITY_CLAIM_REQUIRES_EVIDENCE", "blocked", "Accessibility claims require supporting evidence.", location))
@@ -219,6 +217,9 @@ def evaluate_document(doc: dict[str, Any], *, mode: ValidationMode = "full") -> 
             continue
         if qa_block.get("production_ready") is True and not _is_true(qa_block.get("full_qa_evidence_present")):
             violations.append(_rule("R12_PRODUCTION_READY_REQUIRES_QA_EVIDENCE", "blocked", "production_ready true requires separate QA evidence."))
+            break
+        if qa_block.get("production_ready") is True and not _has_object(qa_block.get("qa_matrix")):
+            violations.append(_rule("R28_QA_MATRIX_REQUIRED", "blocked", "production_ready true requires qa_matrix object."))
             break
 
     if review_status == "executable_with_logged_assumption":
