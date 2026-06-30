@@ -1,17 +1,4 @@
-from pathlib import Path
-
-from test_architect_contract import _doc
-from validator.engine import validate_document
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def _result(document: dict) -> dict:
-    return validate_document(document, repo_root=ROOT, mode="package")
-
-
-def _interrogation(document: dict) -> dict:
-    return document["constructability_review"]["reviewed_nodes"][0]["interrogation_result"]
+from helpers import _doc, _interrogation, _result
 
 
 def test_geometry_required_without_proof_fails() -> None:
