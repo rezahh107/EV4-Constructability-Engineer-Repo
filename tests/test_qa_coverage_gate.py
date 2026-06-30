@@ -1,13 +1,4 @@
-from pathlib import Path
-
-from test_architect_contract import _doc
-from validator.engine import validate_document
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def _result(document: dict) -> dict:
-    return validate_document(document, repo_root=ROOT, mode="package")
+from helpers import _doc, _result
 
 
 def test_ready_claim_requires_full_qa_evidence() -> None:
