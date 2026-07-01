@@ -1,0 +1,12 @@
+{
+  "constructability_review": {
+    "constructability_status": "needs_user_evidence",
+    "selected_candidate_id": "ARCH-FAM-C",
+    "builder_decisions_required": 1,
+    "blocking_dependencies": ["connector target anchors not proven"],
+    "allowed_output_now": "Constructability Review",
+    "blocked_output_now": "Builder Executable Package",
+    "reviewed_nodes": []
+  },
+  "builder_executable_package": null
+}
