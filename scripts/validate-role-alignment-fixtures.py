@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from jsonschema import Draft202012Validator
+
 from validator.rules import evaluate_document
 
 ROOT = Path(__file__).resolve().parents[1]
 VALID_DIR = ROOT / "tests" / "role-alignment" / "valid"
 INVALID_DIR = ROOT / "tests" / "role-alignment" / "invalid"
+PREREQUISITES_SCHEMA = ROOT / "schemas" / "ce-builder-executable-prerequisites.schema.json"
 
 VISUAL_PREREQUISITES = (
     "golden_reference_contract",
@@ -31,6 +34,49 @@ def package(doc: dict) -> dict | None:
 def review(doc: dict) -> dict:
     value = doc.get("constructability_review")
     return value if isinstance(value, dict) else doc
+
+
+def gate_document(doc: dict) -> dict:
+    rev = review(doc)
+    pkg = package(doc)
+    gate = {
+        "constructability_status": rev.get("constructability_status"),
+        "allowed_output_now": rev.get("allowed_output_now"),
+        "blocked_output_now": rev.get("blocked_output_now"),
+    }
+    if isinstance(pkg, dict):
+        gate["builder_package_gate_check"] = {
+            "builder_decisions_required": pkg.get("builder_decisions_required"),
+            "blocking_dependencies": pkg.get("blocking_dependencies"),
+            "selected_candidate_locked": pkg.get("selected_candidate_locked"),
+            "selected_candidate_id_unchanged": pkg.get("selected_candidate_id_unchanged"),
+            "approved_class_names_unchanged": pkg.get("approved_class_names_unchanged"),
+            "confirmation_request_present": isinstance(pkg.get("confirmation_request"), dict),
+            "first_safe_builder_batch_present": isinstance(pkg.get("first_safe_builder_batch"), dict),
+        }
+        if pkg.get("visual_parity_build") is True:
+            gate["visual_reference_prerequisites"] = {
+                "visual_parity_build": True,
+                "golden_reference_contract": pkg.get("golden_reference_contract"),
+                "reference_paradigm_lock": pkg.get("reference_paradigm_lock"),
+                "paradigm_to_structure_map": pkg.get("paradigm_to_structure_map"),
+                "build_intent_brief": pkg.get("build_intent_brief"),
+                "spatial_lexicon_version_used": pkg.get("spatial_lexicon_version_used"),
+                "visual_tolerance_policy": pkg.get("visual_tolerance_policy"),
+                "experience_intent": pkg.get("experience_intent"),
+                "reference_family": pkg.get("reference_family"),
+                "blocked_reason": pkg.get("blocked_reason"),
+            }
+    return gate
+
+
+def assert_prerequisite_schema(doc: dict, path: Path, validator: Draft202012Validator) -> None:
+    errors = list(validator.iter_errors(gate_document(doc)))
+    if errors:
+        details = "; ".join(
+            f"{'/'.join(str(part) for part in error.path)}: {error.message}" for error in errors
+        )
+        raise ValueError(f"{path}: prerequisite schema validation failed: {details}")
 
 
 def assert_role_alignment(doc: dict, path: Path) -> None:
@@ -71,12 +117,13 @@ def assert_role_alignment(doc: dict, path: Path) -> None:
             raise ValueError(f"{path}: visual parity package missing CE-carried prerequisites: {', '.join(missing)}")
 
 
-def validate_valid_fixtures() -> None:
+def validate_valid_fixtures(validator: Draft202012Validator) -> None:
     paths = sorted(VALID_DIR.glob("*.json"))
     if not paths:
         raise ValueError("No valid role-alignment fixtures found")
     for path in paths:
         doc = load_json(path)
+        assert_prerequisite_schema(doc, path, validator)
         violations = evaluate_document(doc)
         if violations:
             raise ValueError(f"{path}: validator violations: {[v.rule_id for v in violations]}")
@@ -84,7 +131,7 @@ def validate_valid_fixtures() -> None:
         print(f"valid role-alignment fixture passed: {path.relative_to(ROOT)}")
 
 
-def validate_invalid_fixtures() -> None:
+def validate_invalid_fixtures(validator: Draft202012Validator) -> None:
     paths = sorted(INVALID_DIR.glob("*.json"))
     if not paths:
         raise ValueError("No invalid role-alignment fixtures found")
@@ -93,6 +140,7 @@ def validate_invalid_fixtures() -> None:
         failed = bool(evaluate_document(doc))
         if not failed:
             try:
+                assert_prerequisite_schema(doc, path, validator)
                 assert_role_alignment(doc, path)
             except ValueError:
                 failed = True
@@ -102,5 +150,8 @@ def validate_invalid_fixtures() -> None:
 
 
 if __name__ == "__main__":
-    validate_valid_fixtures()
-    validate_invalid_fixtures()
+    schema = load_json(PREREQUISITES_SCHEMA)
+    Draft202012Validator.check_schema(schema)
+    schema_validator = Draft202012Validator(schema)
+    validate_valid_fixtures(schema_validator)
+    validate_invalid_fixtures(schema_validator)
