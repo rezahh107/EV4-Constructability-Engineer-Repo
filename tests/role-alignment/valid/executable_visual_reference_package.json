@@ -1,0 +1,59 @@
+{
+  "constructability_review": {
+    "constructability_status": "executable_ready",
+    "selected_candidate_id": "ARCH-FAM-C",
+    "builder_decisions_required": 0,
+    "blocking_dependencies": [],
+    "allowed_output_now": "Builder Executable Package",
+    "blocked_output_now": "none",
+    "reviewed_nodes": []
+  },
+  "builder_executable_package": {
+    "package_id": "ce-pkg-visual-ready-001",
+    "review_ref": "review-001",
+    "architect_contract": {
+      "source_ref": "architect-handoff-001",
+      "selected_candidate_id": "ARCH-FAM-C",
+      "approved_class_names": ["smart-home"]
+    },
+    "selected_candidate_id": "ARCH-FAM-C",
+    "approved_class_names": ["smart-home"],
+    "builder_package_status": "executable_ready",
+    "builder_decisions_required": 0,
+    "blocking_dependencies": [],
+    "selected_candidate_locked": true,
+    "selected_candidate_id_unchanged": true,
+    "approved_class_names_unchanged": true,
+    "confirmation_request": {
+      "confirmation_id": "CONFIRM-BATCH-001",
+      "confirmed_action_ids": ["BATCH-001-A01"],
+      "expected_user_token": "تایید BATCH-001"
+    },
+    "first_safe_builder_batch": {
+      "batch_id": "BATCH-001",
+      "actions": [
+        {
+          "action_id": "BATCH-001-A01",
+          "action_type": "create_structure",
+          "target_node": "section-root",
+          "parameters": {
+            "target_element": "section-root",
+            "element_generation": "V4 Atomic Element",
+            "element_generation_source": "architect_export",
+            "instruction": "Create approved root container only.",
+            "expected_result": "Root container exists."
+          },
+          "requires_decision": false
+        }
+      ]
+    },
+    "visual_parity_build": true,
+    "golden_reference_contract": { "reference_id": "golden-smart-home-desktop", "reference_version": "1.0.0", "scope": "desktop", "locked": true },
+    "reference_paradigm_lock": { "schema": "ev4-reference-paradigm-lock@1.0.0", "source_reference_id": "golden-smart-home-desktop", "extracted_by": "constructability_engineer", "paradigm_locked": true, "layout_paradigm": "center-anchored-symmetric", "primary_anchor": "house-center", "distribution_model": "3-left-3-right", "repeated_unit_form": "pill-card", "connector_model": "card-edge-to-house-edge", "spatial_symmetry": "bilateral", "completion_signature": ["primary anchor staged"] },
+    "paradigm_to_structure_map": { "primary_anchor": { "node": "house-center", "role": "primary anchor" }, "regions": [{ "id": "left", "distribution": "left", "expected_count": 3, "nodes": ["card-1"] }], "repeated_units": { "form": "pill-card", "required_children": ["icon", "title"] }, "connector_layer": { "node": "connector-layer", "model": "card-edge-to-house-edge" }, "first_batch_requirements": ["stage primary anchor"] },
+    "build_intent_brief": { "schema": "ev4-build-intent-brief@1.0.0", "source": "constructability_engineer", "authority": "explanatory_only" },
+    "spatial_lexicon_version_used": "v1.fa",
+    "visual_tolerance_policy": { "parity_expected": true },
+    "experience_intent": { "density": "balanced" }
+  }
+}

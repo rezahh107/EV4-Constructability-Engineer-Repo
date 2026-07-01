@@ -1,0 +1,27 @@
+{
+  "constructability_review": {
+    "constructability_status": "executable_ready",
+    "selected_candidate_id": "ARCH-FAM-C",
+    "builder_decisions_required": 0,
+    "blocking_dependencies": [],
+    "allowed_output_now": "Builder Executable Package",
+    "blocked_output_now": "none",
+    "reviewed_nodes": []
+  },
+  "builder_executable_package": {
+    "builder_package_status": "executable_ready",
+    "builder_decisions_required": 0,
+    "blocking_dependencies": [],
+    "selected_candidate_locked": true,
+    "selected_candidate_id_unchanged": true,
+    "approved_class_names_unchanged": true,
+    "confirmation_request": { "confirmation_id": "CONFIRM-BATCH-001", "confirmed_action_ids": ["BATCH-001-A01"], "expected_user_token": "تایید BATCH-001" },
+    "first_safe_builder_batch": { "batch_id": "BATCH-001", "actions": [{ "action_id": "BATCH-001-A01", "action_type": "create_structure", "target_node": "section-root", "parameters": {}, "requires_decision": false }] },
+    "visual_parity_build": true,
+    "reference_paradigm_lock": {},
+    "paradigm_to_structure_map": {},
+    "build_intent_brief": {},
+    "spatial_lexicon_version_used": "v1.fa",
+    "visual_tolerance_policy": {}
+  }
+}
