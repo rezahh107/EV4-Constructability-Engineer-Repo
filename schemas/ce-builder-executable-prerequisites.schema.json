@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rezahh107/EV4-Constructability-Engineer-Repo/schemas/ce-builder-executable-prerequisites.schema.json",
+  "title": "CE Builder Executable Prerequisites",
+  "description": "Role-alignment schema fragment for CE-owned Builder package gate prerequisites. It does not replace builder_executable_package.schema.json.",
+  "type": "object",
+  "required": [
+    "constructability_status",
+    "allowed_output_now",
+    "blocked_output_now"
+  ],
+  "properties": {
+    "constructability_status": {
+      "enum": ["executable_ready", "blocked", "needs_user_evidence", "needs_architect_amendment", "executable_with_logged_assumption"]
+    },
+    "allowed_output_now": {
+      "enum": ["Constructability Review", "Builder Executable Package"]
+    },
+    "blocked_output_now": {
+      "enum": ["none", "Builder Executable Package"]
+    },
+    "builder_package_gate_check": {
+      "type": "object",
+      "required": [
+        "builder_decisions_required",
+        "blocking_dependencies",
+        "selected_candidate_locked",
+        "selected_candidate_id_unchanged",
+        "approved_class_names_unchanged",
+        "confirmation_request_present",
+        "first_safe_builder_batch_present"
+      ],
+      "properties": {
+        "builder_decisions_required": { "type": "integer", "minimum": 0 },
+        "blocking_dependencies": { "type": "array" },
+        "selected_candidate_locked": { "type": "boolean" },
+        "selected_candidate_id_unchanged": { "type": "boolean" },
+        "approved_class_names_unchanged": { "type": "boolean" },
+        "confirmation_request_present": { "type": "boolean" },
+        "first_safe_builder_batch_present": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "visual_reference_prerequisites": {
+      "type": "object",
+      "properties": {
+        "visual_parity_build": { "type": "boolean" },
+        "golden_reference_contract": { "type": "object" },
+        "reference_paradigm_lock": { "type": "object" },
+        "paradigm_to_structure_map": { "type": "object" },
+        "build_intent_brief": { "type": "object" },
+        "spatial_lexicon_version_used": { "type": "string", "minLength": 1 },
+        "visual_tolerance_policy": { "type": "object" },
+        "experience_intent": { "type": "object" },
+        "reference_family": { "type": "object" },
+        "blocked_reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
