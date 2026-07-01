@@ -63,9 +63,6 @@ def gate_document(doc: dict) -> dict:
                 "build_intent_brief": pkg.get("build_intent_brief"),
                 "spatial_lexicon_version_used": pkg.get("spatial_lexicon_version_used"),
                 "visual_tolerance_policy": pkg.get("visual_tolerance_policy"),
-                "experience_intent": pkg.get("experience_intent"),
-                "reference_family": pkg.get("reference_family"),
-                "blocked_reason": pkg.get("blocked_reason"),
             }
     return gate
 
@@ -73,9 +70,7 @@ def gate_document(doc: dict) -> dict:
 def assert_prerequisite_schema(doc: dict, path: Path, validator: Draft202012Validator) -> None:
     errors = list(validator.iter_errors(gate_document(doc)))
     if errors:
-        details = "; ".join(
-            f"{'/'.join(str(part) for part in error.path)}: {error.message}" for error in errors
-        )
+        details = "; ".join(str(error.message) for error in errors)
         raise ValueError(f"{path}: prerequisite schema validation failed: {details}")
 
 
