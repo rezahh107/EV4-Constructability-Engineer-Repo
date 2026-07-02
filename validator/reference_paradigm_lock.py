@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,8 @@ from jsonschema import Draft202012Validator
 from .engine import load_json, load_yaml
 
 SCHEMA_PATH = "schemas/reference-paradigm-lock.schema.json"
+GRID_DECOMPOSITION_ERROR_CODE = "LAYOUT_PARADIGM_REQUIRES_DECOMPOSITION"
+GRID_COMPATIBILITY_CONTRACT = "CE_TO_BUILDER_LAYOUT_COMPATIBILITY"
 VALID_LAYOUTS = {
     "center-anchored-symmetric",
     "vertical-list",
@@ -26,6 +29,66 @@ def _has_text(value: Any) -> bool:
 
 def _has_items(value: Any) -> bool:
     return isinstance(value, list) and len(value) > 0
+
+
+def _direction_pattern(direction: str) -> re.Pattern[str]:
+    return re.compile(rf"(^|[^a-z]){re.escape(direction)}([^a-z]|$)", re.IGNORECASE)
+
+
+def _has_direction_term(value: Any, direction: str) -> bool:
+    return isinstance(value, str) and bool(_direction_pattern(direction).search(value))
+
+
+def _region_has_direction(region: Any, direction: str) -> bool:
+    if not isinstance(region, dict):
+        return False
+    text = f"{region.get('id', '')} {region.get('distribution', '')}"
+    return _has_direction_term(text, direction)
+
+
+def _region_has_valid_decomposition_payload(region: Any) -> bool:
+    return (
+        isinstance(region, dict)
+        and isinstance(region.get("expected_count"), int)
+        and region["expected_count"] > 0
+        and _has_items(region.get("nodes"))
+        and all(_has_text(node) for node in region.get("nodes", []))
+    )
+
+
+def _grid_decomposition_rule_errors(lock: dict[str, Any], structure_map: Any, *, builder_ready: bool) -> list[str]:
+    if not builder_ready or lock.get("layout_paradigm") != "grid":
+        return []
+
+    base = (
+        f"{GRID_DECOMPOSITION_ERROR_CODE}: $.reference_paradigm_lock.layout_paradigm "
+        "layout_paradigm=grid requires explicit left/right decomposition for Builder rendering; "
+        "expected=grid with left and right regions, positive expected_count, non-empty nodes, "
+        "and left/right distribution_model; "
+        f"contract={GRID_COMPATIBILITY_CONTRACT}"
+    )
+
+    if not isinstance(structure_map, dict):
+        return [base]
+
+    regions = structure_map.get("regions")
+    if not isinstance(regions, list):
+        return [base]
+
+    left_regions = [region for region in regions if _region_has_direction(region, "left")]
+    right_regions = [region for region in regions if _region_has_direction(region, "right")]
+    distribution_model = lock.get("distribution_model")
+
+    if not left_regions or not right_regions:
+        return [base]
+    if not any(_region_has_valid_decomposition_payload(region) for region in left_regions):
+        return [base]
+    if not any(_region_has_valid_decomposition_payload(region) for region in right_regions):
+        return [base]
+    if not (_has_direction_term(distribution_model, "left") and _has_direction_term(distribution_model, "right")):
+        return [base]
+
+    return []
 
 
 def _load_document(path: Path) -> dict[str, Any]:
@@ -103,6 +166,8 @@ def _rule_errors(document: dict[str, Any]) -> list[str]:
     if not _has_items(structure_map.get("first_batch_requirements")):
         errors.append("first_batch_requirements are required for visual-parity builds")
 
+    errors.extend(_grid_decomposition_rule_errors(lock, structure_map, builder_ready=builder_ready))
+
     return errors
 
 
@@ -125,8 +190,6 @@ def _paths(path: Path) -> list[Path]:
     return sorted([*path.rglob("*.json"), *path.rglob("*.yaml"), *path.rglob("*.yml")])
 
 
-def validate_path(path: str | Path, *, repo_root: Path | None = None) -> dict[str, Any]:
-    target = Path(path)
 def validate_path(path: str | Path, *, repo_root: Path | None = None) -> dict[str, Any]:
     target = Path(path)
     if not target.exists():
