@@ -1,0 +1,38 @@
+name: CE contract validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: python -m pip install -e '.[dev]'
+
+      - name: Run pytest
+        run: pytest -q
+
+      - name: Validate behavioral rule coverage
+        run: python scripts/validate-behavioral-rule-coverage.py
+
+      - name: Validate role alignment fixtures
+        run: python scripts/validate-role-alignment-fixtures.py
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate reference paradigm lock
+        run: npm run test:reference-paradigm-lock
