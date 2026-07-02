@@ -321,7 +321,10 @@
             "properties": { "crosses_boundary": { "const": false } }
           },
           "then": {
-            "properties": { "state": { "enum": ["preserved", "not_proven"] } }
+            "properties": {
+              "state": { "const": "preserved" },
+              "evidence_refs": { "maxItems": 0 }
+            }
           }
         },
         {
