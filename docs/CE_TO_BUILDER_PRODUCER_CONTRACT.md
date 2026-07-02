@@ -29,6 +29,18 @@ CE does not emit raw Builder runtime carriers. CE emits structured source eviden
 
 ---
 
+## Required package identity
+
+Every emitted `builder_executable_package` must declare its package contract version:
+
+```yaml
+schema: ev4-builder-executable-package@1.0.0
+```
+
+This package-level `schema` is mandatory handoff identity for the downstream Builder-side CE→Builder Contract Gate. Missing or unsupported values are not Builder-ready.
+
+---
+
 ## Required producer shape
 
 For visual-reference packages, CE must emit `paradigm_to_structure_map.connector_layer` as a structured object:
@@ -53,10 +65,11 @@ That `node:model` compact string belongs only to the downstream CE→Builder ada
 
 ```text
 1. CE must preserve source structure.
-2. CE must keep connector_layer.node and connector_layer.model as separate fields.
-3. CE must not silently transform structured fields into Builder compact strings.
-4. Any downstream projection must be performed by the declared CE→Builder transformation layer, not by CE output generation.
-5. If CE cannot prove the structured source field, the package is not Builder-ready.
+2. CE must declare builder_executable_package.schema as ev4-builder-executable-package@1.0.0.
+3. CE must keep connector_layer.node and connector_layer.model as separate fields.
+4. CE must not silently transform structured fields into Builder compact strings.
+5. Any downstream projection must be performed by the declared CE→Builder transformation layer, not by CE output generation.
+6. If CE cannot prove the structured source field or package identity, the package is not Builder-ready.
 ```
 
 ---
@@ -65,6 +78,7 @@ That `node:model` compact string belongs only to the downstream CE→Builder ada
 
 | CE output field | Producer requirement | Downstream expectation |
 |---|---|---|
+| `builder_executable_package.schema` | Emit `ev4-builder-executable-package@1.0.0` | Builder gate rejects missing or unsupported CE package versions |
 | `paradigm_to_structure_map.primary_anchor.node` | Preserve source node string | Adapter projects to Builder primary anchor carrier |
 | `paradigm_to_structure_map.primary_anchor.role` | Preserve role string | Adapter retains role in IR when Builder has no direct field |
 | `paradigm_to_structure_map.regions[]` | Preserve object records with id, distribution, expected_count, nodes | Adapter derives Builder region strings and retains raw region objects in IR |
@@ -77,10 +91,12 @@ That `node:model` compact string belongs only to the downstream CE→Builder ada
 
 ## Validation expectation
 
+The CE validator requires every `builder_executable_package` to declare `schema: ev4-builder-executable-package@1.0.0`. The regression tests in `tests/test_architect_contract.py` lock missing and unsupported schema failures.
+
 The current CE schema already requires `connector_layer` to be an object with `node` and `model`. The regression test `tests/test_ce_builder_producer_contract.py` locks this behavior so a future change cannot replace CE structured output with Builder compact string output without failing validation.
 
 ---
 
 ## Compatibility note
 
-This is not a breaking change to the CE public package shape. It documents and locks the existing CE producer format so it remains compatible with the downstream CE→Builder transformation registry in `EV4-Builder-Assistant-Repo`.
+This is a forward-compatible tightening of CE Builder-ready package identity. It does not make CE emit Builder runtime carriers. It aligns CE producer output with the downstream CE→Builder Contract Gate in `EV4-Builder-Assistant-Repo`, which is fail-closed for missing or unsupported CE package versions.
