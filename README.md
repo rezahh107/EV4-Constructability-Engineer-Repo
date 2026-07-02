@@ -47,6 +47,7 @@ CE output may become Builder-ready only when implementation strategy is proven a
 Expected Builder-ready conditions include:
 
 ```text
+builder_executable_package.schema is ev4-builder-executable-package@1.0.0
 selected_candidate_id remains locked
 approved class intent remains preserved
 blocking dependencies are empty
@@ -111,5 +112,6 @@ fail_closed_default: true
 project_gate_handoff: documented
 project_gate_runtime: not_implemented
 builder_package_emission: evidence_gated
+builder_executable_package_schema: ev4-builder-executable-package@1.0.0_required
 production_ready: false
 ```
