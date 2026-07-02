@@ -5,6 +5,9 @@ from validator.engine import validate_document
 ROOT = Path(__file__).resolve().parents[1]
 
 
+SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA = "ev4-builder-executable-package@1.0.0"
+
+
 def _doc() -> dict:
     return {
         "constructability_review": {
@@ -37,6 +40,7 @@ def _doc() -> dict:
             ],
         },
         "builder_executable_package": {
+            "schema": SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA,
             "package_id": "BEP-LOCK",
             "review_ref": "CRR-LOCK",
             "architect_contract": {
@@ -75,6 +79,20 @@ def _doc() -> dict:
 
 def test_matching_contract_passes() -> None:
     assert validate_document(_doc(), repo_root=ROOT, mode="package")["passed"] is True
+
+
+def test_missing_schema_fails() -> None:
+    document = _doc()
+    document["builder_executable_package"].pop("schema")
+    result = validate_document(document, repo_root=ROOT, mode="package")
+    assert "R35_BUILDER_EXECUTABLE_PACKAGE_SCHEMA_REQUIRED" in result["rules_violated"]
+
+
+def test_unsupported_schema_fails() -> None:
+    document = _doc()
+    document["builder_executable_package"]["schema"] = "ev4-builder-executable-package@9.9.9"
+    result = validate_document(document, repo_root=ROOT, mode="package")
+    assert "R35_BUILDER_EXECUTABLE_PACKAGE_SCHEMA_UNSUPPORTED" in result["rules_violated"]
 
 
 def test_missing_contract_fails() -> None:
