@@ -1,5 +1,7 @@
 from validator.engine import validate_document
 
+SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA = "ev4-builder-executable-package@1.0.0"
+
 
 def _safe_node() -> dict:
     return {
@@ -35,6 +37,7 @@ def _safe_node() -> dict:
 
 def _valid_package() -> dict:
     return {
+        "schema": SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA,
         "package_id": "BEP-TEST",
         "review_ref": "CRR-TEST",
         "selected_candidate_id": "ARCH-FAM-C",

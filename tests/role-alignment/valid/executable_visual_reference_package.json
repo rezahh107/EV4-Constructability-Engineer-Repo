@@ -9,6 +9,7 @@
     "reviewed_nodes": []
   },
   "builder_executable_package": {
+    "schema": "ev4-builder-executable-package@1.0.0",
     "package_id": "ce-pkg-visual-ready-001",
     "review_ref": "review-001",
     "architect_contract": {

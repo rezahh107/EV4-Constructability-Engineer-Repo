@@ -3,6 +3,7 @@ from pathlib import Path
 from validator.engine import validate_document
 
 ROOT = Path(__file__).resolve().parents[1]
+SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA = "ev4-builder-executable-package@1.0.0"
 
 
 def _doc() -> dict:
@@ -37,6 +38,7 @@ def _doc() -> dict:
             ],
         },
         "builder_executable_package": {
+            "schema": SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA,
             "package_id": "BEP-LOCK",
             "review_ref": "CRR-LOCK",
             "architect_contract": {

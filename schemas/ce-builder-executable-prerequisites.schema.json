@@ -22,6 +22,7 @@
     "builder_package_gate_check": {
       "type": "object",
       "required": [
+        "schema",
         "builder_decisions_required",
         "blocking_dependencies",
         "selected_candidate_locked",
@@ -31,6 +32,7 @@
         "first_safe_builder_batch_present"
       ],
       "properties": {
+        "schema": { "const": "ev4-builder-executable-package@1.0.0" },
         "builder_decisions_required": { "type": "integer", "minimum": 0 },
         "blocking_dependencies": { "type": "array" },
         "selected_candidate_locked": { "type": "boolean" },

@@ -50,6 +50,7 @@ implementation_strategy_map:
       architect_amendment_required: false
       class_names_affected: []
 builder_executable_package:
+  schema: ev4-builder-executable-package@1.0.0
   package_id: BEP-V03
   review_ref: CRR-V03
   strategy_map_ref: ISM-V03

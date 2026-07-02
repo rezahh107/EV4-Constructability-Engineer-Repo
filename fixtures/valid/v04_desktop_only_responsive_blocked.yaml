@@ -36,6 +36,7 @@ constructability_review:
         requires_class_change: false
         requires_structure_change: false
 builder_executable_package:
+  schema: ev4-builder-executable-package@1.0.0
   package_id: BEP-V04
   review_ref: CRR-V04
   strategy_map_ref: null

@@ -10,6 +10,7 @@ BLOCKING_NODE_STATUSES = {"blocked", "needs_user_evidence", "needs_architect_ame
 NON_EXECUTABLE_REVIEW_STATUSES = {"blocked", "needs_user_evidence", "needs_architect_amendment"}
 RESPONSIVE_ALLOWED = {"blocked", "evidence_backed", "not_applicable"}
 VALIDATION_MODES = {"report", "package", "full"}
+SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA = "ev4-builder-executable-package@1.0.0"
 UNRESOLVED_DECISION_KEYS = {
     "architect_decision_required",
     "builder_decision_required",
@@ -127,6 +128,33 @@ def _contains_unresolved_decision(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in UNRESOLVED_DECISION_VALUES
     return False
+
+
+def _evaluate_builder_package_schema_contract(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
+    pkg = _package(doc)
+    if pkg is None:
+        return []
+
+    schema = pkg.get("schema")
+    if schema is None:
+        return [
+            _rule(
+                "R35_BUILDER_EXECUTABLE_PACKAGE_SCHEMA_REQUIRED",
+                "blocked",
+                f"builder_executable_package requires schema == {SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA}.",
+                "builder_executable_package.schema",
+            )
+        ]
+    if schema != SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA:
+        return [
+            _rule(
+                "R35_BUILDER_EXECUTABLE_PACKAGE_SCHEMA_UNSUPPORTED",
+                "blocked",
+                f"builder_executable_package.schema must be {SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA}.",
+                "builder_executable_package.schema",
+            )
+        ]
+    return []
 
 
 def _evaluate_architect_contract(doc: dict[str, Any]) -> list[ConstructabilityViolation]:
@@ -300,6 +328,7 @@ def evaluate_document(doc: dict[str, Any], *, mode: ValidationMode = "full") -> 
     executable = status == "executable_ready"
 
     violations.extend(_evaluate_mode_contract(doc, mode))
+    violations.extend(_evaluate_builder_package_schema_contract(doc))
     violations.extend(_evaluate_architect_contract(doc))
     violations.extend(_evaluate_strategy_map_contract(doc, executable=executable))
     violations.extend(_evaluate_first_batch_decision_contract(doc, executable=executable))
