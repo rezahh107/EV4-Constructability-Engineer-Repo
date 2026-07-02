@@ -9,6 +9,7 @@
     "reviewed_nodes": []
   },
   "builder_executable_package": {
+    "schema": "ev4-builder-executable-package@1.0.0",
     "builder_package_status": "executable_ready",
     "builder_decisions_required": 1,
     "blocking_dependencies": [],
