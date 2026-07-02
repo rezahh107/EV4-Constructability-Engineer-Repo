@@ -53,3 +53,5 @@ For every node or action, answer:
 ## Builder Emission Gate
 
 A Builder package may be emitted only when builder decisions are zero, blocking dependencies are empty, the selected candidate is locked, approved class names are unchanged, structured confirmation_request is present, and first_safe_builder_batch is present.
+
+For visual-reference packages, CE must emit structured reference carriers. CE must preserve `paradigm_to_structure_map.connector_layer.node` and `paradigm_to_structure_map.connector_layer.model` as separate fields. CE must not pre-project those fields into Builder's compact `node:model` carrier; that projection is owned by the downstream CE→Builder transformation layer.
