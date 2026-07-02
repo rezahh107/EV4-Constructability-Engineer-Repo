@@ -54,12 +54,15 @@ def _region_has_direction(region: Any, direction: str) -> bool:
 
 
 def _region_has_valid_decomposition_payload(region: Any) -> bool:
+    if not isinstance(region, dict):
+        return False
+    nodes = region.get("nodes")
     return (
-        isinstance(region, dict)
-        and isinstance(region.get("expected_count"), int)
+        isinstance(region.get("expected_count"), int)
         and region["expected_count"] > 0
-        and _has_items(region.get("nodes"))
-        and all(_has_text(node) for node in region.get("nodes", []))
+        and isinstance(nodes, list)
+        and len(nodes) > 0
+        and all(_has_text(node) for node in nodes)
     )
 
 
