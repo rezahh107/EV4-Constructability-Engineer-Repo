@@ -1,5 +1,4 @@
 from pathlib import Path
-from pathlib import Path
 import shutil
 import subprocess
 import sys
@@ -11,10 +10,12 @@ from validator.reference_paradigm_lock import validate_path, validate_reference_
 
 ROOT = Path(__file__).resolve().parents[1]
 VALID = ROOT / "tests/valid/center_anchored_symmetric_pill_cards.json"
+GRID_VALID = ROOT / "tests/valid/grid_with_left_right_decomposition.json"
+GRID_INVALID = ROOT / "tests/invalid/grid_without_left_right_decomposition.json"
 INVALID = sorted((ROOT / "tests/invalid").glob("*.json"))
 
 
-@pytest.mark.parametrize("path", [VALID])
+@pytest.mark.parametrize("path", [VALID, GRID_VALID])
 def test_valid_reference_paradigm_lock_passes(path: Path) -> None:
     result = validate_path(path, repo_root=ROOT)
     assert result["passed"] is True
@@ -41,6 +42,15 @@ def test_builder_ready_unknown_layout_is_blocked_by_engine() -> None:
     result = validate_file(ROOT / "tests/invalid/unknown_layout_paradigm_marked_builder_ready.json", repo_root=ROOT)
     assert result["passed"] is False
     assert "R30_REFERENCE_PARADIGM_UNKNOWN_BLOCKS_BUILDER_READY" in result["rules_violated"]
+
+
+def test_builder_ready_grid_requires_left_right_decomposition() -> None:
+    document = load_json(GRID_INVALID)
+
+    result = validate_reference_paradigm_lock(document, repo_root=ROOT)
+
+    assert result["passed"] is False
+    assert any("LAYOUT_PARADIGM_REQUIRES_DECOMPOSITION" in error for error in result["rule_errors"])
 
 
 def test_visual_parity_flag_uses_same_readiness_gate() -> None:
