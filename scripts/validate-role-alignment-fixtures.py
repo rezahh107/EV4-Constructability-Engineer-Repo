@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VALID_DIR = ROOT / "tests" / "role-alignment" / "valid"
 INVALID_DIR = ROOT / "tests" / "role-alignment" / "invalid"
 PREREQUISITES_SCHEMA = ROOT / "schemas" / "ce-builder-executable-prerequisites.schema.json"
+SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA = "ev4-builder-executable-package@1.0.0"
 
 VISUAL_PREREQUISITES = (
     "golden_reference_contract",
@@ -46,6 +47,7 @@ def gate_document(doc: dict) -> dict:
     }
     if isinstance(pkg, dict):
         gate["builder_package_gate_check"] = {
+            "schema": pkg.get("schema"),
             "builder_decisions_required": pkg.get("builder_decisions_required"),
             "blocking_dependencies": pkg.get("blocking_dependencies"),
             "selected_candidate_locked": pkg.get("selected_candidate_locked"),
@@ -90,6 +92,8 @@ def assert_role_alignment(doc: dict, path: Path) -> None:
 
     if pkg is None:
         raise ValueError(f"{path}: executable_ready requires builder_executable_package")
+    if pkg.get("schema") != SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA:
+        raise ValueError(f"{path}: builder_executable_package.schema must be {SUPPORTED_BUILDER_EXECUTABLE_PACKAGE_SCHEMA}")
     if allowed != "Builder Executable Package" or blocked != "none":
         raise ValueError(f"{path}: executable_ready must expose Builder Executable Package only")
     if pkg.get("builder_package_status") != "executable_ready":
