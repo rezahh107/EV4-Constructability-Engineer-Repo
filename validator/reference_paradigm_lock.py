@@ -31,12 +31,19 @@ def _has_items(value: Any) -> bool:
     return isinstance(value, list) and len(value) > 0
 
 
-def _direction_pattern(direction: str) -> re.Pattern[str]:
-    return re.compile(rf"(^|[^a-z]){re.escape(direction)}([^a-z]|$)", re.IGNORECASE)
+_DIRECTION_PATTERNS = {
+    "left": re.compile(r"(^|[^a-z])left([^a-z]|$)", re.IGNORECASE),
+    "right": re.compile(r"(^|[^a-z])right([^a-z]|$)", re.IGNORECASE),
+}
 
 
 def _has_direction_term(value: Any, direction: str) -> bool:
-    return isinstance(value, str) and bool(_direction_pattern(direction).search(value))
+    if not isinstance(value, str):
+        return False
+    pattern = _DIRECTION_PATTERNS.get(direction.lower())
+    if pattern is None:
+        pattern = re.compile(rf"(^|[^a-z]){re.escape(direction)}([^a-z]|$)", re.IGNORECASE)
+    return bool(pattern.search(value))
 
 
 def _region_has_direction(region: Any, direction: str) -> bool:
