@@ -63,6 +63,20 @@ The schema is strict:
 | Builder-ready fields | none | forbidden | reject if present |
 | Unmapped freeform fields | none | forbidden | reject if present |
 
+## Responsive QA seed conversion
+
+`responsive_qa_seed` is not copied as a primitive value. It is converted into the structured `ce_review_units[].interrogation_inputs.responsive` proof-state object.
+
+The conversion must be deterministic:
+
+```yaml
+required: true
+state: not_proven | blocked
+evidence_refs: []
+```
+
+`state: evidence_backed` is allowed only when explicit responsive evidence is present in the source payload ledger. CE must not upgrade responsive behavior to proven by interpretation or visual guess.
+
 ## Proof-state mapping
 
 CE ingestion must use explicit proof states:
