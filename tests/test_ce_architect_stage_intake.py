@@ -1,16 +1,27 @@
 from __future__ import annotations
-import copy, importlib.util, json, subprocess, sys
+import copy, hashlib, importlib.util, json, subprocess, sys
 from pathlib import Path
 import pytest
 from jsonschema.exceptions import SchemaError
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "validate-ce-architect-stage-intake.py"
+MAPPING_V1_1 = ROOT / "contracts" / "ARCHITECT_STAGE_TO_CE_INTAKE_MAPPING_V1_1.md"
+SOURCE_BUNDLE_FIXTURE = ROOT / "fixtures/architect-stage-intake-v1-1/source-bundles/synthetic-architect-stage-bundle.v1.json"
 spec = importlib.util.spec_from_file_location("ce_intake_validator", SCRIPT)
 mod = importlib.util.module_from_spec(spec)
 sys.modules["ce_intake_validator"] = mod
 assert spec.loader is not None
 spec.loader.exec_module(mod)
+
+TRANSITION_TARGETS = {
+    "$.project_gate_transition.executed",
+    "$.project_gate_transition.transition_id",
+    "$.project_gate_transition.transition_version",
+    "$.project_gate_transition.producer_repository",
+    "$.project_gate_transition.source_bundle_id",
+    "$.project_gate_transition.source_bundle_hash",
+}
 
 def run_cli(*args: str):
     return subprocess.run([sys.executable, str(SCRIPT), "--repo-root", str(ROOT), *args], cwd=ROOT, text=True, capture_output=True, check=False, timeout=30)
@@ -20,6 +31,12 @@ def load_payload():
 
 def load_v11_payload():
     return json.loads((ROOT/"fixtures/architect-stage-intake-v1-1/valid/project-gate-transition-complete.v1_1.json").read_text(encoding="utf-8"))
+
+def load_source_bundle_fixture():
+    return json.loads(SOURCE_BUNDLE_FIXTURE.read_text(encoding="utf-8"))
+
+def canonical_json_bytes(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",",":")).encode("utf-8")
 
 def mutate(path: str, value, payload=None):
     payload = copy.deepcopy(payload or load_payload()); cur = payload; parts = path.split(".")
@@ -44,7 +61,7 @@ def delete(path: str, payload=None):
 def test_fixture_suite_passes():
     failures, reports = mod.validate_fixture_suite(ROOT)
     assert failures == 0
-    assert len(reports) == 36
+    assert len(reports) == 44
 
 def test_schema_meta_validation_rejects_invalid_bundled_schema(tmp_path: Path):
     schema_dir = tmp_path / "schemas"
@@ -64,6 +81,12 @@ def test_v1_0_remains_valid_for_compatibility():
     assert payload["ce_processing_prerequisites"]["project_gate_transition_implemented"] is False
     assert "project_gate_transition" not in payload
 
+def test_v1_0_schema_file_is_unchanged_for_compatibility():
+    schema = json.loads((ROOT/"schemas/ce_architect_stage_intake.v1.schema.json").read_text(encoding="utf-8"))
+    assert schema["properties"]["schema_id"]["const"] == "ev4-ce-architect-stage-intake@1.0.0"
+    assert schema["properties"]["ce_processing_prerequisites"]["properties"]["project_gate_transition_implemented"]["const"] is False
+    assert "project_gate_transition" not in schema["properties"]
+
 def test_v1_1_accepts_truthful_transition_execution_metadata():
     payload = load_v11_payload()
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
@@ -74,6 +97,57 @@ def test_v1_1_accepts_truthful_transition_execution_metadata():
     assert payload["project_gate_transition"]["producer_repository"] == "rezahh107/EV4-Project-Gate"
     assert payload["ce_processing_prerequisites"]["intake_contains_ce_conclusions"] is False
     assert payload["ce_processing_prerequisites"]["intake_contains_builder_authorization"] is False
+
+def test_v1_1_mapping_document_is_self_contained():
+    text = MAPPING_V1_1.read_text(encoding="utf-8")
+    assert "complete authoritative v1.1 mapping contract" in text
+    assert "A Project Gate implementation must not infer inherited behavior" in text
+    required_targets = [
+        "$.source_contract.schema_id",
+        "$.source_contract.schema_version",
+        "$.source_contract.owner_repository",
+        "$.selected_architecture.selected_candidate_id",
+        "$.selected_architecture.selected_candidate_locked",
+        "$.selected_architecture.architecture_family",
+        "$.selected_architecture.decision_source_refs",
+        "$.structure_projection.nodes[]",
+        "$.architect_intent_preserved.class_intent",
+        "$.architect_intent_preserved.responsive_risk_seeds[]",
+        "$.architect_intent_preserved.dynamic_loop_intent",
+        "$.evidence_register[]",
+        "$.unresolved_evidence[]",
+        "$.forbidden_work[]",
+        "$.negative_boundary_assertions",
+        "$.project_gate_transition.executed",
+        "$.project_gate_transition.transition_id",
+        "$.project_gate_transition.transition_version",
+        "$.project_gate_transition.producer_repository",
+        "$.project_gate_transition.source_bundle_id",
+        "$.project_gate_transition.source_bundle_hash",
+    ]
+    for target in required_targets:
+        assert target in text
+    assert "CE-MAP-A2C-01@1.0.0" in text
+    assert "CE-MAP-A2C-02@1.0.0" in text
+
+def test_valid_v1_1_fixture_contains_complete_transition_mapping_trace():
+    trace = load_v11_payload()["mapping_trace"]
+    targets = {row["target_path"] for row in trace}
+    assert TRANSITION_TARGETS <= targets
+    by_target = {row["target_path"]: row for row in trace}
+    assert by_target["$.project_gate_transition.source_bundle_id"]["classification"] == "direct_evidence_copy"
+    for target in TRANSITION_TARGETS - {"$.project_gate_transition.source_bundle_id"}:
+        assert by_target[target]["classification"] == "deterministic_derived_metadata"
+        assert by_target[target]["derivation_rule"]["version"] == "1.0.0"
+    assert by_target["$.project_gate_transition.source_bundle_hash"]["derivation_rule"]["id"] == "CE-MAP-A2C-02"
+    assert by_target["$.project_gate_transition.transition_id"]["derivation_rule"]["id"] == "CE-MAP-A2C-01"
+
+def test_canonical_source_bundle_hash_fixture_matches_recomputation():
+    source_fixture = load_source_bundle_fixture()
+    assert source_fixture["classification"] == "synthetic"
+    assert source_fixture["canonicalization"] == "ev4-canonical-json.v1"
+    expected = hashlib.sha256(canonical_json_bytes(source_fixture["source_bundle"])).hexdigest()
+    assert expected == load_v11_payload()["project_gate_transition"]["source_bundle_hash"]["value"]
 
 def test_structural_projection_does_not_add_ce_actions():
     payload = load_v11_payload()
@@ -136,6 +210,53 @@ def test_source_bundle_id_mismatch_is_invalid_semantic():
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     assert result["status"] == "invalid"
     assert result["diagnostics"][0]["code"] == "CE_I15_SOURCE_BUNDLE_TRACE_MISMATCH"
+
+def test_missing_transition_trace_row_is_invalid():
+    payload = delete("mapping_trace.15", load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_TRANSITION_TRACE_MISSING" for d in result["diagnostics"])
+
+def test_duplicate_transition_trace_row_is_invalid():
+    payload = mutate("mapping_trace.1.target_path", "$.project_gate_transition.source_bundle_id", load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_TRANSITION_TRACE_DUPLICATE" for d in result["diagnostics"])
+
+def test_wrong_transition_trace_classification_is_invalid():
+    payload = mutate("mapping_trace.15.classification", "direct_evidence_copy", load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_TRANSITION_TRACE_CLASSIFICATION_INVALID" for d in result["diagnostics"])
+
+def test_wrong_derivation_rule_id_is_invalid():
+    payload = mutate("mapping_trace.15.derivation_rule.id", "CE-MAP-A2C-02", load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_DERIVATION_RULE_INVALID" for d in result["diagnostics"])
+
+def test_wrong_derivation_rule_version_is_invalid():
+    payload = mutate("mapping_trace.15.derivation_rule.version", "2.0.0", load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+
+def test_source_bundle_hash_cannot_use_representation_conversion():
+    payload = mutate("mapping_trace.20.classification", "allowed_representation_conversion", load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_TRANSITION_TRACE_CLASSIFICATION_INVALID" for d in result["diagnostics"])
+
+def test_transition_identity_cannot_use_direct_evidence_copy():
+    payload = mutate("mapping_trace.16.classification", "direct_evidence_copy", load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_TRANSITION_TRACE_CLASSIFICATION_INVALID" for d in result["diagnostics"])
+
+def test_source_bundle_hash_mismatch_is_invalid():
+    payload = mutate("project_gate_transition.source_bundle_hash.value", "b"*64, load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_SOURCE_BUNDLE_HASH_MISMATCH" for d in result["diagnostics"])
 
 @pytest.mark.parametrize(("path","rule"), [
     ("ce_processing_prerequisites.intake_contains_ce_conclusions","CE-I16"),
@@ -249,18 +370,26 @@ def test_semantic_validation_is_not_executed_for_schema_invalid_input():
 
 def test_duplicate_mapping_trace_rejected():
     payload = load_v11_payload()
-    payload["mapping_trace"][1]["source_path"] = "$.bundle_id"
-    payload["mapping_trace"][1]["target_path"] = "$.project_gate_transition.source_bundle_id"
+    payload["mapping_trace"][1]["source_path"] = "$.schema_id"
+    payload["mapping_trace"][1]["target_path"] = "$.source_contract.schema_id"
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     assert result["status"] == "invalid"
     assert any(d["code"] == "CE_I10_DUPLICATE_MAPPING_TRACE" for d in result["diagnostics"])
 
 def test_structural_projection_requires_deterministic_order():
     payload = load_v11_payload()
-    payload["mapping_trace"][2]["ordering_rule"] = "preserve_source_order"
+    payload["mapping_trace"][7]["ordering_rule"] = "preserve_source_order"
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     assert result["status"] == "invalid"
     assert any(d["code"] == "CE_I10_MAPPING_ORDER_NOT_DETERMINISTIC" for d in result["diagnostics"])
+
+def test_diagnostics_are_deterministically_ordered():
+    payload = load_v11_payload()
+    payload["mapping_trace"][15]["classification"] = "direct_evidence_copy"
+    payload["project_gate_transition"]["source_bundle_hash"]["value"] = "b"*64
+    first = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    second = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(copy.deepcopy(payload))
+    assert first == second
 
 def test_status_history_preserved():
     status = (ROOT/"STATUS.md").read_text(encoding="utf-8")
