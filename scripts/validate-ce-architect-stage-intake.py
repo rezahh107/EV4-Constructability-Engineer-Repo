@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, copy, json
+import argparse, copy, hashlib, json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -12,6 +12,14 @@ ORDER = {"error":0,"insufficient_evidence":1,"warning":2,"info":3}
 SCHEMAS = {
     "ev4-ce-architect-stage-intake@1.0.0": "schemas/ce_architect_stage_intake.v1.schema.json",
     "ev4-ce-architect-stage-intake@1.1.0": "schemas/ce_architect_stage_intake.v1_1.schema.json",
+}
+TRANSITION_TRACE_REQUIREMENTS = {
+    "$.project_gate_transition.executed": ("deterministic_derived_metadata", "CE-MAP-A2C-01", "1.0.0"),
+    "$.project_gate_transition.transition_id": ("deterministic_derived_metadata", "CE-MAP-A2C-01", "1.0.0"),
+    "$.project_gate_transition.transition_version": ("deterministic_derived_metadata", "CE-MAP-A2C-01", "1.0.0"),
+    "$.project_gate_transition.producer_repository": ("deterministic_derived_metadata", "CE-MAP-A2C-01", "1.0.0"),
+    "$.project_gate_transition.source_bundle_id": ("direct_evidence_copy", None, None),
+    "$.project_gate_transition.source_bundle_hash": ("deterministic_derived_metadata", "CE-MAP-A2C-02", "1.0.0"),
 }
 FORBIDDEN_POSITIVE = {
     "constructability_proven":"CE-I06","ce_approved":"CE-I06","implementation_strategy_selected":"CE-I06",
@@ -43,6 +51,9 @@ def jp(parts):
     return out
 def as_list(value): return value if isinstance(value, list) else []
 def as_dict(value): return value if isinstance(value, dict) else {}
+
+def canonical_json_bytes(value: Any) -> bytes:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",",":")).encode("utf-8")
 
 def _missing_required_property(error: ValidationError) -> str | None:
     if error.validator != "required":
@@ -163,20 +174,24 @@ class CEArchitectStageIntakeValidator:
             if isinstance(item, dict) and item.get("state") == "validated" and item.get("fact_class") in {"unresolved_unknown","synthetic_fixture"}:
                 out.append(D("CE_I05_EVIDENCE_STATE_UPGRADED","error","Architect evidence state was upgraded without evidence.",f"$.evidence_register[{i}].state","CE-I05"))
         trace = as_list(value.get("mapping_trace"))
-        seen = set()
+        seen_pairs = set()
+        seen_targets = {}
         for i, item in enumerate(trace):
             if not isinstance(item, dict): continue
             pair = (item.get("source_path"), item.get("target_path"))
-            if pair in seen:
+            target = item.get("target_path")
+            if pair in seen_pairs:
                 out.append(D("CE_I10_DUPLICATE_MAPPING_TRACE","error","Mapping trace entries must be unique.",f"$.mapping_trace[{i}]","CE-I10"))
-            seen.add(pair)
+            seen_pairs.add(pair)
+            if isinstance(target, str):
+                seen_targets.setdefault(target, []).append((i, item))
             if item.get("classification") == "deterministic_structural_projection" and item.get("ordering_rule") not in {"sort_by_id","sort_by_source_path_then_target_path"}:
                 out.append(D("CE_I10_MAPPING_ORDER_NOT_DETERMINISTIC","error","Structural projections require deterministic ordering.",f"$.mapping_trace[{i}].ordering_rule","CE-I10"))
         if value.get("schema_id") == "ev4-ce-architect-stage-intake@1.1.0":
-            out.extend(self._transition_semantics(value))
+            out.extend(self._transition_semantics(value, seen_targets))
         return out
 
-    def _transition_semantics(self, value: dict[str, Any]) -> list[Diagnostic]:
+    def _transition_semantics(self, value: dict[str, Any], seen_targets: dict[str, list[tuple[int, dict[str, Any]]]]) -> list[Diagnostic]:
         out: list[Diagnostic] = []
         transition = as_dict(value.get("project_gate_transition"))
         source = as_dict(value.get("source_repository_ref"))
@@ -191,7 +206,46 @@ class CEArchitectStageIntakeValidator:
             out.append(D("CE_I17_BUILDER_AUTH_NOT_GRANTED_AT_INTAKE","error","Transition execution does not authorize Builder execution.","$.ce_processing_prerequisites.intake_contains_builder_authorization","CE-I17"))
         if prereq.get("real_cross_repository_validation_available") is not False:
             out.append(D("CE_I18_REAL_ELEMENTOR_VALIDATION_UNAVAILABLE","error","Real Elementor validation must remain unavailable unless proven separately.","$.ce_processing_prerequisites.real_cross_repository_validation_available","CE-I18"))
+        out.extend(self._validate_transition_trace(seen_targets))
+        out.extend(self._validate_source_bundle_hash(value))
         return out
+
+    def _validate_transition_trace(self, seen_targets: dict[str, list[tuple[int, dict[str, Any]]]]) -> list[Diagnostic]:
+        out: list[Diagnostic] = []
+        for target_path, (expected_class, expected_rule, expected_version) in TRANSITION_TRACE_REQUIREMENTS.items():
+            rows = seen_targets.get(target_path, [])
+            if len(rows) != 1:
+                code = "CE_I21_TRANSITION_TRACE_MISSING" if not rows else "CE_I21_TRANSITION_TRACE_DUPLICATE"
+                out.append(D(code,"error","Mapping trace must contain exactly one row for each Project Gate transition metadata target.",target_path,"CE-I21",target_path=target_path,observed_count=len(rows)))
+                continue
+            index, row = rows[0]
+            if row.get("classification") != expected_class:
+                out.append(D("CE_I21_TRANSITION_TRACE_CLASSIFICATION_INVALID","error","Project Gate transition metadata mapping trace uses the wrong classification.",f"$.mapping_trace[{index}].classification","CE-I21",target_path=target_path,expected=expected_class,observed=row.get("classification")))
+            rule = row.get("derivation_rule")
+            if expected_rule is None:
+                if rule is not None:
+                    out.append(D("CE_I21_UNEXPECTED_DERIVATION_RULE","error","Direct transition evidence copy must not declare a derivation rule.",f"$.mapping_trace[{index}].derivation_rule","CE-I21",target_path=target_path))
+            else:
+                if not isinstance(rule, dict) or rule.get("id") != expected_rule or rule.get("version") != expected_version:
+                    out.append(D("CE_I21_DERIVATION_RULE_INVALID","error","Derived transition metadata must declare the exact derivation rule and version.",f"$.mapping_trace[{index}].derivation_rule","CE-I21",target_path=target_path,expected_rule=expected_rule,expected_version=expected_version))
+        return out
+
+    def _validate_source_bundle_hash(self, value: dict[str, Any]) -> list[Diagnostic]:
+        fixture_path = self.repo_root / "fixtures/architect-stage-intake-v1-1/source-bundles/synthetic-architect-stage-bundle.v1.json"
+        if not fixture_path.exists():
+            return []
+        try:
+            source_fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        source_bundle = as_dict(source_fixture).get("source_bundle")
+        if not isinstance(source_bundle, dict):
+            return []
+        expected = hashlib.sha256(canonical_json_bytes(source_bundle)).hexdigest()
+        observed = as_dict(as_dict(value.get("project_gate_transition")).get("source_bundle_hash")).get("value")
+        if observed != expected:
+            return [D("CE_I21_SOURCE_BUNDLE_HASH_MISMATCH","error","source_bundle_hash must match canonical SHA-256 of the pinned synthetic source bundle fixture.","$.project_gate_transition.source_bundle_hash.value","CE-I21",expected=expected,observed=observed)]
+        return []
 
     def _forbidden(self, value: Any, path="$") -> list[Diagnostic]:
         out = []
