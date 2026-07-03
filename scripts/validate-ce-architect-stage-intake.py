@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 Severity = Literal["error","warning","info","insufficient_evidence"]
 ORDER = {"error":0,"insufficient_evidence":1,"warning":2,"info":3}
@@ -39,6 +40,37 @@ def jp(parts):
 def as_list(value): return value if isinstance(value, list) else []
 def as_dict(value): return value if isinstance(value, dict) else {}
 
+def _is_ce_i11_missing_evidence_schema_error(error: ValidationError, value: Any) -> bool:
+    if not isinstance(value, dict) or value.get("intake_status") != "insufficient_evidence":
+        return False
+    schema_path = list(error.absolute_schema_path)
+    if "allOf" not in schema_path or "then" not in schema_path:
+        return False
+    data_path = list(error.absolute_path)
+    if error.validator == "required":
+        return data_path == [] and isinstance(error.validator_value, list) and "missing_evidence" in error.validator_value
+    if error.validator == "minItems":
+        return data_path == ["missing_evidence"] and error.validator_value == 1
+    return False
+
+def _schema_diagnostic(error: ValidationError, value: Any) -> Diagnostic:
+    if _is_ce_i11_missing_evidence_schema_error(error, value):
+        return D(
+            "CE_I11_MISSING_EVIDENCE_REQUIRED",
+            "error",
+            "Insufficient-evidence intake must declare non-empty missing_evidence.",
+            "$.missing_evidence",
+            "CE-I11",
+            schema_validator=error.validator,
+        )
+    return D("SCHEMA_VALIDATION_FAILED","error",error.message,jp(list(error.path)))
+
+def _format_text_result(result: dict[str, Any]) -> str:
+    lines = [f"status: {result['status']}"]
+    for diag in result.get("diagnostics", []):
+        lines.append(f"[{diag['severity'].upper()}] {diag['code']} at {diag['path']}: {diag['message']}")
+    return "\n".join(lines)
+
 class CEArchitectStageIntakeValidator:
     def __init__(self, repo_root: str | Path):
         self.repo_root = Path(repo_root)
@@ -60,7 +92,7 @@ class CEArchitectStageIntakeValidator:
     def validate_value(self, value: Any) -> dict[str, Any]:
         if not isinstance(value, dict):
             return self._result(value, [D("INPUT_NOT_OBJECT","error","CE Architect-stage intake must be a JSON object.","$",observed_type=type(value).__name__)])
-        schema_diags = [D("SCHEMA_VALIDATION_FAILED","error",e.message,jp(list(e.path))) for e in sorted(self.validator.iter_errors(value), key=lambda e:(jp(list(e.path)), e.message))]
+        schema_diags = [_schema_diagnostic(e, value) for e in sorted(self.validator.iter_errors(value), key=lambda e:(jp(list(e.path)), e.validator, jp(list(e.schema_path))))]
         if schema_diags:
             return self._result(value, schema_diags)
         return self._result(value, self._semantic(value))
@@ -98,8 +130,6 @@ class CEArchitectStageIntakeValidator:
             seen.add(pair)
             if item.get("classification") == "deterministic_structural_projection" and item.get("ordering_rule") not in {"sort_by_id","sort_by_source_path_then_target_path"}:
                 out.append(D("CE_I10_MAPPING_ORDER_NOT_DETERMINISTIC","error","Structural projections require deterministic ordering.",f"$.mapping_trace[{i}].ordering_rule","CE-I10"))
-        if value.get("intake_status") == "insufficient_evidence" and not as_list(value.get("missing_evidence")):
-            out.append(D("CE_I11_MISSING_EVIDENCE_REQUIRED","error","Insufficient-evidence intake must declare missing evidence.","$.missing_evidence","CE-I11"))
         return out
 
     def _forbidden(self, value: Any, path="$") -> list[Diagnostic]:
@@ -131,10 +161,9 @@ def _delete(value, path):
     for p in parts[:-1]: cur = cur[p]
     del cur[parts[-1]]
 
-def _load_cases(repo_root: Path, cases_file: Path, expected: str):
+def _load_cases(repo_root: Path, cases_file: Path, expected: str, validator: CEArchitectStageIntakeValidator):
     data = json.loads(cases_file.read_text(encoding="utf-8"))
     base = json.loads((cases_file.parent / data["base_fixture"]).resolve().read_text(encoding="utf-8"))
-    validator = CEArchitectStageIntakeValidator(repo_root)
     failures = 0; reports = []
     for case in data["cases"]:
         payload = copy.deepcopy(base)
@@ -155,7 +184,7 @@ def validate_fixture_suite(repo_root: Path):
     for dirname, expected in [("valid","valid"),("invalid","invalid"),("insufficient-evidence","insufficient_evidence")]:
         for path in sorted((base/dirname).glob("*.json")):
             if path.name == "cases.v1.json":
-                f, r = _load_cases(repo_root, path, expected); failures += f; reports.extend(r); continue
+                f, r = _load_cases(repo_root, path, expected, validator); failures += f; reports.extend(r); continue
             result = validator.validate_file(path); ok = result["status"] == expected
             failures += 0 if ok else 1
             reports.append({"fixture": str(path.relative_to(repo_root)), "expected": expected, "actual": result["status"], "ok": ok, "diagnostic_codes": [d["code"] for d in result["diagnostics"]]})
@@ -169,10 +198,10 @@ def main(argv=None):
     parser.add_argument("--format", choices=["text","json"], default="text")
     args = parser.parse_args(argv)
     root = Path(args.repo_root).resolve()
-    validator = CEArchitectStageIntakeValidator(root)
     if args.file:
+        validator = CEArchitectStageIntakeValidator(root)
         result = validator.validate_file(args.file if args.file.is_absolute() else root / args.file)
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",",":")) if args.format == "json" else f"status: {result['status']}")
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",",":")) if args.format == "json" else _format_text_result(result))
         if args.expect: return 0 if result["status"] == args.expect else 1
         return 0 if result["status"] == "valid" else 2 if result["status"] == "insufficient_evidence" else 1
     failures, reports = validate_fixture_suite(root)
