@@ -2,6 +2,7 @@ from __future__ import annotations
 import copy, importlib.util, json, subprocess, sys
 from pathlib import Path
 import pytest
+from jsonschema.exceptions import SchemaError
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "validate-ce-architect-stage-intake.py"
@@ -32,6 +33,16 @@ def test_fixture_suite_passes():
     assert failures == 0
     assert len(reports) == 24
 
+def test_schema_meta_validation_rejects_invalid_bundled_schema(tmp_path: Path):
+    schema_dir = tmp_path / "schemas"
+    schema_dir.mkdir()
+    (schema_dir / "ce_architect_stage_intake.v1.schema.json").write_text(
+        json.dumps({"$schema":"https://json-schema.org/draft/2020-12/schema","type": 1}),
+        encoding="utf-8",
+    )
+    with pytest.raises(SchemaError):
+        mod.CEArchitectStageIntakeValidator(tmp_path)
+
 def test_direct_copies_preserve_exact_values():
     payload = load_payload()
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
@@ -59,6 +70,11 @@ def test_unresolved_evidence_remains_unresolved():
 def test_insufficient_evidence_is_distinct():
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_file(ROOT/"fixtures/architect-stage-intake/insufficient-evidence/missing-real-architect-stage-bundle.v1.json")
     assert result["status"] == "insufficient_evidence"
+    assert result["diagnostics"] == []
+
+def test_complete_intake_without_optional_missing_evidence_is_valid():
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(load_payload())
+    assert result["status"] == "valid"
     assert result["diagnostics"] == []
 
 def test_missing_file_is_structured_invalid():
@@ -108,10 +124,77 @@ def test_cli_schema_invalid_nested_type_exit_1_no_traceback(tmp_path: Path):
     assert first.stdout == second.stdout
     assert json.loads(first.stdout)["diagnostics"][0]["code"] == "SCHEMA_VALIDATION_FAILED"
 
+def test_cli_valid_text_output():
+    completed = run_cli("--file","fixtures/architect-stage-intake/valid/minimal-canonical-intake.v1.json")
+    assert completed.returncode == 0
+    assert completed.stderr == ""
+    assert completed.stdout == "status: valid\n"
+
+def test_cli_invalid_text_output_includes_diagnostics():
+    completed = run_cli("--file","fixtures/architect-stage-intake/invalid/missing-file.json")
+    assert completed.returncode == 1
+    assert completed.stderr == ""
+    assert "Traceback" not in completed.stdout
+    assert completed.stdout.startswith("status: invalid\n[ERROR] FILE_READ_ERROR at $: File could not be read.\n")
+
+def test_cli_insufficient_evidence_text_output():
+    completed = run_cli("--file","fixtures/architect-stage-intake/insufficient-evidence/missing-real-architect-stage-bundle.v1.json")
+    assert completed.returncode == 2
+    assert completed.stderr == ""
+    assert completed.stdout == "status: insufficient_evidence\n"
+
+def test_cli_json_mode_remains_compact_and_deterministic():
+    first = run_cli("--file","fixtures/architect-stage-intake/invalid/missing-file.json","--format","json")
+    second = run_cli("--file","fixtures/architect-stage-intake/invalid/missing-file.json","--format","json")
+    assert first.returncode == second.returncode == 1
+    assert first.stderr == second.stderr == ""
+    assert first.stdout == second.stdout
+    assert first.stdout.startswith('{"diagnostics"')
+    assert "status: invalid" not in first.stdout
+    assert json.loads(first.stdout)["diagnostics"][0]["code"] == "FILE_READ_ERROR"
+
 def test_cli_insufficient_evidence_exit_2():
     completed = run_cli("--file","fixtures/architect-stage-intake/insufficient-evidence/missing-real-architect-stage-bundle.v1.json","--format","json")
     assert completed.returncode == 2
     assert json.loads(completed.stdout)["status"] == "insufficient_evidence"
+
+def test_ce_i11_missing_missing_evidence_uses_rule_specific_schema_diagnostic():
+    payload = load_payload()
+    payload["intake_status"] = "insufficient_evidence"
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert result["diagnostics"] == [{
+        "code": "CE_I11_MISSING_EVIDENCE_REQUIRED",
+        "severity": "error",
+        "message": "Insufficient-evidence intake must declare non-empty missing_evidence.",
+        "path": "$.missing_evidence",
+        "rule_id": "CE-I11",
+        "details": {"schema_validator": "required"},
+    }]
+
+def test_ce_i11_empty_missing_evidence_uses_rule_specific_schema_diagnostic():
+    payload = load_payload()
+    payload["intake_status"] = "insufficient_evidence"
+    payload["missing_evidence"] = []
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert result["diagnostics"][0]["code"] == "CE_I11_MISSING_EVIDENCE_REQUIRED"
+    assert result["diagnostics"][0]["rule_id"] == "CE-I11"
+    assert result["diagnostics"][0]["path"] == "$.missing_evidence"
+
+def test_unrelated_schema_failure_remains_generic_schema_diagnostic():
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(mutate("source_contract", None))
+    assert result["status"] == "invalid"
+    assert all(d["code"] == "SCHEMA_VALIDATION_FAILED" for d in result["diagnostics"])
+    assert all("rule_id" not in d for d in result["diagnostics"])
+
+def test_semantic_validation_is_not_executed_for_schema_invalid_input():
+    payload = mutate("source_contract", None)
+    payload["source_repository_ref"]["ref"] = "/builder-feed-export"
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    codes = [d["code"] for d in result["diagnostics"]]
+    assert "SCHEMA_VALIDATION_FAILED" in codes
+    assert "CE_I12_LEGACY_SOURCE_STAGE_FORBIDDEN" not in codes
 
 def test_duplicate_mapping_trace_rejected():
     payload = load_payload()
