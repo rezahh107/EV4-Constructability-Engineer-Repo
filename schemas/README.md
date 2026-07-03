@@ -6,13 +6,23 @@ The MVP has three Builder/constructability contracts:
 - implementation_strategy_map.schema.json
 - builder_executable_package.schema.json
 
-The canonical new Architect-facing CE intake contract is:
+The canonical Project Gate-produced Architect-facing CE intake contract is:
+
+```text
+ce_architect_stage_intake.v1_1.schema.json
+schema_id: ev4-ce-architect-stage-intake@1.1.0
+accepted source: ev4-architect-stage-payload@1.0.0
+transition: ev4-architect-to-ce-transition@1.0.0
+```
+
+Historical compatibility-only Architect Stage intake schema:
 
 ```text
 ce_architect_stage_intake.v1.schema.json
 schema_id: ev4-ce-architect-stage-intake@1.0.0
-accepted source: ev4-architect-stage-payload@1.0.0
 ```
+
+Do not reinterpret v1.0.0; it remains frozen and records `project_gate_transition_implemented: false`.
 
 Legacy compatibility-only Architect intake schema:
 
