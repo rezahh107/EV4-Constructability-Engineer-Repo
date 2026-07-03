@@ -58,6 +58,20 @@ def delete(path: str, payload=None):
         del cur[parts[-1]]
     return payload
 
+def with_second_source_bundle_payload():
+    source = copy.deepcopy(load_source_bundle_fixture()["source_bundle"])
+    source["bundle_id"] = "synthetic-architect-bundle-002"
+    payload = load_v11_payload()
+    payload["source_repository_ref"]["bundle_id"] = source["bundle_id"]
+    payload["project_gate_transition"]["source_bundle_id"] = source["bundle_id"]
+    payload["project_gate_transition"]["source_bundle_hash"]["value"] = hashlib.sha256(canonical_json_bytes(source)).hexdigest()
+    return payload, source
+
+def write_json(tmp_path: Path, name: str, value) -> Path:
+    path = tmp_path / name
+    path.write_text(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",",":")), encoding="utf-8")
+    return path
+
 def test_fixture_suite_passes():
     failures, reports = mod.validate_fixture_suite(ROOT)
     assert failures == 0
@@ -97,6 +111,40 @@ def test_v1_1_accepts_truthful_transition_execution_metadata():
     assert payload["project_gate_transition"]["producer_repository"] == "rezahh107/EV4-Project-Gate"
     assert payload["ce_processing_prerequisites"]["intake_contains_ce_conclusions"] is False
     assert payload["ce_processing_prerequisites"]["intake_contains_builder_authorization"] is False
+
+def test_normal_validator_accepts_two_valid_hash_values_without_source_bundle():
+    validator = mod.CEArchitectStageIntakeValidator(ROOT)
+    first = load_v11_payload()
+    second, _ = with_second_source_bundle_payload()
+    assert first["project_gate_transition"]["source_bundle_hash"]["value"] != second["project_gate_transition"]["source_bundle_hash"]["value"]
+    assert validator.validate_value(first)["status"] == "valid"
+    assert validator.validate_value(second)["status"] == "valid"
+
+def test_normal_validator_does_not_read_synthetic_fixture_implicitly():
+    payload = load_v11_payload()
+    payload["project_gate_transition"]["source_bundle_hash"]["value"] = "b" * 64
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "valid"
+    assert result["diagnostics"] == []
+
+def test_explicit_source_bundle_verification_accepts_matching_pair():
+    source = load_source_bundle_fixture()["source_bundle"]
+    result = mod.validate_source_bundle_binding(load_v11_payload(), source)
+    assert result == []
+
+def test_explicit_source_bundle_verification_rejects_mismatched_hash():
+    source = copy.deepcopy(load_source_bundle_fixture()["source_bundle"])
+    payload = load_v11_payload()
+    payload["project_gate_transition"]["source_bundle_hash"]["value"] = "b" * 64
+    diagnostics = mod.validate_source_bundle_binding(payload, source)
+    assert [d.code for d in diagnostics] == ["CE_I21_SOURCE_BUNDLE_HASH_MISMATCH"]
+
+def test_explicit_source_bundle_verification_rejects_mismatched_bundle_id():
+    source = copy.deepcopy(load_source_bundle_fixture()["source_bundle"])
+    source["bundle_id"] = "different-bundle"
+    diagnostics = mod.validate_source_bundle_binding(load_v11_payload(), source)
+    codes = [d.code for d in diagnostics]
+    assert "CE_I21_SOURCE_BUNDLE_ID_MISMATCH" in codes
 
 def test_v1_1_mapping_document_is_self_contained():
     text = MAPPING_V1_1.read_text(encoding="utf-8")
@@ -225,6 +273,7 @@ def test_duplicate_transition_trace_row_is_invalid():
 
 def test_wrong_transition_trace_classification_is_invalid():
     payload = mutate("mapping_trace.15.classification", "direct_evidence_copy", load_v11_payload())
+    payload = delete("mapping_trace.15.derivation_rule", payload)
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     assert result["status"] == "invalid"
     assert any(d["code"] == "CE_I21_TRANSITION_TRACE_CLASSIFICATION_INVALID" for d in result["diagnostics"])
@@ -239,24 +288,44 @@ def test_wrong_derivation_rule_version_is_invalid():
     payload = mutate("mapping_trace.15.derivation_rule.version", "2.0.0", load_v11_payload())
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_DERIVATION_RULE_INVALID" for d in result["diagnostics"])
 
 def test_source_bundle_hash_cannot_use_representation_conversion():
     payload = mutate("mapping_trace.20.classification", "allowed_representation_conversion", load_v11_payload())
+    payload = delete("mapping_trace.20.derivation_rule", payload)
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     assert result["status"] == "invalid"
     assert any(d["code"] == "CE_I21_TRANSITION_TRACE_CLASSIFICATION_INVALID" for d in result["diagnostics"])
 
 def test_transition_identity_cannot_use_direct_evidence_copy():
     payload = mutate("mapping_trace.16.classification", "direct_evidence_copy", load_v11_payload())
+    payload = delete("mapping_trace.16.derivation_rule", payload)
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     assert result["status"] == "invalid"
     assert any(d["code"] == "CE_I21_TRANSITION_TRACE_CLASSIFICATION_INVALID" for d in result["diagnostics"])
 
-def test_source_bundle_hash_mismatch_is_invalid():
-    payload = mutate("project_gate_transition.source_bundle_hash.value", "b"*64, load_v11_payload())
+def test_non_derived_direct_copy_with_derivation_rule_is_invalid():
+    payload = load_v11_payload()
+    payload["mapping_trace"][0]["derivation_rule"] = {"id":"CE-MAP-A2C-01","version":"1.0.0"}
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     assert result["status"] == "invalid"
-    assert any(d["code"] == "CE_I21_SOURCE_BUNDLE_HASH_MISMATCH" for d in result["diagnostics"])
+    assert any(d["code"] == "CE_I21_UNDOCUMENTED_DERIVATION_RULE" for d in result["diagnostics"])
+
+def test_non_derived_structural_projection_with_derivation_rule_is_invalid():
+    payload = load_v11_payload()
+    payload["mapping_trace"][7]["derivation_rule"] = {"id":"CE-MAP-A2C-01","version":"1.0.0"}
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_UNDOCUMENTED_DERIVATION_RULE" for d in result["diagnostics"])
+
+def test_derived_metadata_without_derivation_rule_is_invalid():
+    payload = delete("mapping_trace.15.derivation_rule", load_v11_payload())
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
+    assert result["status"] == "invalid"
+    assert any(d["code"] == "CE_I21_DERIVATION_RULE_INVALID" for d in result["diagnostics"])
+
+def test_derived_metadata_with_exact_rule_is_valid():
+    assert mod.CEArchitectStageIntakeValidator(ROOT).validate_value(load_v11_payload())["status"] == "valid"
 
 @pytest.mark.parametrize(("path","rule"), [
     ("ce_processing_prerequisites.intake_contains_ce_conclusions","CE-I16"),
@@ -332,6 +401,32 @@ def test_cli_json_mode_remains_compact_and_deterministic():
     assert first.stdout.startswith('{"diagnostics"')
     assert json.loads(first.stdout)["status"] == "valid"
 
+def test_cli_without_source_bundle_preserves_valid_exit():
+    completed = run_cli("--file","fixtures/architect-stage-intake-v1-1/valid/project-gate-transition-complete.v1_1.json","--format","json")
+    assert completed.returncode == 0
+    assert json.loads(completed.stdout)["status"] == "valid"
+
+def test_cli_with_matching_source_bundle_accepts(tmp_path: Path):
+    intake_path = write_json(tmp_path, "intake.json", load_v11_payload())
+    source_path = write_json(tmp_path, "source_bundle.json", load_source_bundle_fixture()["source_bundle"])
+    completed = run_cli("--file", str(intake_path), "--source-bundle", str(source_path), "--format", "json")
+    assert completed.returncode == 0
+    assert completed.stderr == ""
+    assert json.loads(completed.stdout)["status"] == "valid"
+
+def test_cli_with_mismatching_source_bundle_returns_structured_error(tmp_path: Path):
+    payload = load_v11_payload()
+    payload["project_gate_transition"]["source_bundle_hash"]["value"] = "b" * 64
+    intake_path = write_json(tmp_path, "intake.json", payload)
+    source_path = write_json(tmp_path, "source_bundle.json", load_source_bundle_fixture()["source_bundle"])
+    completed = run_cli("--file", str(intake_path), "--source-bundle", str(source_path), "--format", "json")
+    assert completed.returncode == 1
+    assert completed.stderr == ""
+    assert "Traceback" not in completed.stdout
+    result = json.loads(completed.stdout)
+    assert result["status"] == "invalid"
+    assert result["diagnostics"][0]["code"] == "CE_I21_SOURCE_BUNDLE_HASH_MISMATCH"
+
 def test_cli_schema_invalid_nested_type_exit_1_no_traceback(tmp_path: Path):
     path = tmp_path / "bad.json"
     path.write_text(json.dumps(mutate("project_gate_transition", None, load_v11_payload())), encoding="utf-8")
@@ -386,7 +481,8 @@ def test_structural_projection_requires_deterministic_order():
 def test_diagnostics_are_deterministically_ordered():
     payload = load_v11_payload()
     payload["mapping_trace"][15]["classification"] = "direct_evidence_copy"
-    payload["project_gate_transition"]["source_bundle_hash"]["value"] = "b"*64
+    payload = delete("mapping_trace.15.derivation_rule", payload)
+    payload["project_gate_transition"]["source_bundle_id"] = "different-bundle"
     first = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(payload)
     second = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(copy.deepcopy(payload))
     assert first == second
