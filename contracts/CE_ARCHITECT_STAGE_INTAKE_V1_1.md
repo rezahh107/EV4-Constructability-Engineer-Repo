@@ -47,6 +47,32 @@ production ready
 real Elementor validation completed
 ```
 
+## Mapping trace requirement
+
+v1.1 mapping traces must use the complete self-contained mapping contract:
+
+```text
+ev4-architect-stage-to-ce-intake-mapping@1.1.0
+```
+
+The classification `deterministic_derived_metadata` is allowed only for deterministic Project Gate metadata. It requires a `derivation_rule` record and must not be used for CE semantic conclusions.
+
+Required derivation rules:
+
+```yaml
+CE-MAP-A2C-01@1.0.0:
+  outputs:
+    - $.project_gate_transition.executed
+    - $.project_gate_transition.transition_id
+    - $.project_gate_transition.transition_version
+    - $.project_gate_transition.producer_repository
+CE-MAP-A2C-02@1.0.0:
+  outputs:
+    - $.project_gate_transition.source_bundle_hash
+```
+
+`$.project_gate_transition.source_bundle_id` remains a direct evidence copy from the source Stage Evidence Bundle id.
+
 ## Stable rule IDs added in v1.1
 
 | rule_id | meaning |
@@ -59,6 +85,7 @@ real Elementor validation completed
 | `CE-I18` | real Elementor validation remains unavailable unless proven separately |
 | `CE-I19` | incomplete transition provenance is invalid |
 | `CE-I20` | insufficient evidence remains distinct from invalid input |
+| `CE-I21` | mapping trace must completely describe Project Gate transition metadata |
 
 Existing `CE-I01` through `CE-I12` keep their v1.0 meaning.
 
