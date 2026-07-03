@@ -35,7 +35,10 @@ def delete(path: str, payload=None):
     payload = copy.deepcopy(payload or load_payload()); cur = payload; parts = path.split(".")
     for p in parts[:-1]:
         cur = cur[int(p)] if p.isdigit() else cur[p]
-    del cur[parts[-1]]
+    if parts[-1].isdigit():
+        del cur[int(parts[-1])]
+    else:
+        del cur[parts[-1]]
     return payload
 
 def test_fixture_suite_passes():
@@ -121,6 +124,12 @@ def test_missing_source_bundle_traceability_is_invalid(path):
     result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(delete(path, load_v11_payload()))
     assert result["status"] == "invalid"
     assert result["diagnostics"][0]["rule_id"] == "CE-I15"
+
+@pytest.mark.parametrize("path", ["project_gate_transition.transition_id", "project_gate_transition.transition_version", "project_gate_transition.producer_repository"])
+def test_missing_transition_identity_is_invalid(path):
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(delete(path, load_v11_payload()))
+    assert result["status"] == "invalid"
+    assert result["diagnostics"][0]["rule_id"] == "CE-I14"
 
 def test_source_bundle_id_mismatch_is_invalid_semantic():
     payload = mutate("project_gate_transition.source_bundle_id", "different-bundle", load_v11_payload())
