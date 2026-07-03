@@ -281,15 +281,15 @@ def _tokens(path): return [int(p) if p.isdigit() else p for p in path.split(".")
 def _set(value, path, new):
     cur = value; parts = _tokens(path)
     for p in parts[:-1]: cur = cur[p]
-    if parts[-1].isdigit():
-        cur[int(parts[-1])] = new
+    if isinstance(parts[-1], int):
+        cur[parts[-1]] = new
     else:
         cur[parts[-1]] = new
 def _delete(value, path):
     cur = value; parts = _tokens(path)
     for p in parts[:-1]: cur = cur[p]
-    if parts[-1].isdigit():
-        del cur[int(parts[-1])]
+    if isinstance(parts[-1], int):
+        del cur[parts[-1]]
     else:
         del cur[parts[-1]]
 
