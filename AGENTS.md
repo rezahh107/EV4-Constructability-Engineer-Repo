@@ -10,19 +10,21 @@ These instructions apply to the entire repository unless a closer nested `AGENTS
 
 It receives an approved architecture handoff, identifies hidden execution dependencies, proves or blocks implementation strategy, preserves locked architecture identity, and emits a Builder-ready package only when Builder has no remaining strategy decision.
 
-For new Project Gate work, its canonical Architect-facing intake is `ev4-ce-architect-stage-intake@1.0.0`.
+For Project Gate-produced Architect-to-CE transitions, its canonical Architect-facing intake is `ev4-ce-architect-stage-intake@1.1.0`.
 
 ## Read First
 
 1. `README.md`
 2. `STATUS.md`, when present
-3. `contracts/CE_ARCHITECT_STAGE_INTAKE_V1.md`
-4. `contracts/ARCHITECT_STAGE_TO_CE_INTAKE_MAPPING_V1.md`
-5. `schemas/ce_architect_stage_intake.v1.schema.json`
-6. `scripts/validate-ce-architect-stage-intake.py`
-7. `docs/PROTOCOL.md`
-8. `docs/ROLE_BOUNDARIES.md`
-9. the relevant schema, validator, rule, fixture, and test files
+3. `contracts/CE_ARCHITECT_STAGE_INTAKE_V1_1.md`
+4. `contracts/ARCHITECT_STAGE_TO_CE_INTAKE_MAPPING_V1_1.md`
+5. `schemas/ce_architect_stage_intake.v1_1.schema.json`
+6. `contracts/CE_ARCHITECT_STAGE_INTAKE_V1.md`
+7. `contracts/ARCHITECT_STAGE_TO_CE_INTAKE_MAPPING_V1.md`
+8. `scripts/validate-ce-architect-stage-intake.py`
+9. `docs/PROTOCOL.md`
+10. `docs/ROLE_BOUNDARIES.md`
+11. the relevant schema, validator, rule, fixture, and test files
 
 Follow the current owning contract and validated fixtures over proposals or historical notes.
 
@@ -30,24 +32,24 @@ Follow the current owning contract and validated fixtures over proposals or hist
 
 ```text
 Architect package
+→ Project Gate transition
+→ CE Architect Stage Intake
 → CE review and output
 → EV4 Project Gate
 → accepted: Builder Input Package
 → not accepted: CE repair or evidenced upstream amendment
 ```
 
-Project Gate integration is documented but the verifier and user interface are not implemented yet.
-
 Project Gate may execute this repository's official validators and the documented downstream adapter. It must not invent implementation strategy or replace CE contracts.
 
-For the Architect → CE boundary, Project Gate must not create CE-owned conclusions. The CE intake package may preserve Architect evidence and deterministic projections only.
+For the Architect → CE boundary, Project Gate must not create CE-owned conclusions. The CE intake package may preserve Architect evidence, deterministic projections, transition provenance, and unresolved evidence only.
 
 ## Canonical Architect Intake
 
-Canonical new intake:
+Canonical Project Gate-produced intake:
 
 ```text
-ev4-ce-architect-stage-intake@1.0.0
+ev4-ce-architect-stage-intake@1.1.0
 ```
 
 Accepted source:
@@ -59,6 +61,13 @@ ev4-architect-stage-payload@1.0.0
 Mapping contract:
 
 ```text
+ev4-architect-stage-to-ce-intake-mapping@1.1.0
+```
+
+Historical compatibility-only Architect Stage intake:
+
+```text
+ev4-ce-architect-stage-intake@1.0.0
 ev4-architect-stage-to-ce-intake-mapping@1.0.0
 ```
 
@@ -69,7 +78,7 @@ contracts/ARCHITECT_TO_CE_INPUT_MAPPING_V1.md
 schemas/architect_ce_input_package.v1.schema.json
 ```
 
-Do not use the legacy Architect output contract as the preferred target for new Architect Stage Payload transitions.
+Do not reinterpret `ev4-ce-architect-stage-intake@1.0.0`; its `project_gate_transition_implemented: false` meaning is frozen.
 
 ## Hard Boundaries
 
@@ -79,8 +88,11 @@ Do not:
 - change `selected_candidate_id` or approved class intent;
 - act as Builder;
 - emit Builder instructions while Builder decisions remain;
+- treat transition execution as CE review execution;
+- treat transition execution as Builder authorization;
 - treat silence as proof of geometry, asset, overlay, interaction, responsive, Dynamic Loop, accessibility, or UI-control readiness;
 - claim production readiness;
+- claim real Elementor validation without real evidence;
 - copy CE schemas into Project Gate as competing canonical contracts;
 - require Project Gate to invent `ce_review_units[].action_proposed`, proof-state conclusions, identity consistency verdicts, pre-ingestion verdicts, implementation strategy, or Builder authorization at intake.
 
