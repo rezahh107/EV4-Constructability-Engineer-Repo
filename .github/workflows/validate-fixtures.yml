@@ -20,3 +20,5 @@ jobs:
       - run: python scripts/validate-behavioral-rule-coverage.py
       - run: python scripts/validate-role-alignment-fixtures.py
       - run: npm run test:reference-paradigm-lock
+      - run: python scripts/validate-ce-architect-stage-intake.py
+      - run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py

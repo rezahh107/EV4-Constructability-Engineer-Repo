@@ -53,3 +53,26 @@ Production ready remains false unless separate downstream evidence proves otherw
 Project Gate verifier and UI remain not implemented.
 Real downstream Project Gate integration still requires the future EV4 Project Gate repository/runtime.
 ```
+
+---
+
+## CE Architect Stage Intake v1 Addendum
+
+```yaml
+CE_ARCHITECT_STAGE_INTAKE_V1:
+  schema: ev4-ce-architect-stage-intake@1.0.0
+  mapping: ev4-architect-stage-to-ce-intake-mapping@1.0.0
+  accepted_source_schema: ev4-architect-stage-payload@1.0.0
+  status: implemented_initial_contract_pr
+  canonical_new_architect_facing_intake: true
+  semantic_validator: added
+  synthetic_fixtures: added
+  ci_enforcement: added
+  legacy_architect_ce_input_package: compatibility_only
+  architect_to_ce_project_gate_transition: not_implemented
+  ce_review_completed_at_intake: false
+  builder_authorization_at_intake: false
+  real_cross_repository_validation: not_available
+```
+
+This addendum is intentionally additive. It does not delete, summarize, or replace the existing status history.
