@@ -75,6 +75,11 @@ def _schema_diagnostic(error: ValidationError, value: Any) -> Diagnostic:
             return D("CE_I17_BUILDER_AUTH_NOT_GRANTED_AT_INTAKE","error","Transition execution does not authorize Builder execution.","$.ce_processing_prerequisites.intake_contains_builder_authorization","CE-I17",schema_validator=validator)
         if path == "$.ce_processing_prerequisites.real_cross_repository_validation_available":
             return D("CE_I18_REAL_ELEMENTOR_VALIDATION_UNAVAILABLE","error","Real Elementor validation must remain unavailable unless proven separately.","$.ce_processing_prerequisites.real_cross_repository_validation_available","CE-I18",schema_validator=validator)
+        if path.startswith("$.negative_boundary_assertions."):
+            key = path.rsplit(".", 1)[-1]
+            rule = FORBIDDEN_POSITIVE.get(key)
+            if rule:
+                return D("CE_OWNED_POSITIVE_CLAIM_FORBIDDEN","error","CE-owned or downstream readiness claim is forbidden at intake.",path,rule,schema_validator=validator,claim=key)
     return D("SCHEMA_VALIDATION_FAILED","error",error.message,jp(list(error.path)))
 
 def _format_text_result(result: dict[str, Any]) -> str:
