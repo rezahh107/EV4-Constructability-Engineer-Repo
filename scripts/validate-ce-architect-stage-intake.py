@@ -44,6 +44,14 @@ def jp(parts):
 def as_list(value): return value if isinstance(value, list) else []
 def as_dict(value): return value if isinstance(value, dict) else {}
 
+def _missing_required_property(error: ValidationError) -> str | None:
+    if error.validator != "required":
+        return None
+    text = error.message
+    if text.startswith("'") and "' is a required property" in text:
+        return text.split("'", 2)[1]
+    return None
+
 def _is_ce_i11_missing_evidence_schema_error(error: ValidationError, value: Any) -> bool:
     if not isinstance(value, dict) or value.get("intake_status") != "insufficient_evidence":
         return False
@@ -67,8 +75,14 @@ def _schema_diagnostic(error: ValidationError, value: Any) -> Diagnostic:
             return D("CE_I13_TRANSITION_RECORD_REQUIRED","error","Project Gate-produced v1.1 intake must include project_gate_transition.","$.project_gate_transition","CE-I13",schema_validator=validator)
         if path in {"$.project_gate_transition.executed","$.project_gate_transition.transition_id","$.project_gate_transition.transition_version","$.project_gate_transition.producer_repository"}:
             return D("CE_I14_TRANSITION_IDENTITY_INVALID","error","Project Gate transition identity and producer must be exact.","$.project_gate_transition","CE-I14",schema_validator=validator)
-        if path.startswith("$.project_gate_transition.source_bundle") or (validator == "required" and list(error.absolute_path) == ["project_gate_transition"]):
+        missing_required = _missing_required_property(error)
+        if path.startswith("$.project_gate_transition.source_bundle"):
             return D("CE_I15_SOURCE_BUNDLE_TRACE_MISSING","error","Project Gate transition must preserve source bundle identity and hash.","$.project_gate_transition","CE-I15",schema_validator=validator)
+        if validator == "required" and list(error.absolute_path) == ["project_gate_transition"]:
+            if missing_required in {"executed","transition_id","transition_version","producer_repository"}:
+                return D("CE_I14_TRANSITION_IDENTITY_INVALID","error","Project Gate transition identity and producer must be exact.","$.project_gate_transition","CE-I14",schema_validator=validator,missing_property=missing_required)
+            if missing_required in {"source_bundle_id","source_bundle_hash"}:
+                return D("CE_I15_SOURCE_BUNDLE_TRACE_MISSING","error","Project Gate transition must preserve source bundle identity and hash.","$.project_gate_transition","CE-I15",schema_validator=validator,missing_property=missing_required)
         if path == "$.ce_processing_prerequisites.intake_contains_ce_conclusions":
             return D("CE_I16_CE_REVIEW_NOT_EXECUTED_AT_INTAKE","error","Transition execution does not mean CE review has executed.","$.ce_processing_prerequisites.intake_contains_ce_conclusions","CE-I16",schema_validator=validator)
         if path == "$.ce_processing_prerequisites.intake_contains_builder_authorization":
