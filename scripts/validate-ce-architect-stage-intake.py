@@ -9,6 +9,10 @@ from jsonschema.exceptions import ValidationError
 
 Severity = Literal["error","warning","info","insufficient_evidence"]
 ORDER = {"error":0,"insufficient_evidence":1,"warning":2,"info":3}
+SCHEMAS = {
+    "ev4-ce-architect-stage-intake@1.0.0": "schemas/ce_architect_stage_intake.v1.schema.json",
+    "ev4-ce-architect-stage-intake@1.1.0": "schemas/ce_architect_stage_intake.v1_1.schema.json",
+}
 FORBIDDEN_POSITIVE = {
     "constructability_proven":"CE-I06","ce_approved":"CE-I06","implementation_strategy_selected":"CE-I06",
     "elementor_feasibility_proven":"CE-I06","proof_state_resolved":"CE-I06","ce_review_complete":"CE-I06",
@@ -55,14 +59,22 @@ def _is_ce_i11_missing_evidence_schema_error(error: ValidationError, value: Any)
 
 def _schema_diagnostic(error: ValidationError, value: Any) -> Diagnostic:
     if _is_ce_i11_missing_evidence_schema_error(error, value):
-        return D(
-            "CE_I11_MISSING_EVIDENCE_REQUIRED",
-            "error",
-            "Insufficient-evidence intake must declare non-empty missing_evidence.",
-            "$.missing_evidence",
-            "CE-I11",
-            schema_validator=error.validator,
-        )
+        return D("CE_I11_MISSING_EVIDENCE_REQUIRED","error","Insufficient-evidence intake must declare non-empty missing_evidence.","$.missing_evidence","CE-I11",schema_validator=error.validator)
+    if isinstance(value, dict) and value.get("schema_id") == "ev4-ce-architect-stage-intake@1.1.0":
+        path = jp(list(error.absolute_path))
+        validator = error.validator
+        if validator == "required" and list(error.absolute_path) == [] and "project_gate_transition" in as_list(error.validator_value):
+            return D("CE_I13_TRANSITION_RECORD_REQUIRED","error","Project Gate-produced v1.1 intake must include project_gate_transition.","$.project_gate_transition","CE-I13",schema_validator=validator)
+        if path in {"$.project_gate_transition.executed","$.project_gate_transition.transition_id","$.project_gate_transition.transition_version","$.project_gate_transition.producer_repository"}:
+            return D("CE_I14_TRANSITION_IDENTITY_INVALID","error","Project Gate transition identity and producer must be exact.","$.project_gate_transition","CE-I14",schema_validator=validator)
+        if path.startswith("$.project_gate_transition.source_bundle") or (validator == "required" and list(error.absolute_path) == ["project_gate_transition"]):
+            return D("CE_I15_SOURCE_BUNDLE_TRACE_MISSING","error","Project Gate transition must preserve source bundle identity and hash.","$.project_gate_transition","CE-I15",schema_validator=validator)
+        if path == "$.ce_processing_prerequisites.intake_contains_ce_conclusions":
+            return D("CE_I16_CE_REVIEW_NOT_EXECUTED_AT_INTAKE","error","Transition execution does not mean CE review has executed.","$.ce_processing_prerequisites.intake_contains_ce_conclusions","CE-I16",schema_validator=validator)
+        if path == "$.ce_processing_prerequisites.intake_contains_builder_authorization":
+            return D("CE_I17_BUILDER_AUTH_NOT_GRANTED_AT_INTAKE","error","Transition execution does not authorize Builder execution.","$.ce_processing_prerequisites.intake_contains_builder_authorization","CE-I17",schema_validator=validator)
+        if path == "$.ce_processing_prerequisites.real_cross_repository_validation_available":
+            return D("CE_I18_REAL_ELEMENTOR_VALIDATION_UNAVAILABLE","error","Real Elementor validation must remain unavailable unless proven separately.","$.ce_processing_prerequisites.real_cross_repository_validation_available","CE-I18",schema_validator=validator)
     return D("SCHEMA_VALIDATION_FAILED","error",error.message,jp(list(error.path)))
 
 def _format_text_result(result: dict[str, Any]) -> str:
@@ -74,10 +86,17 @@ def _format_text_result(result: dict[str, Any]) -> str:
 class CEArchitectStageIntakeValidator:
     def __init__(self, repo_root: str | Path):
         self.repo_root = Path(repo_root)
-        with (self.repo_root / "schemas/ce_architect_stage_intake.v1.schema.json").open(encoding="utf-8") as f:
-            self.schema = json.load(f)
-        Draft202012Validator.check_schema(self.schema)
-        self.validator = Draft202012Validator(self.schema)
+        self.schemas: dict[str, Any] = {}
+        self.validators: dict[str, Draft202012Validator] = {}
+        for schema_id, rel_path in SCHEMAS.items():
+            path = self.repo_root / rel_path
+            if not path.exists():
+                continue
+            with path.open(encoding="utf-8") as f:
+                schema = json.load(f)
+            Draft202012Validator.check_schema(schema)
+            self.schemas[schema_id] = schema
+            self.validators[schema_id] = Draft202012Validator(schema)
 
     def validate_file(self, path: str | Path) -> dict[str, Any]:
         try:
@@ -92,7 +111,11 @@ class CEArchitectStageIntakeValidator:
     def validate_value(self, value: Any) -> dict[str, Any]:
         if not isinstance(value, dict):
             return self._result(value, [D("INPUT_NOT_OBJECT","error","CE Architect-stage intake must be a JSON object.","$",observed_type=type(value).__name__)])
-        schema_diags = [_schema_diagnostic(e, value) for e in sorted(self.validator.iter_errors(value), key=lambda e:(jp(list(e.path)), e.validator, jp(list(e.schema_path))))]
+        schema_id = value.get("schema_id")
+        validator = self.validators.get(schema_id)
+        if validator is None:
+            return self._result(value, [D("UNSUPPORTED_SCHEMA_ID","error","Unsupported CE Architect-stage intake schema_id.","$.schema_id",observed_schema_id=schema_id)])
+        schema_diags = [_schema_diagnostic(e, value) for e in sorted(validator.iter_errors(value), key=lambda e:(jp(list(e.path)), e.validator, jp(list(e.schema_path))))]
         if schema_diags:
             return self._result(value, schema_diags)
         return self._result(value, self._semantic(value))
@@ -130,6 +153,25 @@ class CEArchitectStageIntakeValidator:
             seen.add(pair)
             if item.get("classification") == "deterministic_structural_projection" and item.get("ordering_rule") not in {"sort_by_id","sort_by_source_path_then_target_path"}:
                 out.append(D("CE_I10_MAPPING_ORDER_NOT_DETERMINISTIC","error","Structural projections require deterministic ordering.",f"$.mapping_trace[{i}].ordering_rule","CE-I10"))
+        if value.get("schema_id") == "ev4-ce-architect-stage-intake@1.1.0":
+            out.extend(self._transition_semantics(value))
+        return out
+
+    def _transition_semantics(self, value: dict[str, Any]) -> list[Diagnostic]:
+        out: list[Diagnostic] = []
+        transition = as_dict(value.get("project_gate_transition"))
+        source = as_dict(value.get("source_repository_ref"))
+        if transition.get("source_bundle_id") != source.get("bundle_id"):
+            out.append(D("CE_I15_SOURCE_BUNDLE_TRACE_MISMATCH","error","source_bundle_id must match source_repository_ref.bundle_id.","$.project_gate_transition.source_bundle_id","CE-I15"))
+        if as_dict(transition.get("source_bundle_hash")).get("scope") != "source_bundle":
+            out.append(D("CE_I15_SOURCE_BUNDLE_HASH_SCOPE_INVALID","error","source_bundle_hash scope must be source_bundle.","$.project_gate_transition.source_bundle_hash.scope","CE-I15"))
+        prereq = as_dict(value.get("ce_processing_prerequisites"))
+        if prereq.get("intake_contains_ce_conclusions") is not False:
+            out.append(D("CE_I16_CE_REVIEW_NOT_EXECUTED_AT_INTAKE","error","Transition execution does not mean CE review has executed.","$.ce_processing_prerequisites.intake_contains_ce_conclusions","CE-I16"))
+        if prereq.get("intake_contains_builder_authorization") is not False:
+            out.append(D("CE_I17_BUILDER_AUTH_NOT_GRANTED_AT_INTAKE","error","Transition execution does not authorize Builder execution.","$.ce_processing_prerequisites.intake_contains_builder_authorization","CE-I17"))
+        if prereq.get("real_cross_repository_validation_available") is not False:
+            out.append(D("CE_I18_REAL_ELEMENTOR_VALIDATION_UNAVAILABLE","error","Real Elementor validation must remain unavailable unless proven separately.","$.ce_processing_prerequisites.real_cross_repository_validation_available","CE-I18"))
         return out
 
     def _forbidden(self, value: Any, path="$") -> list[Diagnostic]:
@@ -178,16 +220,22 @@ def _load_cases(repo_root: Path, cases_file: Path, expected: str, validator: CEA
     return failures, reports
 
 def validate_fixture_suite(repo_root: Path):
-    base = repo_root / "fixtures/architect-stage-intake"
+    roots = [repo_root / "fixtures/architect-stage-intake", repo_root / "fixtures/architect-stage-intake-v1-1"]
     validator = CEArchitectStageIntakeValidator(repo_root)
     failures = 0; reports = []
-    for dirname, expected in [("valid","valid"),("invalid","invalid"),("insufficient-evidence","insufficient_evidence")]:
-        for path in sorted((base/dirname).glob("*.json")):
-            if path.name == "cases.v1.json":
-                f, r = _load_cases(repo_root, path, expected, validator); failures += f; reports.extend(r); continue
-            result = validator.validate_file(path); ok = result["status"] == expected
-            failures += 0 if ok else 1
-            reports.append({"fixture": str(path.relative_to(repo_root)), "expected": expected, "actual": result["status"], "ok": ok, "diagnostic_codes": [d["code"] for d in result["diagnostics"]]})
+    for base in roots:
+        if not base.exists():
+            continue
+        for dirname, expected in [("valid","valid"),("invalid","invalid"),("insufficient-evidence","insufficient_evidence")]:
+            folder = base/dirname
+            if not folder.exists():
+                continue
+            for path in sorted(folder.glob("*.json")):
+                if path.name.startswith("cases"):
+                    f, r = _load_cases(repo_root, path, expected, validator); failures += f; reports.extend(r); continue
+                result = validator.validate_file(path); ok = result["status"] == expected
+                failures += 0 if ok else 1
+                reports.append({"fixture": str(path.relative_to(repo_root)), "expected": expected, "actual": result["status"], "ok": ok, "diagnostic_codes": [d["code"] for d in result["diagnostics"]]})
     return failures, reports
 
 def main(argv=None):
