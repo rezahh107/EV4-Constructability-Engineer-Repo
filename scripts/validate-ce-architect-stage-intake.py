@@ -76,12 +76,20 @@ def _is_ce_i11_missing_evidence_schema_error(error: ValidationError, value: Any)
         return data_path == ["missing_evidence"] and error.validator_value == 1
     return False
 
+def _is_mapping_trace_item_error(error: ValidationError) -> bool:
+    return len(list(error.absolute_path)) >= 2 and list(error.absolute_path)[0] == "mapping_trace"
+
 def _schema_diagnostic(error: ValidationError, value: Any) -> Diagnostic:
     if _is_ce_i11_missing_evidence_schema_error(error, value):
         return D("CE_I11_MISSING_EVIDENCE_REQUIRED","error","Insufficient-evidence intake must declare non-empty missing_evidence.","$.missing_evidence","CE-I11",schema_validator=error.validator)
     if isinstance(value, dict) and value.get("schema_id") == "ev4-ce-architect-stage-intake@1.1.0":
         path = jp(list(error.absolute_path))
         validator = error.validator
+        if _is_mapping_trace_item_error(error):
+            if validator == "required" and _missing_required_property(error) == "derivation_rule":
+                return D("CE_I21_DERIVATION_RULE_INVALID","error","Derived transition metadata must declare the exact derivation rule and version.",path + ".derivation_rule","CE-I21",schema_validator=validator)
+            if validator == "not":
+                return D("CE_I21_UNDOCUMENTED_DERIVATION_RULE","error","Non-derived mapping trace rows must not declare derivation_rule.",path + ".derivation_rule","CE-I21",schema_validator=validator)
         if validator == "required" and list(error.absolute_path) == [] and "project_gate_transition" in as_list(error.validator_value):
             return D("CE_I13_TRANSITION_RECORD_REQUIRED","error","Project Gate-produced v1.1 intake must include project_gate_transition.","$.project_gate_transition","CE-I13",schema_validator=validator)
         if path in {"$.project_gate_transition.executed","$.project_gate_transition.transition_id","$.project_gate_transition.transition_version","$.project_gate_transition.producer_repository"}:
@@ -112,6 +120,23 @@ def _format_text_result(result: dict[str, Any]) -> str:
     for diag in result.get("diagnostics", []):
         lines.append(f"[{diag['severity'].upper()}] {diag['code']} at {diag['path']}: {diag['message']}")
     return "\n".join(lines)
+
+def validate_source_bundle_binding(intake: dict[str, Any], source_bundle: dict[str, Any]) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    if not isinstance(intake, dict):
+        return [D("CE_I21_SOURCE_BUNDLE_BINDING_INPUT_INVALID","error","Intake must be an object for source-bundle binding verification.","$","CE-I21")]
+    if not isinstance(source_bundle, dict):
+        return [D("CE_I21_SOURCE_BUNDLE_BINDING_INPUT_INVALID","error","Source bundle must be an object for binding verification.","$","CE-I21")]
+    transition = as_dict(intake.get("project_gate_transition"))
+    expected_bundle_id = transition.get("source_bundle_id")
+    observed_bundle_id = source_bundle.get("bundle_id")
+    if observed_bundle_id != expected_bundle_id:
+        diagnostics.append(D("CE_I21_SOURCE_BUNDLE_ID_MISMATCH","error","source bundle_id must match project_gate_transition.source_bundle_id.","$.project_gate_transition.source_bundle_id","CE-I21",expected=expected_bundle_id,observed=observed_bundle_id))
+    expected_hash = as_dict(transition.get("source_bundle_hash")).get("value")
+    observed_hash = hashlib.sha256(canonical_json_bytes(source_bundle)).hexdigest()
+    if observed_hash != expected_hash:
+        diagnostics.append(D("CE_I21_SOURCE_BUNDLE_HASH_MISMATCH","error","source_bundle_hash must match canonical SHA-256 of the explicitly supplied source bundle.","$.project_gate_transition.source_bundle_hash.value","CE-I21",expected=expected_hash,observed=observed_hash))
+    return diagnostics
 
 class CEArchitectStageIntakeValidator:
     def __init__(self, repo_root: str | Path):
@@ -185,6 +210,10 @@ class CEArchitectStageIntakeValidator:
             seen_pairs.add(pair)
             if isinstance(target, str):
                 seen_targets.setdefault(target, []).append((i, item))
+            if item.get("classification") != "deterministic_derived_metadata" and item.get("derivation_rule") is not None:
+                out.append(D("CE_I21_UNDOCUMENTED_DERIVATION_RULE","error","Non-derived mapping trace rows must not declare derivation_rule.",f"$.mapping_trace[{i}].derivation_rule","CE-I21",target_path=target))
+            if item.get("classification") == "deterministic_derived_metadata" and item.get("derivation_rule") is None:
+                out.append(D("CE_I21_DERIVATION_RULE_INVALID","error","Derived transition metadata must declare the exact derivation rule and version.",f"$.mapping_trace[{i}].derivation_rule","CE-I21",target_path=target))
             if item.get("classification") == "deterministic_structural_projection" and item.get("ordering_rule") not in {"sort_by_id","sort_by_source_path_then_target_path"}:
                 out.append(D("CE_I10_MAPPING_ORDER_NOT_DETERMINISTIC","error","Structural projections require deterministic ordering.",f"$.mapping_trace[{i}].ordering_rule","CE-I10"))
         if value.get("schema_id") == "ev4-ce-architect-stage-intake@1.1.0":
@@ -207,7 +236,6 @@ class CEArchitectStageIntakeValidator:
         if prereq.get("real_cross_repository_validation_available") is not False:
             out.append(D("CE_I18_REAL_ELEMENTOR_VALIDATION_UNAVAILABLE","error","Real Elementor validation must remain unavailable unless proven separately.","$.ce_processing_prerequisites.real_cross_repository_validation_available","CE-I18"))
         out.extend(self._validate_transition_trace(seen_targets))
-        out.extend(self._validate_source_bundle_hash(value))
         return out
 
     def _validate_transition_trace(self, seen_targets: dict[str, list[tuple[int, dict[str, Any]]]]) -> list[Diagnostic]:
@@ -224,28 +252,11 @@ class CEArchitectStageIntakeValidator:
             rule = row.get("derivation_rule")
             if expected_rule is None:
                 if rule is not None:
-                    out.append(D("CE_I21_UNEXPECTED_DERIVATION_RULE","error","Direct transition evidence copy must not declare a derivation rule.",f"$.mapping_trace[{index}].derivation_rule","CE-I21",target_path=target_path))
+                    out.append(D("CE_I21_UNDOCUMENTED_DERIVATION_RULE","error","Direct transition evidence copy must not declare a derivation rule.",f"$.mapping_trace[{index}].derivation_rule","CE-I21",target_path=target_path))
             else:
                 if not isinstance(rule, dict) or rule.get("id") != expected_rule or rule.get("version") != expected_version:
                     out.append(D("CE_I21_DERIVATION_RULE_INVALID","error","Derived transition metadata must declare the exact derivation rule and version.",f"$.mapping_trace[{index}].derivation_rule","CE-I21",target_path=target_path,expected_rule=expected_rule,expected_version=expected_version))
         return out
-
-    def _validate_source_bundle_hash(self, value: dict[str, Any]) -> list[Diagnostic]:
-        fixture_path = self.repo_root / "fixtures/architect-stage-intake-v1-1/source-bundles/synthetic-architect-stage-bundle.v1.json"
-        if not fixture_path.exists():
-            return []
-        try:
-            source_fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return []
-        source_bundle = as_dict(source_fixture).get("source_bundle")
-        if not isinstance(source_bundle, dict):
-            return []
-        expected = hashlib.sha256(canonical_json_bytes(source_bundle)).hexdigest()
-        observed = as_dict(as_dict(value.get("project_gate_transition")).get("source_bundle_hash")).get("value")
-        if observed != expected:
-            return [D("CE_I21_SOURCE_BUNDLE_HASH_MISMATCH","error","source_bundle_hash must match canonical SHA-256 of the pinned synthetic source bundle fixture.","$.project_gate_transition.source_bundle_hash.value","CE-I21",expected=expected,observed=observed)]
-        return []
 
     def _forbidden(self, value: Any, path="$") -> list[Diagnostic]:
         out = []
@@ -270,11 +281,17 @@ def _tokens(path): return [int(p) if p.isdigit() else p for p in path.split(".")
 def _set(value, path, new):
     cur = value; parts = _tokens(path)
     for p in parts[:-1]: cur = cur[p]
-    cur[parts[-1]] = new
+    if parts[-1].isdigit():
+        cur[int(parts[-1])] = new
+    else:
+        cur[parts[-1]] = new
 def _delete(value, path):
     cur = value; parts = _tokens(path)
     for p in parts[:-1]: cur = cur[p]
-    del cur[parts[-1]]
+    if parts[-1].isdigit():
+        del cur[int(parts[-1])]
+    else:
+        del cur[parts[-1]]
 
 def _load_cases(repo_root: Path, cases_file: Path, expected: str, validator: CEArchitectStageIntakeValidator):
     data = json.loads(cases_file.read_text(encoding="utf-8"))
@@ -311,17 +328,35 @@ def validate_fixture_suite(repo_root: Path):
                 reports.append({"fixture": str(path.relative_to(repo_root)), "expected": expected, "actual": result["status"], "ok": ok, "diagnostic_codes": [d["code"] for d in result["diagnostics"]]})
     return failures, reports
 
+def _read_json_file(path: Path) -> tuple[Any, list[Diagnostic]]:
+    try:
+        with path.open(encoding="utf-8") as f:
+            return json.load(f), []
+    except json.JSONDecodeError as exc:
+        return None, [D("MALFORMED_JSON","error","File is not valid JSON.","$",line=exc.lineno,column=exc.colno)]
+    except OSError as exc:
+        return None, [D("FILE_READ_ERROR","error","File could not be read.","$",error_type=type(exc).__name__)]
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=Path.cwd())
     parser.add_argument("--file", type=Path)
+    parser.add_argument("--source-bundle", type=Path)
     parser.add_argument("--expect", choices=["valid","invalid","insufficient_evidence"])
     parser.add_argument("--format", choices=["text","json"], default="text")
     args = parser.parse_args(argv)
     root = Path(args.repo_root).resolve()
     if args.file:
         validator = CEArchitectStageIntakeValidator(root)
-        result = validator.validate_file(args.file if args.file.is_absolute() else root / args.file)
+        intake_path = args.file if args.file.is_absolute() else root / args.file
+        result = validator.validate_file(intake_path)
+        if args.source_bundle and result["status"] != "invalid":
+            source_path = args.source_bundle if args.source_bundle.is_absolute() else root / args.source_bundle
+            source_bundle, source_diags = _read_json_file(source_path)
+            intake_value, intake_diags = _read_json_file(intake_path)
+            extra = source_diags or intake_diags or validate_source_bundle_binding(intake_value, source_bundle)
+            if extra:
+                result = validator._result({}, [D(d["code"], d["severity"], d["message"], d["path"], d.get("rule_id"), **d.get("details", {})) for d in result.get("diagnostics", [])] + extra)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",",":")) if args.format == "json" else _format_text_result(result))
         if args.expect: return 0 if result["status"] == args.expect else 1
         return 0 if result["status"] == "valid" else 2 if result["status"] == "insufficient_evidence" else 1
