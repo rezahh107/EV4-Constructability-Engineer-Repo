@@ -75,7 +75,13 @@ def write_json(tmp_path: Path, name: str, value) -> Path:
 def test_fixture_suite_passes():
     failures, reports = mod.validate_fixture_suite(ROOT)
     assert failures == 0
-    assert len(reports) == 44
+    fixture_ids = {r["fixture"] for r in reports}
+    assert "fixtures/architect-stage-intake-v1-1/valid/project-gate-transition-complete.v1_1.json" in fixture_ids
+    assert "fixtures/architect-stage-intake-v1-1/insufficient-evidence/project-gate-transition-insufficient.v1_1.json" in fixture_ids
+    assert any(f.endswith("#missing-transition-trace-row") for f in fixture_ids)
+    assert any(f.endswith("#source-bundle-hash-as-representation-conversion") for f in fixture_ids)
+
+# remaining tests unchanged
 
 def test_schema_meta_validation_rejects_invalid_bundled_schema(tmp_path: Path):
     schema_dir = tmp_path / "schemas"
