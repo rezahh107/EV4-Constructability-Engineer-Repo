@@ -40,10 +40,10 @@ The Python verifier and simple user interface are not implemented yet.
 
 ## Canonical Architect-facing CE intake
 
-For new Architect Stage Payload work, the canonical CE-owned Architect-facing intake is:
+For Project Gate-produced Architect Stage Payload work, the canonical CE-owned Architect-facing intake is:
 
 ```text
-ev4-ce-architect-stage-intake@1.0.0
+ev4-ce-architect-stage-intake@1.1.0
 ```
 
 Accepted upstream source:
@@ -55,21 +55,27 @@ ev4-architect-stage-payload@1.0.0
 Declarative mapping contract:
 
 ```text
-ev4-architect-stage-to-ce-intake-mapping@1.0.0
+ev4-architect-stage-to-ce-intake-mapping@1.1.0
 ```
 
-This intake contains Architect evidence, deterministic projections, provenance, unresolved evidence, and negative downstream-readiness assertions only. It does not contain CE review conclusions, implementation strategy, proof-state conclusions, Builder authorization, or production readiness.
+v1.1 adds a required `project_gate_transition` record so an executed `ev4-architect-to-ce-transition@1.0.0` can be represented truthfully without implying CE review, implementation strategy, Builder authorization, or real Elementor validation.
 
-Legacy compatibility-only intake files remain available:
+Historical compatibility-only Architect Stage intake files remain available:
+
+```text
+contracts/CE_ARCHITECT_STAGE_INTAKE_V1.md
+contracts/ARCHITECT_STAGE_TO_CE_INTAKE_MAPPING_V1.md
+schemas/ce_architect_stage_intake.v1.schema.json
+```
+
+The older legacy compatibility-only intake files also remain available:
 
 ```text
 contracts/ARCHITECT_TO_CE_INPUT_MAPPING_V1.md
 schemas/architect_ce_input_package.v1.schema.json
 ```
 
-Those files target the previous `ev4-architect-output-contract@1.0.0` / `/builder-feed-export` path and must not be treated as the preferred intake for new Project Gate transitions.
-
-The Project Gate Architect-to-CE transition is not implemented by this repository change.
+Those files target previous compatibility paths and must not be treated as the preferred intake for Project Gate-produced v1.1 transition output.
 
 ## CE Input and Output
 
@@ -143,9 +149,9 @@ https://github.com/rezahh107/EV4-Responsive-Architect
 role: implementation_strategy_gate
 fail_closed_default: true
 project_gate_handoff: documented
-project_gate_runtime: not_implemented
-canonical_architect_facing_intake: ev4-ce-architect-stage-intake@1.0.0
-architect_stage_to_ce_mapping: ev4-architect-stage-to-ce-intake-mapping@1.0.0
+project_gate_runtime: partially_supported_for_architect_to_ce_transition_metadata
+canonical_architect_facing_intake: ev4-ce-architect-stage-intake@1.1.0
+architect_stage_to_ce_mapping: ev4-architect-stage-to-ce-intake-mapping@1.1.0
 builder_package_emission: evidence_gated
 builder_executable_package_schema: ev4-builder-executable-package@1.0.0_required
 production_ready: false
