@@ -86,10 +86,13 @@ def _schema_diagnostic(error: ValidationError, value: Any) -> Diagnostic:
         path = jp(list(error.absolute_path))
         validator = error.validator
         if _is_mapping_trace_item_error(error):
+            item_path = jp(list(error.absolute_path)[:2])
             if validator == "required" and _missing_required_property(error) == "derivation_rule":
-                return D("CE_I21_DERIVATION_RULE_INVALID","error","Derived transition metadata must declare the exact derivation rule and version.",path + ".derivation_rule","CE-I21",schema_validator=validator)
+                return D("CE_I21_DERIVATION_RULE_INVALID","error","Derived transition metadata must declare the exact derivation rule and version.",item_path + ".derivation_rule","CE-I21",schema_validator=validator)
             if validator == "not":
-                return D("CE_I21_UNDOCUMENTED_DERIVATION_RULE","error","Non-derived mapping trace rows must not declare derivation_rule.",path + ".derivation_rule","CE-I21",schema_validator=validator)
+                return D("CE_I21_UNDOCUMENTED_DERIVATION_RULE","error","Non-derived mapping trace rows must not declare derivation_rule.",item_path + ".derivation_rule","CE-I21",schema_validator=validator)
+            if ".derivation_rule" in path:
+                return D("CE_I21_DERIVATION_RULE_INVALID","error","Derived transition metadata must declare the exact derivation rule and version.",item_path + ".derivation_rule","CE-I21",schema_validator=validator)
         if validator == "required" and list(error.absolute_path) == [] and "project_gate_transition" in as_list(error.validator_value):
             return D("CE_I13_TRANSITION_RECORD_REQUIRED","error","Project Gate-produced v1.1 intake must include project_gate_transition.","$.project_gate_transition","CE-I13",schema_validator=validator)
         if path in {"$.project_gate_transition.executed","$.project_gate_transition.transition_id","$.project_gate_transition.transition_version","$.project_gate_transition.producer_repository"}:
