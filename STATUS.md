@@ -76,3 +76,24 @@ CE_ARCHITECT_STAGE_INTAKE_V1:
 ```
 
 This addendum is intentionally additive. It does not delete, summarize, or replace the existing status history.
+
+---
+
+## CE Architect Stage Intake v1.1 Addendum
+
+```yaml
+CE_ARCHITECT_STAGE_INTAKE_V1_1:
+  schema: ev4-ce-architect-stage-intake@1.1.0
+  mapping: ev4-architect-stage-to-ce-intake-mapping@1.1.0
+  accepted_source_schema: ev4-architect-stage-payload@1.0.0
+  transition: ev4-architect-to-ce-transition@1.0.0
+  status: implemented_contract_revision_pr
+  preserves_v1_0_unchanged: true
+  transition_execution_record: required
+  ce_review_completed_at_intake: false
+  builder_authorization_at_intake: false
+  real_cross_repository_validation: not_available
+  fixture_classification: synthetic
+```
+
+This addendum is intentionally additive. It corrects Project Gate transition provenance for new v1.1 intake without rewriting v1.0 history.
