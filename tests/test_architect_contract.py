@@ -88,6 +88,15 @@ def test_missing_schema_fails() -> None:
     assert "R35_BUILDER_EXECUTABLE_PACKAGE_SCHEMA_REQUIRED" in result["rules_violated"]
 
 
+def test_missing_schema_identity_is_semantic_gate_not_shape_error() -> None:
+    document = _doc()
+    document["builder_executable_package"].pop("schema")
+    result = validate_document(document, repo_root=ROOT, mode="package")
+    assert result["schema_errors"] == []
+    assert result["passed"] is False
+    assert "R35_BUILDER_EXECUTABLE_PACKAGE_SCHEMA_REQUIRED" in result["rules_violated"]
+
+
 def test_unsupported_schema_fails() -> None:
     document = _doc()
     document["builder_executable_package"]["schema"] = "ev4-builder-executable-package@9.9.9"
