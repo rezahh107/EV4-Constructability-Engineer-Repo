@@ -1,0 +1,105 @@
+{
+  "registry_id": "ev4-ce-elementor-capability-registry",
+  "registry_version": "1.0.0",
+  "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+  "last_verified_by_ev4": "2026-07-07",
+  "evidence_policy": "Official Elementor capability does not prove project-specific use. Builder-ready strategy still requires CE evidence for the specific node, class, control path, binding, asset, geometry, or QA claim.",
+  "records": [
+    {
+      "feature_id": "elementor-control-dimensions",
+      "official_name": "Dimensions Control",
+      "official_source": "https://developers.elementor.com/docs/editor-controls/control-dimensions/",
+      "last_verified_by_ev4": "2026-07-07",
+      "availability": "official_documented",
+      "version_scope": "Elementor developer documentation current at verification date",
+      "constructability_use": "Can support spacing, padding, margin, and dimensional strategy claims when paired with exact control evidence.",
+      "evidence_required_before_builder": "Exact node/control reference, value/unit, responsive scope, and proof that the control path exists in the target Elementor version.",
+      "known_limitations": "Does not prove project-specific geometry or exact UI path by itself.",
+      "status": "official_capability_only"
+    },
+    {
+      "feature_id": "elementor-control-slider-units",
+      "official_name": "Slider Control",
+      "official_source": "https://developers.elementor.com/docs/editor-controls/control-slider/",
+      "last_verified_by_ev4": "2026-07-07",
+      "availability": "official_documented",
+      "version_scope": "Elementor developer documentation current at verification date",
+      "constructability_use": "Can support size, spacing, width, z-index-like numeric strategy only when the exact control and selector are evidenced.",
+      "evidence_required_before_builder": "Control name, unit, range, selector, node target, and exact UI-control evidence if user-facing path is claimed.",
+      "known_limitations": "A generic slider capability does not identify a specific Elementor UI path or prove safe values.",
+      "status": "official_capability_only"
+    },
+    {
+      "feature_id": "elementor-responsive-control",
+      "official_name": "Responsive Control",
+      "official_source": "https://developers.elementor.com/docs/editor-controls/responsive-control/",
+      "last_verified_by_ev4": "2026-07-07",
+      "availability": "official_documented",
+      "version_scope": "Elementor developer documentation current at verification date",
+      "constructability_use": "Can support device-specific strategy records for desktop/tablet/mobile controls.",
+      "evidence_required_before_builder": "Breakpoint/device scope, inherited/default values, target selector, and confirmation that no unresolved responsive decision remains.",
+      "known_limitations": "Does not prove custom breakpoints, inheritance safety, or responsive completion for this project.",
+      "status": "official_capability_only"
+    },
+    {
+      "feature_id": "elementor-responsive-editing",
+      "official_name": "Responsive editing for mobile and tablets",
+      "official_source": "https://elementor.com/help/mobile-editing/",
+      "last_verified_by_ev4": "2026-07-07",
+      "availability": "official_documented",
+      "version_scope": "Elementor help documentation current at verification date",
+      "constructability_use": "Can support the existence of responsive editing workflow, not any specific responsive result.",
+      "evidence_required_before_builder": "Target breakpoint, actual responsive settings, and CE proof that Builder has no remaining responsive strategy decision.",
+      "known_limitations": "Does not claim Responsive Architect acceptance or production readiness.",
+      "status": "official_capability_only"
+    },
+    {
+      "feature_id": "elementor-dynamic-tags",
+      "official_name": "Dynamic Tags",
+      "official_source": "https://developers.elementor.com/docs/dynamic-tags/",
+      "last_verified_by_ev4": "2026-07-07",
+      "availability": "official_documented_with_pro_scope_note",
+      "version_scope": "Elementor developer documentation current at verification date",
+      "constructability_use": "Can support dynamic-data strategy only when data source, tag, and binding map are explicit.",
+      "evidence_required_before_builder": "Dynamic Loop or Dynamic Tag binding map, data source, exact target control, and plugin/version availability evidence.",
+      "known_limitations": "Documentation states active dynamic tags are an Elementor Pro feature; CE must not infer availability in a target site without evidence.",
+      "status": "official_capability_only"
+    },
+    {
+      "feature_id": "elementor-components-classes-variables-interactions-atomic-v4",
+      "official_name": "Elementor V4 classes/components/variables/interactions/atomic-elements scope",
+      "official_source": "insufficient_official_source_in_this_patch",
+      "last_verified_by_ev4": "2026-07-07",
+      "availability": "insufficient_evidence",
+      "version_scope": "Requires versioned official Elementor V4 documentation or controlled real fixture before Builder authorization.",
+      "constructability_use": "May be discussed as a required capability area, but cannot authorize Builder execution from this registry alone.",
+      "evidence_required_before_builder": "Official V4 source or controlled real Elementor evidence for each exact class, component, variable, interaction, or atomic-element claim.",
+      "known_limitations": "This record intentionally blocks claims not verified by official source in this patch.",
+      "status": "insufficient_evidence"
+    },
+    {
+      "feature_id": "elementor-custom-breakpoints-widescreen-v3-v4-hybrid",
+      "official_name": "Custom breakpoints, Widescreen behavior, and V3/V4 hybrid behavior",
+      "official_source": "insufficient_official_source_in_this_patch",
+      "last_verified_by_ev4": "2026-07-07",
+      "availability": "insufficient_evidence",
+      "version_scope": "Requires current official help/developer documentation or controlled real fixture.",
+      "constructability_use": "Blocks exact breakpoint inheritance or V3/V4 hybrid claims unless source evidence is attached.",
+      "evidence_required_before_builder": "Versioned official documentation or real captured setting path and behavior evidence.",
+      "known_limitations": "No Builder package may rely on this without additional evidence.",
+      "status": "insufficient_evidence"
+    },
+    {
+      "feature_id": "css-logical-properties-rtl",
+      "official_name": "Logical properties and RTL implementation strategy",
+      "official_source": "insufficient_elementor_specific_official_source_in_this_patch",
+      "last_verified_by_ev4": "2026-07-07",
+      "availability": "insufficient_evidence",
+      "version_scope": "Requires Elementor-specific official or controlled real evidence for exact UI controls and generated CSS.",
+      "constructability_use": "Can be marked as required evidence for RTL-sensitive layouts but not Builder-ready without proof.",
+      "evidence_required_before_builder": "Exact Elementor control, generated CSS, RTL rendering evidence, and responsive scope.",
+      "known_limitations": "General CSS knowledge is not enough for a CE Builder-ready claim.",
+      "status": "insufficient_evidence"
+    }
+  ]
+}
