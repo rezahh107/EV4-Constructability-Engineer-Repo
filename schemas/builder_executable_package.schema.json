@@ -3,7 +3,6 @@
   "title": "EV4 Builder Executable Package",
   "type": "object",
   "required": [
-    "schema",
     "package_id",
     "review_ref",
     "architect_contract",
