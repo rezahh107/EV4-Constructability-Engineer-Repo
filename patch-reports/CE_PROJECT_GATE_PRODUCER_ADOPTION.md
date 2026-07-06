@@ -37,6 +37,7 @@ project_gate_contract_pin:
 - `scripts/validate-project-gate-producer-adoption.py` — script entrypoint for CI and manual validation.
 - `fixtures/project_gate_export/` — synthetic valid and invalid producer-export fixtures.
 - `tests/test_project_gate_producer_adoption.py` — deterministic unit tests for lock, manifest, payload/export, and JSON serialization behavior.
+- `tests/test_project_gate_producer_adoption_fail_closed.py` — malformed-input regression tests for fail-closed validator behavior.
 - `.github/workflows/verify-project-gate-contract.yml` — immutable reusable workflow caller pinned to Project Gate merge commit.
 - `docs/ELEMENTOR_CAPABILITY_REGISTRY.v1.json` — official-source capability registry with explicit `insufficient_evidence` records where official evidence was not established in this patch.
 
@@ -45,12 +46,22 @@ project_gate_contract_pin:
 Confirmed mismatch before this patch:
 
 - Docs and validator required `builder_executable_package.schema == ev4-builder-executable-package@1.0.0`.
-- `schemas/builder_executable_package.schema.json` did not list `schema` in `required`.
+- `schemas/builder_executable_package.schema.json` did not document the `schema` property.
+- Existing tests intentionally require missing schema identity to remain a semantic validator gate, not a shape-only schema error.
 
 Patch action:
 
-- Added required `schema` field with const `ev4-builder-executable-package@1.0.0`.
-- This is a tightening of an already documented and validator-enforced requirement, not a semantic weakening.
+- Added optional `schema` property with const `ev4-builder-executable-package@1.0.0` when present.
+- Preserved the existing semantic validator gate for missing or unsupported schema identity.
+- Did not add `schema` to JSON Schema `required`, preserving `tests/test_architect_contract.py::test_missing_schema_identity_is_semantic_gate_not_shape_error`.
+
+## Fail-closed hardening
+
+The Project Gate producer-adoption validator now handles malformed input without crashing for:
+
+- mixed-type JSON Schema error paths;
+- non-integer or non-comparable pipeline ordinals;
+- non-object final entries in `project_execution_stages` or `stage_manifest`.
 
 ## Boundaries preserved
 
