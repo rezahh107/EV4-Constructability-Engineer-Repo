@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ev4.local/contracts/common/producer-gate-export.v1.schema.json",
+  "title": "EV4 Producer Gate Export v1",
+  "x-ev4-contract-id": "producer-gate-export.v1",
+  "x-ev4-contract-version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "export_id",
+    "producer",
+    "pipeline_id",
+    "run_id",
+    "stage_manifest",
+    "final_stage_bundle",
+    "handoff",
+    "validation",
+    "acquisition_mode"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "producer-gate-export.v1"
+    },
+    "export_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pipeline_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "producer": {
+      "$ref": "#/$defs/producer"
+    },
+    "stage_manifest": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/stage"
+      }
+    },
+    "final_stage_bundle": {
+      "$ref": "https://ev4.local/schemas/stage-bundle/stage-bundle.v1.schema.json"
+    },
+    "handoff": {
+      "$ref": "#/$defs/handoff"
+    },
+    "validation": {
+      "$ref": "#/$defs/validation"
+    },
+    "acquisition_mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "silent_fallback_allowed"
+      ],
+      "properties": {
+        "mode": {
+          "const": "producer_emitted_gate_artifact"
+        },
+        "silent_fallback_allowed": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "repository",
+        "ref",
+        "commit_sha"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "architect",
+            "ce",
+            "builder",
+            "responsive"
+          ]
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 3
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commit_sha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        }
+      }
+    },
+    "hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "value",
+        "scope"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "canonical_json",
+            "file_bytes",
+            "external_artifact"
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "present"
+      ],
+      "properties": {
+        "present": {
+          "type": "boolean"
+        },
+        "artifact_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_hash": {
+          "$ref": "#/$defs/hash"
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_id",
+        "stage_version",
+        "ordinal",
+        "mandatory",
+        "status",
+        "output",
+        "blockers",
+        "unknowns"
+      ],
+      "properties": {
+        "stage_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mandatory": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "complete",
+            "blocked",
+            "insufficient_evidence",
+            "not_run",
+            "invalid"
+          ]
+        },
+        "output": {
+          "$ref": "#/$defs/output"
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "unknowns": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "status",
+        "allowed",
+        "failure_reasons",
+        "blocking_diagnostics",
+        "unresolved_evidence"
+      ],
+      "properties": {
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "successful",
+            "successful_with_flags",
+            "blocked",
+            "insufficient_evidence",
+            "invalid_artifact"
+          ]
+        },
+        "allowed": {
+          "type": "boolean"
+        },
+        "failure_reasons": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "blocking_diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "unresolved_evidence": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_valid",
+        "semantic_valid",
+        "validator_id",
+        "validator_version",
+        "diagnostics"
+      ],
+      "properties": {
+        "schema_valid": {
+          "type": "boolean"
+        },
+        "semantic_valid": {
+          "type": "boolean"
+        },
+        "validator_id": {
+          "const": "ev4-producer-gate-export-validator"
+        },
+        "validator_version": {
+          "const": "1.0.0"
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}
