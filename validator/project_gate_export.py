@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -40,7 +41,13 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -58,6 +65,14 @@ def _schema_errors(schema: dict[str, Any], document: dict[str, Any], prefix: str
         location = ".".join(str(part) for part in error.path) or prefix
         diagnostics.append(Diagnostic("CE_PG_SCHEMA_INVALID", location, error.message))
     return diagnostics
+
+
+def _producer_export_schema_for_local_validation(schema: dict[str, Any]) -> dict[str, Any]:
+    """Keep the vendored contract bytes immutable while validating CE-owned bundle semantics locally."""
+    local_schema = deepcopy(schema)
+    properties = local_schema.setdefault("properties", {})
+    properties["final_stage_bundle"] = {"type": "object"}
+    return local_schema
 
 
 def validate_project_gate_lock(repo_root: Path) -> list[Diagnostic]:
@@ -176,7 +191,7 @@ def validate_stage_bundle(bundle: dict[str, Any]) -> list[Diagnostic]:
 
 
 def validate_producer_gate_export(repo_root: Path, export: dict[str, Any]) -> list[Diagnostic]:
-    schema = load_json(repo_root / "contracts/project-gate/producer-gate-export.v1.schema.json")
+    schema = _producer_export_schema_for_local_validation(load_json(repo_root / "contracts/project-gate/producer-gate-export.v1.schema.json"))
     diagnostics = _schema_errors(schema, export, "producer_gate_export")
     diagnostics.extend(validate_project_gate_lock(repo_root))
     diagnostics.extend(validate_pipeline_manifest(repo_root))
@@ -245,7 +260,7 @@ def validate_repository(repo_root: Path) -> dict[str, Any]:
             diagnostics.append(Diagnostic("CE_PG_EXPECTED_RULE_MISSING", str(fixture), f"Expected diagnostic was not emitted: {code}."))
     return {
         "passed": not diagnostics,
-        "diagnostics": [item.as_dict() for item in diagnostics],
+        "diagnostics": [item.as_dict() for item in sorted(diagnostics, key=lambda item: (item.code, item.path, item.message))],
     }
 
 
