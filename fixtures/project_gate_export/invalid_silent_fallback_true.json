@@ -1,0 +1,19 @@
+{
+  "classification": "synthetic_fixture",
+  "expected": {
+    "validation_pass": false,
+    "rules_violated": ["CE_PG_SILENT_FALLBACK_FORBIDDEN"]
+  },
+  "document": {
+    "schema_version": "producer-gate-export.v1",
+    "export_id": "ce-export-invalid-silent-fallback",
+    "pipeline_id": "ev4-ce-project-gate-producer-pipeline",
+    "run_id": "ce-run-invalid-silent-fallback",
+    "producer": {"stage": "ce", "repository": "rezahh107/EV4-Constructability-Engineer-Repo", "ref": "feature/ce-producer-gate-adoption", "commit_sha": "cfceec5c20269c75a1cc19b2675d7087cede4599"},
+    "stage_manifest": [{"stage_id": "project_gate_export", "stage_version": "1.0.0", "ordinal": 1, "mandatory": true, "status": "complete", "output": {"present": true, "artifact_ref": "invalid_silent_fallback_true.json"}, "blockers": [], "unknowns": []}],
+    "final_stage_bundle": {"schema_version": "stage-evidence-bundle.v1", "stage": "ce", "payload_schema": {"id": "ev4-ce-stage-payload@1.0.0"}, "produced_by": {"repository": "rezahh107/EV4-Constructability-Engineer-Repo"}, "payload": {"schema_id": "ev4-ce-stage-payload@1.0.0", "data": {}}, "synthetic": true},
+    "handoff": {"target": "builder", "status": "blocked", "allowed": false, "failure_reasons": [{"code": "invalid"}], "blocking_diagnostics": [{"code": "invalid"}], "unresolved_evidence": []},
+    "validation": {"schema_valid": false, "semantic_valid": false, "validator_id": "ev4-producer-gate-export-validator", "validator_version": "1.0.0", "diagnostics": []},
+    "acquisition_mode": {"mode": "producer_emitted_gate_artifact", "silent_fallback_allowed": true}
+  }
+}
