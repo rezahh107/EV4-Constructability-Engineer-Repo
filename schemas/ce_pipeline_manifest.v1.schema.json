@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ev4.local/schemas/ce/ce-pipeline-manifest.v1.schema.json",
+  "title": "EV4 CE Pipeline Manifest v1",
+  "x-ev4-schema-id": "ev4-ce-pipeline-manifest@1.0.0",
+  "x-ev4-schema-version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pipeline_id",
+    "pipeline_version",
+    "owner_repository",
+    "project_execution_stages",
+    "validation_tracks",
+    "legacy_compatibility_outputs"
+  ],
+  "properties": {
+    "pipeline_id": {"const": "ev4-ce-project-gate-producer-pipeline"},
+    "pipeline_version": {"const": "1.0.0"},
+    "owner_repository": {"const": "rezahh107/EV4-Constructability-Engineer-Repo"},
+    "project_execution_stages": {
+      "type": "array",
+      "minItems": 8,
+      "items": {"$ref": "#/$defs/stage"}
+    },
+    "validation_tracks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/validation_track"}
+    },
+    "legacy_compatibility_outputs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/legacy_output"}
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_id",
+        "stage_version",
+        "ordinal",
+        "mandatory",
+        "applicability",
+        "required_inputs",
+        "required_outputs",
+        "next_stage",
+        "blocked_statuses",
+        "owner_repository"
+      ],
+      "properties": {
+        "stage_id": {"type": "string", "minLength": 1},
+        "stage_version": {"type": "string", "minLength": 1},
+        "ordinal": {"type": "integer", "minimum": 1},
+        "mandatory": {"type": "boolean"},
+        "applicability": {"type": "string", "minLength": 1},
+        "required_inputs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "required_outputs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "next_stage": {"type": ["string", "null"]},
+        "blocked_statuses": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "owner_repository": {"const": "rezahh107/EV4-Constructability-Engineer-Repo"}
+      }
+    },
+    "validation_track": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validation_id", "purpose", "required_for", "evidence_requirement"],
+      "properties": {
+        "validation_id": {"type": "string", "minLength": 1},
+        "purpose": {"type": "string", "minLength": 1},
+        "required_for": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "evidence_requirement": {"type": "string", "minLength": 1}
+      }
+    },
+    "legacy_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output_id", "status", "canonical_for_project_gate", "retirement_status"],
+      "properties": {
+        "output_id": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "minLength": 1},
+        "canonical_for_project_gate": {"type": "boolean"},
+        "retirement_status": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
