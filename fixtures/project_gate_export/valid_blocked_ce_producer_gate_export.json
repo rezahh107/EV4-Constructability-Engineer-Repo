@@ -1,0 +1,89 @@
+{
+  "classification": "synthetic_fixture",
+  "expected": {
+    "validation_pass": true,
+    "rules_violated": []
+  },
+  "document": {
+    "schema_version": "producer-gate-export.v1",
+    "export_id": "ce-export-synthetic-blocked-001",
+    "pipeline_id": "ev4-ce-project-gate-producer-pipeline",
+    "run_id": "ce-run-synthetic-blocked-001",
+    "producer": {
+      "stage": "ce",
+      "repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+      "ref": "feature/ce-producer-gate-adoption",
+      "commit_sha": "cfceec5c20269c75a1cc19b2675d7087cede4599"
+    },
+    "stage_manifest": [
+      {"stage_id": "architect_intake_validation", "stage_version": "1.0.0", "ordinal": 1, "mandatory": true, "status": "complete", "output": {"present": true, "artifact_ref": "fixtures/project_gate_export/architect_intake.synthetic.json", "artifact_hash": {"algorithm": "sha256", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "scope": "external_artifact"}}, "blockers": [], "unknowns": []},
+      {"stage_id": "identity_lock_validation", "stage_version": "1.0.0", "ordinal": 2, "mandatory": true, "status": "complete", "output": {"present": true, "artifact_ref": "architecture_identity.synthetic.json", "artifact_hash": {"algorithm": "sha256", "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "scope": "external_artifact"}}, "blockers": [], "unknowns": []},
+      {"stage_id": "node_action_interrogation", "stage_version": "1.0.0", "ordinal": 3, "mandatory": true, "status": "complete", "output": {"present": true, "artifact_ref": "review_units.synthetic.json", "artifact_hash": {"algorithm": "sha256", "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "scope": "external_artifact"}}, "blockers": [], "unknowns": []},
+      {"stage_id": "hidden_dependency_classification", "stage_version": "1.0.0", "ordinal": 4, "mandatory": true, "status": "complete", "output": {"present": true, "artifact_ref": "dependency_classification.synthetic.json", "artifact_hash": {"algorithm": "sha256", "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "scope": "external_artifact"}}, "blockers": [], "unknowns": []},
+      {"stage_id": "constructability_review", "stage_version": "1.0.0", "ordinal": 5, "mandatory": true, "status": "blocked", "output": {"present": true, "artifact_ref": "constructability_review.synthetic.json", "artifact_hash": {"algorithm": "sha256", "value": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "scope": "external_artifact"}}, "blockers": [{"code": "CE_SYNTHETIC_GEOMETRY_MISSING"}], "unknowns": []},
+      {"stage_id": "implementation_strategy_determination", "stage_version": "1.0.0", "ordinal": 6, "mandatory": true, "status": "blocked", "output": {"present": true, "artifact_ref": "strategy_absence_reason.synthetic.json", "artifact_hash": {"algorithm": "sha256", "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "scope": "external_artifact"}}, "blockers": [{"code": "CE_SYNTHETIC_STRATEGY_NOT_PROVEN"}], "unknowns": []},
+      {"stage_id": "builder_package_gate", "stage_version": "1.0.0", "ordinal": 7, "mandatory": true, "status": "blocked", "output": {"present": true, "artifact_ref": "builder_package_not_emitted.synthetic.json", "artifact_hash": {"algorithm": "sha256", "value": "1111111111111111111111111111111111111111111111111111111111111111", "scope": "external_artifact"}}, "blockers": [{"code": "CE_SYNTHETIC_BLOCKED_NO_BUILDER_PACKAGE"}], "unknowns": []},
+      {"stage_id": "project_gate_export", "stage_version": "1.0.0", "ordinal": 8, "mandatory": true, "status": "complete", "output": {"present": true, "artifact_ref": "fixtures/project_gate_export/valid_blocked_ce_producer_gate_export.json", "artifact_hash": {"algorithm": "sha256", "value": "2222222222222222222222222222222222222222222222222222222222222222", "scope": "external_artifact"}}, "blockers": [], "unknowns": []}
+    ],
+    "final_stage_bundle": {
+      "schema_version": "stage-evidence-bundle.v1",
+      "bundle_id": "ce-stage-bundle-synthetic-blocked-001",
+      "stage": "ce",
+      "payload_schema": {
+        "id": "ev4-ce-stage-payload@1.0.0",
+        "version": "1.0.0",
+        "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+      },
+      "produced_by": {
+        "repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+        "ref": "feature/ce-producer-gate-adoption"
+      },
+      "evidence_status": "complete",
+      "payload": {
+        "schema_id": "ev4-ce-stage-payload@1.0.0",
+        "data": {
+          "schema_id": "ev4-ce-stage-payload@1.0.0",
+          "schema_version": "1.0.0",
+          "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+          "payload_status": "complete",
+          "payload_identity": {"payload_id": "ce-payload-synthetic-blocked-001", "pipeline_id": "ev4-ce-project-gate-producer-pipeline", "run_id": "ce-run-synthetic-blocked-001", "synthetic": true},
+          "source_architect_intake": {"schema_id": "ev4-ce-architect-stage-intake@1.1.0", "schema_version": "1.1.0", "artifact_ref": "synthetic-architect-intake.json", "artifact_hash": {"algorithm": "sha256", "value": "3333333333333333333333333333333333333333333333333333333333333333", "scope": "external_artifact"}, "transition_metadata_is_review_evidence": false},
+          "architecture_identity": {"selected_candidate_id": "ARCH-FAM-C", "selected_candidate_locked": true, "selected_candidate_id_unchanged": true, "approved_class_names": ["ev4-section", "ev4-card"], "approved_class_names_unchanged": true, "build_tree_identity_preserved": true, "architect_unknowns_preserved": true, "architect_forbidden_work_weakened": false, "review_unit_traces": [{"architect_node_ref": "node:root", "architect_evidence_refs": ["architect:evidence:1"], "ce_review_unit_id": "ce-unit-root", "identity_unchanged": true}]},
+          "constructability_review": {"review_id": "review-synthetic-blocked-001", "architect_package_ref": "synthetic-architect-intake.json", "selected_candidate_id": "ARCH-FAM-C", "constructability_status": "blocked", "builder_decisions_required": 1, "blocking_dependencies": ["geometry_proof"], "reviewed_nodes": [{"node_id": "root", "node_type": "section", "action_proposed": "evaluate_constructability", "node_status": "blocked", "interrogation_result": {"geometry_required": true, "geometry_proven": false, "asset_required": false, "overlay_strategy_required": false, "responsive_behavior": "not_applicable", "interaction_implied": false, "dynamic_loop_implied": false, "accessibility_claimed": false, "exact_ui_control_path_used": false, "requires_class_change": false, "requires_structure_change": false}}]},
+          "implementation_strategy_map": null,
+          "builder_executable_package": null,
+          "builder_package_emitted": false,
+          "builder_package_not_emitted_reason": "constructability_status_blocked",
+          "evidence_register": [{"id": "synthetic-evidence-1", "kind": "fixture", "state": "synthetic", "description": "Synthetic blocked CE review fixture.", "source": {"type": "synthetic_fixture", "reference": "fixtures/project_gate_export/valid_blocked_ce_producer_gate_export.json"}}],
+          "unresolved_evidence": [],
+          "repair_routing": {"repair_owner": "ce", "status": "blocked"},
+          "boundary_assertions": {"ce_did_not_redesign_architecture": true, "ce_did_not_claim_builder_execution": true, "ce_did_not_claim_responsive_completion": true, "production_ready": false},
+          "validation_contract": {"validator_id": "ev4-ce-project-gate-export-validator", "validator_version": "1.0.0"},
+          "extension_records": []
+        }
+      },
+      "evidence": [{"id": "synthetic-stage-evidence-1", "kind": "fixture", "state": "validated", "description": "Synthetic CE blocked export fixture.", "artifact_hash": {"algorithm": "sha256", "value": "4444444444444444444444444444444444444444444444444444444444444444", "scope": "external_artifact"}, "source": {"type": "synthetic_fixture", "reference": "fixtures/project_gate_export/valid_blocked_ce_producer_gate_export.json"}}],
+      "provenance": {"source": "synthetic_fixture", "created_by": "ev4-ce-producer-adoption"},
+      "synthetic": true
+    },
+    "handoff": {
+      "target": "builder",
+      "status": "blocked",
+      "allowed": false,
+      "failure_reasons": [{"code": "CE_SYNTHETIC_BLOCKED", "message": "Synthetic fixture is blocked and must not authorize Builder."}],
+      "blocking_diagnostics": [{"code": "CE_SYNTHETIC_BLOCKED"}],
+      "unresolved_evidence": []
+    },
+    "validation": {
+      "schema_valid": true,
+      "semantic_valid": true,
+      "validator_id": "ev4-producer-gate-export-validator",
+      "validator_version": "1.0.0",
+      "diagnostics": []
+    },
+    "acquisition_mode": {
+      "mode": "producer_emitted_gate_artifact",
+      "silent_fallback_allowed": false
+    }
+  }
+}
