@@ -58,10 +58,14 @@ def sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
 
 
+def _schema_error_sort_key(error: Any) -> tuple[str, ...]:
+    return tuple(str(part) for part in error.path)
+
+
 def _schema_errors(schema: dict[str, Any], document: dict[str, Any], prefix: str) -> list[Diagnostic]:
     validator = Draft202012Validator(schema)
     diagnostics: list[Diagnostic] = []
-    for error in sorted(validator.iter_errors(document), key=lambda item: list(item.path)):
+    for error in sorted(validator.iter_errors(document), key=_schema_error_sort_key):
         location = ".".join(str(part) for part in error.path) or prefix
         diagnostics.append(Diagnostic("CE_PG_SCHEMA_INVALID", location, error.message))
     return diagnostics
@@ -135,22 +139,36 @@ def validate_pipeline_manifest(repo_root: Path) -> list[Diagnostic]:
     if not isinstance(stages, list):
         return diagnostics
 
-    ids = [stage.get("stage_id") for stage in stages if isinstance(stage, dict)]
-    ordinals = [stage.get("ordinal") for stage in stages if isinstance(stage, dict)]
-    if len(ids) != len(set(ids)):
+    stage_ids: list[str] = []
+    ordinals: list[int] = []
+    for index, stage in enumerate(stages):
+        if not isinstance(stage, dict):
+            diagnostics.append(Diagnostic("CE_PIPELINE_STAGE_OBJECT_REQUIRED", f"project_execution_stages[{index}]", "Each pipeline stage must be an object."))
+            continue
+        stage_id = stage.get("stage_id")
+        if isinstance(stage_id, str):
+            stage_ids.append(stage_id)
+        else:
+            diagnostics.append(Diagnostic("CE_PIPELINE_STAGE_ID_TYPE_INVALID", f"project_execution_stages[{index}].stage_id", "Stage ID must be a string."))
+        ordinal = stage.get("ordinal")
+        if isinstance(ordinal, int) and not isinstance(ordinal, bool):
+            ordinals.append(ordinal)
+        else:
+            diagnostics.append(Diagnostic("CE_PIPELINE_ORDINAL_TYPE_INVALID", f"project_execution_stages[{index}].ordinal", "Stage ordinal must be an integer."))
+        outputs = stage.get("required_outputs")
+        if stage.get("mandatory") is True and not outputs:
+            diagnostics.append(Diagnostic("CE_PIPELINE_MANDATORY_OUTPUT_REQUIRED", f"project_execution_stages[{index}].required_outputs", "Mandatory stages require explicit outputs."))
+
+    if len(stage_ids) != len(set(stage_ids)):
         diagnostics.append(Diagnostic("CE_PIPELINE_DUPLICATE_STAGE_ID", "project_execution_stages", "Stage IDs must be unique."))
     if len(ordinals) != len(set(ordinals)):
         diagnostics.append(Diagnostic("CE_PIPELINE_DUPLICATE_ORDINAL", "project_execution_stages", "Stage ordinals must be unique."))
     if ordinals != sorted(ordinals):
         diagnostics.append(Diagnostic("CE_PIPELINE_NON_DETERMINISTIC_ORDER", "project_execution_stages", "Stages must be sorted by ordinal."))
-    if ids[-1:] != ["project_gate_export"]:
+
+    last_stage = stages[-1] if stages else None
+    if not isinstance(last_stage, dict) or last_stage.get("stage_id") != "project_gate_export":
         diagnostics.append(Diagnostic("CE_PIPELINE_EXPORT_NOT_FINAL", "project_execution_stages[-1].stage_id", "Project Gate export must be the final stage."))
-    for index, stage in enumerate(stages):
-        if not isinstance(stage, dict):
-            continue
-        outputs = stage.get("required_outputs")
-        if stage.get("mandatory") is True and not outputs:
-            diagnostics.append(Diagnostic("CE_PIPELINE_MANDATORY_OUTPUT_REQUIRED", f"project_execution_stages[{index}].required_outputs", "Mandatory stages require explicit outputs."))
     return diagnostics
 
 
@@ -206,10 +224,14 @@ def validate_producer_gate_export(repo_root: Path, export: dict[str, Any]) -> li
         diagnostics.append(Diagnostic("CE_PG_ACQUISITION_MODE_INVALID", "acquisition_mode.mode", "Producer-emitted gate artifact mode is mandatory."))
 
     stage_manifest = export.get("stage_manifest") if isinstance(export.get("stage_manifest"), list) else []
-    if not stage_manifest or stage_manifest[-1].get("stage_id") != "project_gate_export":
-        diagnostics.append(Diagnostic("CE_PG_EXPORT_STAGE_NOT_FINAL", "stage_manifest", "Project Gate export stage must be final."))
+    last_export_stage = stage_manifest[-1] if stage_manifest else None
+    if not isinstance(last_export_stage, dict) or last_export_stage.get("stage_id") != "project_gate_export":
+        diagnostics.append(Diagnostic("CE_PG_EXPORT_STAGE_NOT_FINAL", "stage_manifest[-1].stage_id", "Project Gate export stage must be final."))
     for index, stage in enumerate(stage_manifest):
-        if isinstance(stage, dict) and stage.get("status") == "complete":
+        if not isinstance(stage, dict):
+            diagnostics.append(Diagnostic("CE_PG_STAGE_OBJECT_REQUIRED", f"stage_manifest[{index}]", "Each export stage entry must be an object."))
+            continue
+        if stage.get("status") == "complete":
             output = stage.get("output") if isinstance(stage.get("output"), dict) else {}
             if output.get("present") is not True or not output.get("artifact_ref"):
                 diagnostics.append(Diagnostic("CE_PG_COMPLETE_STAGE_OUTPUT_REQUIRED", f"stage_manifest[{index}].output", "Complete stages require a real output reference."))
