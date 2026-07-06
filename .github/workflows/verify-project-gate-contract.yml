@@ -1,0 +1,13 @@
+name: verify-project-gate-contract
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-project-gate-contract:
+    uses: rezahh107/EV4-Project-Gate/.github/workflows/verify-vendored-common-contract.yml@ea19c22c32458068e167b267da8b819e9263cdf7
+    with:
+      lock_path: contracts/project-gate/producer-gate-export.v1.lock.json
