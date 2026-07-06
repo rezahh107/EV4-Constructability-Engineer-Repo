@@ -1,0 +1,149 @@
+{
+  "pipeline_id": "ev4-ce-project-gate-producer-pipeline",
+  "pipeline_version": "1.0.0",
+  "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+  "project_execution_stages": [
+    {
+      "stage_id": "architect_intake_validation",
+      "stage_version": "1.0.0",
+      "ordinal": 1,
+      "mandatory": true,
+      "applicability": "all_ce_runs",
+      "required_inputs": ["ev4-ce-architect-stage-intake@1.1.0"],
+      "required_outputs": ["validated_architect_intake"],
+      "next_stage": "identity_lock_validation",
+      "blocked_statuses": ["invalid", "insufficient_evidence"],
+      "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+    },
+    {
+      "stage_id": "identity_lock_validation",
+      "stage_version": "1.0.0",
+      "ordinal": 2,
+      "mandatory": true,
+      "applicability": "all_ce_runs",
+      "required_inputs": ["validated_architect_intake"],
+      "required_outputs": ["architecture_identity_preservation_result"],
+      "next_stage": "node_action_interrogation",
+      "blocked_statuses": ["selected_candidate_mismatch", "class_set_changed", "build_tree_node_lost", "architect_unknown_silently_removed"],
+      "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+    },
+    {
+      "stage_id": "node_action_interrogation",
+      "stage_version": "1.0.0",
+      "ordinal": 3,
+      "mandatory": true,
+      "applicability": "all_reviewed_nodes",
+      "required_inputs": ["validated_architect_intake", "architecture_identity_preservation_result"],
+      "required_outputs": ["ce_review_units", "interrogation_results"],
+      "next_stage": "hidden_dependency_classification",
+      "blocked_statuses": ["untraceable_review_unit", "missing_interrogation_result"],
+      "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+    },
+    {
+      "stage_id": "hidden_dependency_classification",
+      "stage_version": "1.0.0",
+      "ordinal": 4,
+      "mandatory": true,
+      "applicability": "all_reviewed_nodes",
+      "required_inputs": ["ce_review_units", "interrogation_results"],
+      "required_outputs": ["dependency_classification"],
+      "next_stage": "constructability_review",
+      "blocked_statuses": ["geometry_unproven", "overlay_strategy_missing", "dynamic_loop_binding_missing", "exact_ui_path_evidence_missing"],
+      "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+    },
+    {
+      "stage_id": "constructability_review",
+      "stage_version": "1.0.0",
+      "ordinal": 5,
+      "mandatory": true,
+      "applicability": "all_completed_ce_review_attempts",
+      "required_inputs": ["dependency_classification"],
+      "required_outputs": ["constructability_review"],
+      "next_stage": "implementation_strategy_determination",
+      "blocked_statuses": ["blocked", "needs_user_evidence", "needs_architect_amendment", "insufficient_evidence", "invalid"],
+      "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+    },
+    {
+      "stage_id": "implementation_strategy_determination",
+      "stage_version": "1.0.0",
+      "ordinal": 6,
+      "mandatory": true,
+      "applicability": "evidence_backed_strategy_conclusions_only",
+      "required_inputs": ["constructability_review"],
+      "required_outputs": ["implementation_strategy_map_or_absence_reason"],
+      "next_stage": "builder_package_gate",
+      "blocked_statuses": ["strategy_unproven", "builder_decision_remaining", "architect_amendment_required"],
+      "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+    },
+    {
+      "stage_id": "builder_package_gate",
+      "stage_version": "1.0.0",
+      "ordinal": 7,
+      "mandatory": true,
+      "applicability": "all_ce_runs",
+      "required_inputs": ["constructability_review", "implementation_strategy_map_or_absence_reason"],
+      "required_outputs": ["builder_executable_package_or_not_emitted_reason"],
+      "next_stage": "project_gate_export",
+      "blocked_statuses": ["non_executable_review", "blocking_dependencies_present", "builder_decision_remaining", "unsupported_builder_package_schema"],
+      "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+    },
+    {
+      "stage_id": "project_gate_export",
+      "stage_version": "1.0.0",
+      "ordinal": 8,
+      "mandatory": true,
+      "applicability": "all_ce_runs_including_blocked_and_insufficient_evidence",
+      "required_inputs": ["ce_stage_payload", "stage-evidence-bundle.v1", "producer-gate-export.v1"],
+      "required_outputs": ["ce_project_gate_export"],
+      "next_stage": null,
+      "blocked_statuses": ["invalid_artifact", "silent_fallback_true", "missing_machine_artifact"],
+      "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo"
+    }
+  ],
+  "validation_tracks": [
+    {
+      "validation_id": "ce_pipeline_manifest_static",
+      "purpose": "Ensure the CE pipeline has one deterministic canonical order and a final mandatory Project Gate export stage.",
+      "required_for": ["project_gate_export"],
+      "evidence_requirement": "schema validation plus semantic checks for unique ordinals, mandatory outputs, and final stage identity"
+    },
+    {
+      "validation_id": "architect_identity_preservation",
+      "purpose": "Block selected candidate drift, class drift, Build Tree loss, and untraceable CE review units.",
+      "required_for": ["constructability_review", "builder_package_gate", "project_gate_export"],
+      "evidence_requirement": "CE payload architecture_identity and reviewed-node traceability"
+    },
+    {
+      "validation_id": "project_gate_common_contract_lock",
+      "purpose": "Verify exact vendored Project Gate Producer Gate Export v1 contract bytes against the immutable Prompt 0 pin.",
+      "required_for": ["project_gate_export"],
+      "evidence_requirement": "contracts/project-gate/producer-gate-export.v1.lock.json and exact file-byte SHA-256"
+    }
+  ],
+  "legacy_compatibility_outputs": [
+    {
+      "output_id": "constructability_review.schema.json",
+      "status": "preserved",
+      "canonical_for_project_gate": false,
+      "retirement_status": "not_retired"
+    },
+    {
+      "output_id": "implementation_strategy_map.schema.json",
+      "status": "preserved",
+      "canonical_for_project_gate": false,
+      "retirement_status": "not_retired"
+    },
+    {
+      "output_id": "builder_executable_package.schema.json",
+      "status": "preserved_and_schema_identity_tightened",
+      "canonical_for_project_gate": false,
+      "retirement_status": "not_retired"
+    },
+    {
+      "output_id": "ev4-ce-stage-payload@1.0.0",
+      "status": "project_gate_canonical_stage_payload",
+      "canonical_for_project_gate": true,
+      "retirement_status": "active"
+    }
+  ]
+}
