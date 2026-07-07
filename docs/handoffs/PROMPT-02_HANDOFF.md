@@ -15,7 +15,7 @@ project_gate_prompt_0_commit: ea19c22c32458068e167b267da8b819e9263cdf7
 exact_head_ci_status: passed
 project_gate_runtime_integration: not_implemented
 producer_repositories_modified_by_prompt_5: false
-prompt_5_ready_input: true
+prompt_5_ready_input: false
 human_review_required: true
 ```
 
