@@ -1,0 +1,22 @@
+{
+  "lock_schema": "project-gate-common-contract-lock.v1",
+  "contract_owner": "rezahh107/EV4-Project-Gate",
+  "contract_id": "producer-gate-export.v1",
+  "contract_version": "1.0.0",
+  "canonical": {
+    "repository": "rezahh107/EV4-Project-Gate",
+    "path": "contracts/common/producer-gate-export.v1.schema.json",
+    "commit_sha": "ea19c22c32458068e167b267da8b819e9263cdf7",
+    "file_sha256": "c556bb9deeccdcafeb885a1c8b3dbd660e4e06f452b8ac3c7040d21377465fcc"
+  },
+  "vendored": {
+    "repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+    "path": "contracts/project-gate/producer-gate-export.v1.schema.json",
+    "file_sha256": "c556bb9deeccdcafeb885a1c8b3dbd660e4e06f452b8ac3c7040d21377465fcc",
+    "local_copy_authoritative": false
+  },
+  "verification": {
+    "byte_equality_required": true,
+    "compare_against_moving_default_branch": false
+  }
+}

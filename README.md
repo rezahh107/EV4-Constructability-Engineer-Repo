@@ -1,6 +1,6 @@
 # EV4 Constructability Engineer Repo
 
-Status: constructability system active; Project Gate integration planned; Project Gate program not implemented.
+Status: constructability system active; CE Project Gate producer adoption implemented in CE; Project Gate runtime integration not implemented.
 
 Role: `implementation_strategy_gate`
 
@@ -30,13 +30,14 @@ Architect output
 → EV4 Project Gate
 → accepted CE Input Package
 → CE review and output
-→ EV4 Project Gate
+→ CE Project Gate Export artifact
+→ EV4 Project Gate runtime integration
 → accepted Builder Input Package
 ```
 
 If Architect input fails the first gate, the user receives an Architect repair package. If CE output fails the second gate, the user receives a CE repair package or an Architect amendment package only when evidence establishes upstream ownership.
 
-The Python verifier and simple user interface are not implemented yet.
+The CE repository now owns a producer-emitted Project Gate artifact path for CE output. The Project Gate runtime join remains outside this repository and is still `not_implemented` here.
 
 ## Canonical Architect-facing CE intake
 
@@ -76,6 +77,36 @@ schemas/architect_ce_input_package.v1.schema.json
 ```
 
 Those files target previous compatibility paths and must not be treated as the preferred intake for Project Gate-produced v1.1 transition output.
+
+## CE Project Gate Producer Export
+
+CE producer adoption adds these CE-owned artifacts:
+
+```text
+manifests/ce_pipeline_manifest.v1.json
+schemas/ce_pipeline_manifest.v1.schema.json
+schemas/ce_stage_payload.v1.schema.json
+contracts/project-gate/producer-gate-export.v1.schema.json
+contracts/project-gate/producer-gate-export.v1.lock.json
+validator/project_gate_export.py
+scripts/validate-project-gate-producer-adoption.py
+```
+
+Composition:
+
+```text
+CE Stage Payload
+inside Stage Evidence Bundle v1
+inside Producer Gate Export v1
+```
+
+The vendored Producer Gate Export contract is pinned to Project Gate merge commit:
+
+```text
+ea19c22c32458068e167b267da8b819e9263cdf7
+```
+
+Silent fallback is forbidden. A blocked CE run may still emit a valid machine artifact, but that artifact is not Builder authorization.
 
 ## CE Input and Output
 
@@ -149,7 +180,8 @@ https://github.com/rezahh107/EV4-Responsive-Architect
 role: implementation_strategy_gate
 fail_closed_default: true
 project_gate_handoff: documented
-project_gate_runtime: partially_supported_for_architect_to_ce_transition_metadata
+ce_producer_adoption: implemented_in_ce_pending_project_gate_integration
+project_gate_runtime: not_implemented
 canonical_architect_facing_intake: ev4-ce-architect-stage-intake@1.1.0
 architect_stage_to_ce_mapping: ev4-architect-stage-to-ce-intake-mapping@1.1.0
 builder_package_emission: evidence_gated

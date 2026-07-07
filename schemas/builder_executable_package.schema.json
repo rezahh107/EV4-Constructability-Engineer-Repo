@@ -30,6 +30,7 @@
     }
   ],
   "properties": {
+    "schema": {"type": "string", "const": "ev4-builder-executable-package@1.0.0"},
     "package_id": {"type": "string"},
     "review_ref": {"type": "string"},
     "strategy_map_ref": {"type": ["string", "null"]},
