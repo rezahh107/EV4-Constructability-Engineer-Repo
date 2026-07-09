@@ -114,6 +114,41 @@ For changes affecting Builder intake:
 - avoid unrelated refactoring;
 - do not weaken a confirmed regression fixture without an explicit decision record.
 
+## Wave 5 Kernel Decision Receipts
+
+Wave 5 is presentation-layer only. A human-readable receipt may explain CE handling of a Kernel decision only when the machine-readable decision lineage remains the source of truth.
+
+Success receipt text:
+
+```text
+✅ تصمیم به decision card کرنل وصل است؛ CE فقط constructability آن را بررسی کرده و lineage تصمیم حفظ شده است.
+```
+
+Insufficient-evidence receipt text:
+
+```text
+⚠️ این آیتم هنوز رسید معتبر کرنل ندارد؛ CE نمی‌تواند بدون machine-readable trace کامل آن را قابل‌عبور اعلام کند.
+```
+
+A success receipt requires complete machine trace fields:
+
+```text
+decision_family
+decision_card_ref
+selected_option
+rejected_options
+evidence_refs
+evidence_state
+consumer_stage
+```
+
+Do not:
+
+- emit a green-check receipt without complete `decision_lineage`;
+- use receipt text as a replacement for machine-readable trace;
+- claim CE constructability pass, Builder readiness, downstream enforcement, runtime enforcement, or production readiness from receipt text alone;
+- invent `decision_card_ref`, `decision_family`, `evidence_refs`, `resolved`, or `production_ready`.
+
 ## Validation
 
 Use the repository's current validation sequence:
@@ -131,6 +166,13 @@ For Architect Stage Intake changes, also run:
 ```bash
 python scripts/validate-ce-architect-stage-intake.py
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py
+```
+
+For Kernel decision receipt changes, also run:
+
+```bash
+python scripts/validate-ce-kernel-decision-receipts.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_kernel_decision_receipts.py
 ```
 
 Run the checks relevant to the change and report exactly which commands passed. Do not claim full validation if only a subset ran.

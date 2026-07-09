@@ -38,3 +38,26 @@ records:
     preservation and invalid missing/replaced lineage failures. Downstream contract
     enforcement remains insufficient evidence unless a real inspected downstream contract
     is separately validated.
+- escape_route_id: CE-W5-KERNEL-RECEIPT-001
+  consumer_repo: EV4-Constructability-Engineer-Repo
+  risk: High
+  session_scope: single_turn
+  mapping_status: mapped
+  decision_family: layout_structure
+  required_decision_card_ref_pattern: ^DK-CARD-layout-structure-[A-Za-z0-9._:-]+$
+  not_applicable_reason: null
+  surface: CE user-facing Kernel decision receipts for intake, output, repair, and handoff
+  status:
+    enforcement_status: fixture_tested
+    evidence_state: validated
+  carriers:
+    sequence_CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-kernel-decision-receipts.py
+    test_command: python scripts/validate-ce-kernel-decision-receipts.py
+    positive_fixture: fixtures/kernel-decision-receipts/valid/complete-trace-success-receipt.json
+    negative_fixture: fixtures/kernel-decision-receipts/invalid/missing-decision-card-ref-green-receipt.json
+    validator_rule: validator/kernel_decision_receipts.py::validate_receipt_surface
+    validator_diagnostic: CE_RECEIPT_GREEN_WITHOUT_MACHINE_TRACE
+    downstream_contract: null
+  notes: Wave 5 is presentation-layer only. The record is intentionally limited to
+    fixture_tested and does not claim ci_enforced, sequence_ci_enforced, downstream
+    contract enforcement, runtime enforcement, or production readiness.

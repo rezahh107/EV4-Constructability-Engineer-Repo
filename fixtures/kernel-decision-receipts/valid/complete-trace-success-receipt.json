@@ -1,0 +1,36 @@
+{
+  "fixture_id": "synthetic-ce-kernel-receipt-valid-complete-trace-001",
+  "synthetic": true,
+  "ce_output": {
+    "consumer_stage": "ce_constructability_output",
+    "decision_lineage": [
+      {
+        "decision_family": "layout_structure",
+        "decision_card_ref": "DK-CARD-layout-structure-001",
+        "selected_option": "center_anchored_symmetric_pill_cards",
+        "rejected_options": [
+          "freeform_builder_layout",
+          "unanchored_grid"
+        ],
+        "evidence_refs": [
+          "architect-stage-evidence-layout-001"
+        ],
+        "evidence_state": "validated",
+        "consumer_stage": "ce_intake"
+      }
+    ],
+    "kernel_decision_receipt": {
+      "visible_status_marker": "✅",
+      "status": "kernel_trace_connected",
+      "message": "✅ تصمیم به decision card کرنل وصل است؛ CE فقط constructability آن را بررسی کرده و lineage تصمیم حفظ شده است.",
+      "source": "machine_readable_decision_trace"
+    },
+    "constructability_review": {
+      "constructability_status": "blocked",
+      "evidence_state": "validated"
+    }
+  },
+  "expected": {
+    "validation_pass": true
+  }
+}
