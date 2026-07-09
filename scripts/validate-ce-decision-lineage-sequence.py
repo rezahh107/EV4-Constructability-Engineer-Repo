@@ -75,16 +75,16 @@ def _validate_lineage_item(item: Any, path: str) -> list[Diagnostic]:
     return diagnostics
 
 
-def _lineage_entries(container: dict[str, Any], path: str) -> tuple[list[dict[str, Any]], list[Diagnostic]]:
+def _lineage_entries(container: dict[str, Any], path: str) -> tuple[list[tuple[int, dict[str, Any]]], list[Diagnostic]]:
     raw = container.get("decision_lineage")
     if not isinstance(raw, list) or not raw:
         return [], [Diagnostic(DIAGNOSTIC_MISSING_LINEAGE, f"{path}.decision_lineage", "CE intake/output must carry non-empty upstream Kernel decision lineage.")]
     diagnostics: list[Diagnostic] = []
-    entries: list[dict[str, Any]] = []
+    entries: list[tuple[int, dict[str, Any]]] = []
     for index, item in enumerate(raw):
         diagnostics.extend(_validate_lineage_item(item, f"{path}.decision_lineage[{index}]"))
         if isinstance(item, dict):
-            entries.append(item)
+            entries.append((index, item))
     return entries, diagnostics
 
 
@@ -106,16 +106,17 @@ def validate_sequence(document: dict[str, Any]) -> list[Diagnostic]:
     if intake_diags or output_diags:
         return diagnostics
 
-    output_by_key = {_lineage_key(item): item for item in output_entries}
-    for index, upstream in enumerate(intake_entries):
+    output_by_key = {_lineage_key(item): (output_index, item) for output_index, item in output_entries}
+    for intake_index, upstream in intake_entries:
         key = _lineage_key(upstream)
-        downstream = output_by_key.get(key)
-        if downstream is None:
-            diagnostics.append(Diagnostic(DIAGNOSTIC_LINEAGE_DROPPED, f"$.ce_output.decision_lineage[{index}]", "CE output dropped an upstream decision lineage entry."))
+        downstream_pair = output_by_key.get(key)
+        if downstream_pair is None:
+            diagnostics.append(Diagnostic(DIAGNOSTIC_LINEAGE_DROPPED, f"$.ce_intake.decision_lineage[{intake_index}]", "CE output dropped an upstream decision lineage entry."))
             continue
+        output_index, downstream = downstream_pair
         for field in REQUIRED_LINEAGE_FIELDS:
             if downstream.get(field) != upstream.get(field):
-                diagnostics.append(Diagnostic(DIAGNOSTIC_LINEAGE_REPLACED, f"$.ce_output.decision_lineage[{index}].{field}", "CE output must preserve upstream decision lineage fields exactly; attach CE proof separately."))
+                diagnostics.append(Diagnostic(DIAGNOSTIC_LINEAGE_REPLACED, f"$.ce_output.decision_lineage[{output_index}].{field}", "CE output must preserve upstream decision lineage fields exactly; attach CE proof separately."))
     return diagnostics
 
 

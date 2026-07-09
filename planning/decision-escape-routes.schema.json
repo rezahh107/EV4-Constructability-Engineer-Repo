@@ -250,7 +250,68 @@
               ]
             }
           ]
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "sequence_ci_enforced"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "properties": {
+                    "sequence_CI_step": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "test_command": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "positive_fixture": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "negative_fixture": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "validator_rule": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "validator_diagnostic": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "sequence_CI_step",
+                    "test_command",
+                    "positive_fixture",
+                    "negative_fixture",
+                    "validator_rule",
+                    "validator_diagnostic"
+                  ]
+                }
+              }
+            }
+          }
+        ]
       }
     }
   },
