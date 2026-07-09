@@ -1,0 +1,23 @@
+{
+  "fixture_id": "synthetic-ce-kernel-receipt-invalid-nested-untraced-ce-pass-001",
+  "synthetic": true,
+  "ce_output": {
+    "sections": [
+      {
+        "constructability_review": {
+          "constructability_status": "executable_ready",
+          "kernel_decision_receipt": {
+            "visible_status_marker": "✅",
+            "status": "kernel_trace_connected",
+            "message": "✅ تصمیم به decision card کرنل وصل است؛ CE فقط constructability آن را بررسی کرده و lineage تصمیم حفظ شده است.",
+            "source": "machine_readable_decision_trace"
+          }
+        }
+      }
+    ]
+  },
+  "expected": {
+    "validation_pass": false,
+    "diagnostic": "CE_RECEIPT_GREEN_WITHOUT_MACHINE_TRACE"
+  }
+}
