@@ -1,0 +1,18 @@
+{
+  "fixture_id": "synthetic-ce-kernel-receipt-invalid-ce-pass-without-trace-001",
+  "synthetic": true,
+  "ce_output": {
+    "consumer_stage": "ce_constructability_output",
+    "constructability_status": "executable_ready",
+    "kernel_decision_receipt": {
+      "visible_status_marker": "⚠️",
+      "status": "insufficient_evidence",
+      "message": "⚠️ این آیتم هنوز رسید معتبر کرنل ندارد؛ CE نمی‌تواند بدون machine-readable trace کامل آن را قابل‌عبور اعلام کند.",
+      "source": "insufficient_machine_readable_decision_trace"
+    }
+  },
+  "expected": {
+    "validation_pass": false,
+    "diagnostic": "CE_RECEIPT_CE_PASS_WITHOUT_TRACE"
+  }
+}
