@@ -27,6 +27,14 @@ def _complete_lineage() -> dict:
     }
 
 
+def _success_receipt() -> dict:
+    return {
+        "visible_status_marker": "✅",
+        "status": receipts.SUCCESS_STATUS,
+        "message": receipts.SUCCESS_RECEIPT_TEXT,
+    }
+
+
 def test_complete_machine_trace_allows_success_receipt() -> None:
     surface = {"decision_lineage": [_complete_lineage()]}
     receipt = receipts.render_ce_kernel_decision_receipt(surface)
@@ -45,11 +53,7 @@ def test_missing_decision_card_ref_blocks_success_receipt() -> None:
     lineage.pop("decision_card_ref")
     surface = {
         "decision_lineage": [lineage],
-        "kernel_decision_receipt": {
-            "visible_status_marker": "✅",
-            "status": receipts.SUCCESS_STATUS,
-            "message": receipts.SUCCESS_RECEIPT_TEXT,
-        },
+        "kernel_decision_receipt": _success_receipt(),
     }
 
     diagnostics = receipts.validate_receipt_surface(surface, "$.ce_output")
@@ -65,11 +69,7 @@ def test_missing_evidence_refs_blocks_success_receipt() -> None:
     lineage["evidence_refs"] = []
     surface = {
         "decision_lineage": [lineage],
-        "kernel_decision_receipt": {
-            "visible_status_marker": "✅",
-            "status": receipts.SUCCESS_STATUS,
-            "message": receipts.SUCCESS_RECEIPT_TEXT,
-        },
+        "kernel_decision_receipt": _success_receipt(),
     }
 
     diagnostics = receipts.validate_receipt_surface(surface, "$.ce_output")
@@ -78,6 +78,26 @@ def test_missing_evidence_refs_blocks_success_receipt() -> None:
         diagnostic.code == receipts.DIAGNOSTIC_GREEN_WITHOUT_TRACE
         for diagnostic in diagnostics
     )
+
+
+def test_invalid_evidence_state_blocks_success_receipt() -> None:
+    invalid_values = ["", None, 7, [], {}, "insufficient_evidence", "not_a_state"]
+
+    for invalid_value in invalid_values:
+        lineage = _complete_lineage()
+        lineage["evidence_state"] = invalid_value
+        surface = {
+            "decision_lineage": [lineage],
+            "kernel_decision_receipt": _success_receipt(),
+        }
+
+        diagnostics = receipts.validate_receipt_surface(surface, "$.ce_output")
+
+        assert "evidence_state" in receipts.missing_machine_trace_fields(lineage)
+        assert any(
+            diagnostic.code == receipts.DIAGNOSTIC_GREEN_WITHOUT_TRACE
+            for diagnostic in diagnostics
+        )
 
 
 def test_warning_receipt_is_used_when_trace_is_incomplete() -> None:
@@ -125,18 +145,10 @@ def test_ce_cannot_claim_constructability_pass_without_trace() -> None:
 def test_ce_cannot_emit_success_receipt_for_untraced_repair_or_handoff_item() -> None:
     document = {
         "repair_request": {
-            "kernel_decision_receipt": {
-                "visible_status_marker": "✅",
-                "status": receipts.SUCCESS_STATUS,
-                "message": receipts.SUCCESS_RECEIPT_TEXT,
-            }
+            "kernel_decision_receipt": _success_receipt(),
         },
         "handoff": {
-            "kernel_decision_receipt": {
-                "visible_status_marker": "✅",
-                "status": receipts.SUCCESS_STATUS,
-                "message": receipts.SUCCESS_RECEIPT_TEXT,
-            }
+            "kernel_decision_receipt": _success_receipt(),
         },
     }
 
@@ -149,6 +161,33 @@ def test_ce_cannot_emit_success_receipt_for_untraced_repair_or_handoff_item() ->
 
     assert "$.repair_request.kernel_decision_receipt" in green_paths
     assert "$.handoff.kernel_decision_receipt" in green_paths
+
+
+def test_recursive_validation_catches_nested_invalid_receipt_and_ce_pass() -> None:
+    document = {
+        "ce_output": {
+            "sections": [
+                {
+                    "constructability_review": {
+                        "constructability_status": "executable_ready",
+                        "kernel_decision_receipt": _success_receipt(),
+                    }
+                }
+            ]
+        }
+    }
+
+    diagnostics = receipts.validate_receipt_document(document)
+    diagnostic_pairs = {(diagnostic.code, diagnostic.path) for diagnostic in diagnostics}
+
+    assert (
+        receipts.DIAGNOSTIC_GREEN_WITHOUT_TRACE,
+        "$.ce_output.sections[0].constructability_review.kernel_decision_receipt",
+    ) in diagnostic_pairs
+    assert (
+        receipts.DIAGNOSTIC_CE_PASS_WITHOUT_TRACE,
+        "$.ce_output.sections[0].constructability_review",
+    ) in diagnostic_pairs
 
 
 def test_receipt_fixture_directory_expectations_match() -> None:
