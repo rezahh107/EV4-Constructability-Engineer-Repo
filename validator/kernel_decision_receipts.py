@@ -13,6 +13,17 @@ REQUIRED_TRACE_FIELDS = (
     "consumer_stage",
 )
 
+VALID_TRACE_EVIDENCE_STATES = {
+    "observed",
+    "exported",
+    "validated",
+    "resolved",
+    "derived",
+    "proposed",
+    "unverified",
+    "not_applicable",
+}
+
 SUCCESS_RECEIPT_TEXT = (
     "✅ تصمیم به decision card کرنل وصل است؛ CE فقط constructability آن را بررسی کرده "
     "و lineage تصمیم حفظ شده است."
@@ -87,7 +98,11 @@ def missing_machine_trace_fields(trace: Any) -> list[str]:
         if not refs_valid:
             missing.append("evidence_refs")
 
-    if trace.get("evidence_state") == "insufficient_evidence":
+    evidence_state = trace.get("evidence_state")
+    if "evidence_state" in trace and (
+        not _is_nonempty_string(evidence_state)
+        or evidence_state not in VALID_TRACE_EVIDENCE_STATES
+    ):
         missing.append("evidence_state")
 
     return sorted(set(missing), key=REQUIRED_TRACE_FIELDS.index)
@@ -161,12 +176,6 @@ def _surface_claims_ce_pass(surface: dict[str, Any]) -> bool:
         if isinstance(value, str) and value.strip() in CE_PASS_STATUS_ALIASES:
             return True
 
-    review = surface.get("constructability_review")
-    if isinstance(review, dict):
-        status = review.get("constructability_status")
-        if isinstance(status, str) and status.strip() in CE_PASS_STATUS_ALIASES:
-            return True
-
     return surface.get("builder_package_emitted") is True
 
 
@@ -220,6 +229,43 @@ SURFACE_KEYS = (
 )
 
 
+def _child_path(path: str, key: str | int) -> str:
+    if isinstance(key, int):
+        return f"{path}[{key}]"
+    if path == "$":
+        return f"$.{key}"
+    return f"{path}.{key}"
+
+
+def _walk_receipt_surfaces(value: Any, path: str, *, named_surface: bool = False) -> list[ReceiptDiagnostic]:
+    diagnostics: list[ReceiptDiagnostic] = []
+
+    if isinstance(value, dict):
+        should_validate = (
+            named_surface
+            or "kernel_decision_receipt" in value
+            or "decision_lineage" in value
+            or _surface_claims_ce_pass(value)
+        )
+        if should_validate:
+            diagnostics.extend(validate_receipt_surface(value, path))
+
+        for key, child in value.items():
+            diagnostics.extend(
+                _walk_receipt_surfaces(
+                    child,
+                    _child_path(path, key),
+                    named_surface=isinstance(key, str) and key in SURFACE_KEYS,
+                )
+            )
+
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            diagnostics.extend(_walk_receipt_surfaces(item, _child_path(path, index)))
+
+    return diagnostics
+
+
 def validate_receipt_document(document: Any) -> list[ReceiptDiagnostic]:
     if not isinstance(document, dict):
         return [
@@ -230,18 +276,4 @@ def validate_receipt_document(document: Any) -> list[ReceiptDiagnostic]:
             )
         ]
 
-    diagnostics: list[ReceiptDiagnostic] = []
-    if "kernel_decision_receipt" in document or "decision_lineage" in document:
-        diagnostics.extend(validate_receipt_surface(document, "$"))
-
-    for key in SURFACE_KEYS:
-        value = document.get(key)
-        if isinstance(value, dict):
-            diagnostics.extend(validate_receipt_surface(value, f"$.{key}"))
-
-    items = document.get("items")
-    if isinstance(items, list):
-        for index, item in enumerate(items):
-            diagnostics.extend(validate_receipt_surface(item, f"$.items[{index}]"))
-
-    return diagnostics
+    return _walk_receipt_surfaces(document, "$")
