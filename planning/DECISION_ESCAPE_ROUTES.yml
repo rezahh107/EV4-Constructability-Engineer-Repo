@@ -1,19 +1,40 @@
 schema_version: 3
 consumer_repo: EV4-Constructability-Engineer-Repo
 consumer_repo_evidence_state: expected_unverified
-
 last_updated:
-  date: "2026-07-09"
+  date: '2026-07-09'
   pr: null
   commit: null
-
 brc_reference:
   document: Behavioral_Rule_Coverage_v0.4.1
   profile: EV4_CONSUMER_DECISION_TRIGGER_ARCHITECTURE_v0.4.1
-
 kernel_reference:
   repo: EV4-Decision-Kernel
   decision_taxonomy_version: null
   decision_cards_version: null
-
-records: []
+records:
+- escape_route_id: CE-W4-CROSS-TURN-LINEAGE-001
+  consumer_repo: EV4-Constructability-Engineer-Repo
+  risk: Critical
+  session_scope: cross_turn
+  mapping_status: mapped
+  decision_family: layout_structure
+  required_decision_card_ref_pattern: ^DK-CARD-layout-structure-[A-Za-z0-9._:-]+$
+  not_applicable_reason: null
+  surface: CE intake to constructability output decision lineage preservation
+  status:
+    enforcement_status: sequence_ci_enforced
+    evidence_state: validated
+  carriers:
+    sequence_CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-decision-lineage-sequence.py
+    test_command: python scripts/validate-ce-decision-lineage-sequence.py
+    positive_fixture: fixtures/decision-lineage/valid/ce-intake-output-preserves-kernel-lineage.json
+    negative_fixture: fixtures/decision-lineage/invalid/ce-output-replaces-kernel-lineage.json
+    validator_rule: scripts/validate-ce-decision-lineage-sequence.py::validate_sequence
+    validator_diagnostic: CE_LINEAGE_REPLACED
+    downstream_contract: null
+  notes: Added during Wave 4 because the Wave 0 state had no eligible CE records,
+    while inspected CE intake/output surfaces exist. Sequence CI validates valid lineage
+    preservation and invalid missing/replaced lineage failures. Downstream contract
+    enforcement remains insufficient evidence unless a real inspected downstream contract
+    is separately validated.

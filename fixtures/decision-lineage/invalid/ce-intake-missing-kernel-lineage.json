@@ -1,0 +1,22 @@
+{
+  "fixture_id": "synthetic-ce-lineage-sequence-invalid-intake-001",
+  "synthetic": true,
+  "ce_intake": {
+    "consumer_stage": "ce_intake"
+  },
+  "ce_output": {
+    "consumer_stage": "ce_constructability_output",
+    "decision_lineage": [
+      {
+        "decision_family": "layout_structure",
+        "decision_card_ref": "DK-CARD-layout-structure-001",
+        "selected_option": "center_anchored_symmetric_pill_cards",
+        "rejected_options": [],
+        "evidence_refs": ["architect-stage-evidence-layout-001"],
+        "evidence_state": "validated",
+        "consumer_stage": "ce_intake"
+      }
+    ]
+  },
+  "expected": {"validation_pass": false, "diagnostic": "CE_LINEAGE_REQUIRED"}
+}

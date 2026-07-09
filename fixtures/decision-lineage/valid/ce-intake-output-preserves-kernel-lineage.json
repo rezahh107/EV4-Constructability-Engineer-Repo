@@ -1,0 +1,39 @@
+{
+  "fixture_id": "synthetic-ce-lineage-sequence-valid-001",
+  "synthetic": true,
+  "ce_intake": {
+    "consumer_stage": "ce_intake",
+    "decision_lineage": [
+      {
+        "decision_family": "layout_structure",
+        "decision_card_ref": "DK-CARD-layout-structure-001",
+        "selected_option": "center_anchored_symmetric_pill_cards",
+        "rejected_options": ["freeform_builder_layout", "unanchored_grid"],
+        "evidence_refs": ["architect-stage-evidence-layout-001"],
+        "evidence_state": "validated",
+        "consumer_stage": "ce_intake"
+      }
+    ]
+  },
+  "ce_output": {
+    "consumer_stage": "ce_constructability_output",
+    "decision_lineage": [
+      {
+        "decision_family": "layout_structure",
+        "decision_card_ref": "DK-CARD-layout-structure-001",
+        "selected_option": "center_anchored_symmetric_pill_cards",
+        "rejected_options": ["freeform_builder_layout", "unanchored_grid"],
+        "evidence_refs": ["architect-stage-evidence-layout-001"],
+        "evidence_state": "validated",
+        "consumer_stage": "ce_intake"
+      }
+    ],
+    "constructability_proof": {
+      "proof_id": "ce-proof-layout-001",
+      "proof_stage": "ce_constructability_output",
+      "evidence_refs": ["ce-geometry-proof-001"],
+      "evidence_state": "validated"
+    }
+  },
+  "expected": {"validation_pass": true}
+}
