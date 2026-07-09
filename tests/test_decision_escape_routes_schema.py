@@ -32,53 +32,38 @@ def schema_errors(payload: dict):
     )
 
 
-def test_wave_0_state_file_validates_against_baseline_schema() -> None:
+def test_decision_escape_routes_state_file_validates_against_schema() -> None:
     schema = load_schema()
     Draft202012Validator.check_schema(schema)
 
     assert schema_errors(load_state()) == []
 
 
-def test_wave_0_schema_rejects_populated_records() -> None:
-    payload = load_state()
-    payload["records"] = [{}]
+def test_decision_escape_routes_schema_rejects_authored_resolved_record_field() -> None:
+    payload = copy.deepcopy(load_state())
+    record = copy.deepcopy(payload["records"][0])
+    record["resolved"] = False
+    payload["records"] = [record]
 
     errors = schema_errors(payload)
 
     assert errors
-    assert any(
-        error.validator == "maxItems" and list(error.absolute_path) == ["records"]
-        for error in errors
-    )
+    assert any(error.validator in {"not", "additionalProperties"} for error in errors)
 
 
-def test_wave_0_schema_rejects_authored_resolved_record_field() -> None:
-    payload = load_state()
-    payload["records"] = [{"resolved": False}]
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(
-        error.validator == "maxItems" and list(error.absolute_path) == ["records"]
-        for error in errors
-    )
-
-
-def test_wave_0_schema_rejects_authored_production_ready_record_field() -> None:
-    payload = load_state()
-    payload["records"] = [{"production_ready": False}]
+def test_decision_escape_routes_schema_rejects_authored_production_ready_record_field() -> None:
+    payload = copy.deepcopy(load_state())
+    record = copy.deepcopy(payload["records"][0])
+    record["production_ready"] = False
+    payload["records"] = [record]
 
     errors = schema_errors(payload)
 
     assert errors
-    assert any(
-        error.validator == "maxItems" and list(error.absolute_path) == ["records"]
-        for error in errors
-    )
+    assert any(error.validator in {"not", "additionalProperties"} for error in errors)
 
 
-def test_wave_0_schema_rejects_legacy_routes_array() -> None:
+def test_decision_escape_routes_schema_rejects_legacy_routes_array() -> None:
     payload = copy.deepcopy(load_state())
     payload["routes"] = []
 
@@ -87,3 +72,13 @@ def test_wave_0_schema_rejects_legacy_routes_array() -> None:
     assert errors
     assert any(error.validator == "additionalProperties" for error in errors)
     assert any(error.validator == "not" and list(error.absolute_path) == [] for error in errors)
+
+
+def test_decision_escape_routes_record_requires_sequence_carriers() -> None:
+    payload = copy.deepcopy(load_state())
+    del payload["records"][0]["carriers"]["sequence_CI_step"]
+
+    errors = schema_errors(payload)
+
+    assert errors
+    assert any(error.validator == "required" for error in errors)
