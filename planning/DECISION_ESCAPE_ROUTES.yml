@@ -18,6 +18,9 @@ records:
   risk: Critical
   session_scope: cross_turn
   mapping_status: mapped
+  decision_family: layout_structure
+  required_decision_card_ref_pattern: ^DK-CARD-layout-structure-[A-Za-z0-9._:-]+$
+  not_applicable_reason: null
   surface: CE intake to constructability output decision lineage preservation
   status:
     enforcement_status: sequence_ci_enforced

@@ -104,6 +104,9 @@
           "risk",
           "session_scope",
           "mapping_status",
+          "decision_family",
+          "required_decision_card_ref_pattern",
+          "not_applicable_reason",
           "surface",
           "status",
           "carriers",
@@ -135,7 +138,8 @@
             "enum": [
               "mapped",
               "unmapped",
-              "insufficient_evidence"
+              "insufficient_evidence",
+              "not_applicable_with_reason"
             ]
           },
           "surface": {
@@ -235,6 +239,24 @@
           "notes": {
             "type": "string",
             "minLength": 1
+          },
+          "decision_family": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required_decision_card_ref_pattern": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "not_applicable_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "not": {
@@ -252,6 +274,69 @@
           ]
         },
         "allOf": [
+          {
+            "if": {
+              "properties": {
+                "mapping_status": {
+                  "const": "mapped"
+                }
+              },
+              "required": [
+                "mapping_status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "decision_family": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "required_decision_card_ref_pattern": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "not_applicable_reason": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "decision_family",
+                "required_decision_card_ref_pattern",
+                "not_applicable_reason"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "mapping_status": {
+                  "const": "not_applicable_with_reason"
+                }
+              },
+              "required": [
+                "mapping_status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "decision_family": {
+                  "type": "null"
+                },
+                "required_decision_card_ref_pattern": {
+                  "type": "null"
+                },
+                "not_applicable_reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "decision_family",
+                "required_decision_card_ref_pattern",
+                "not_applicable_reason"
+              ]
+            }
+          },
           {
             "if": {
               "properties": {

@@ -111,3 +111,74 @@ def test_sequence_ci_enforced_rejects_empty_string_evidence_carriers() -> None:
 
     assert errors
     assert any(error.validator == "minLength" and list(error.absolute_path) == ["records", 0, "carriers", "positive_fixture"] for error in errors)
+
+
+def test_mapped_record_requires_decision_family() -> None:
+    payload = copy.deepcopy(load_state())
+    del payload["records"][0]["decision_family"]
+
+    errors = schema_errors(payload)
+
+    assert errors
+    assert any(error.validator == "required" and list(error.absolute_path) == ["records", 0] for error in errors)
+
+
+def test_mapped_record_rejects_null_decision_family() -> None:
+    payload = copy.deepcopy(load_state())
+    payload["records"][0]["decision_family"] = None
+
+    errors = schema_errors(payload)
+
+    assert errors
+    assert any(list(error.absolute_path) == ["records", 0, "decision_family"] for error in errors)
+
+
+def test_mapped_record_requires_decision_card_ref_pattern() -> None:
+    payload = copy.deepcopy(load_state())
+    del payload["records"][0]["required_decision_card_ref_pattern"]
+
+    errors = schema_errors(payload)
+
+    assert errors
+    assert any(error.validator == "required" and list(error.absolute_path) == ["records", 0] for error in errors)
+
+
+def test_mapped_record_rejects_empty_decision_card_ref_pattern() -> None:
+    payload = copy.deepcopy(load_state())
+    payload["records"][0]["required_decision_card_ref_pattern"] = ""
+
+    errors = schema_errors(payload)
+
+    assert errors
+    assert any(
+        error.validator == "minLength"
+        and list(error.absolute_path) == ["records", 0, "required_decision_card_ref_pattern"]
+        for error in errors
+    )
+
+
+def test_mapped_record_rejects_not_applicable_reason() -> None:
+    payload = copy.deepcopy(load_state())
+    payload["records"][0]["not_applicable_reason"] = "not applicable"
+
+    errors = schema_errors(payload)
+
+    assert errors
+    assert any(list(error.absolute_path) == ["records", 0, "not_applicable_reason"] for error in errors)
+
+
+def test_not_applicable_mapping_status_requires_reason_and_null_mapping_fields() -> None:
+    payload = copy.deepcopy(load_state())
+    record = payload["records"][0]
+    record["mapping_status"] = "not_applicable_with_reason"
+    record["decision_family"] = None
+    record["required_decision_card_ref_pattern"] = None
+    record["not_applicable_reason"] = "No Kernel-governed decision family applies to this synthetic audit placeholder."
+
+    assert schema_errors(payload) == []
+
+    record["decision_family"] = "layout_structure"
+    errors = schema_errors(payload)
+
+    assert errors
+    assert any(list(error.absolute_path) == ["records", 0, "decision_family"] for error in errors)
