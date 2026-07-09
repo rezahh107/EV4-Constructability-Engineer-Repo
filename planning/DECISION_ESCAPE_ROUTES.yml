@@ -1,0 +1,19 @@
+schema_version: 3
+consumer_repo: EV4-Constructability-Engineer-Repo
+consumer_repo_evidence_state: expected_unverified
+
+last_updated:
+  date: "2026-07-09"
+  pr: null
+  commit: null
+
+brc_reference:
+  document: Behavioral_Rule_Coverage_v0.4.1
+  profile: EV4_CONSUMER_DECISION_TRIGGER_ARCHITECTURE_v0.4.1
+
+kernel_reference:
+  repo: EV4-Decision-Kernel
+  decision_taxonomy_version: null
+  decision_cards_version: null
+
+records: []

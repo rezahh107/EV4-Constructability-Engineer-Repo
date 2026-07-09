@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ev4.local/schemas/decision-escape-routes.schema.json",
+  "title": "EV4 Decision Escape Routes Wave 0 State",
+  "description": "Baseline schema for planning/DECISION_ESCAPE_ROUTES.yml. It validates the Wave 0 state shape only and does not prove enforcement completion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "consumer_repo",
+    "consumer_repo_evidence_state",
+    "last_updated",
+    "brc_reference",
+    "kernel_reference",
+    "records"
+  ],
+  "properties": {
+    "schema_version": { "const": 3 },
+    "consumer_repo": { "const": "EV4-Constructability-Engineer-Repo" },
+    "consumer_repo_evidence_state": { "const": "expected_unverified" },
+    "last_updated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "pr", "commit"],
+      "properties": {
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "pr": { "type": ["string", "null"] },
+        "commit": { "type": ["string", "null"] }
+      }
+    },
+    "brc_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document", "profile"],
+      "properties": {
+        "document": { "const": "Behavioral_Rule_Coverage_v0.4.1" },
+        "profile": { "const": "EV4_CONSUMER_DECISION_TRIGGER_ARCHITECTURE_v0.4.1" }
+      }
+    },
+    "kernel_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "decision_taxonomy_version", "decision_cards_version"],
+      "properties": {
+        "repo": { "const": "EV4-Decision-Kernel" },
+        "decision_taxonomy_version": { "type": ["string", "null"] },
+        "decision_cards_version": { "type": ["string", "null"] }
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "not": {
+          "anyOf": [
+            { "required": ["resolved"] },
+            { "required": ["production_ready"] }
+          ]
+        }
+      }
+    }
+  },
+  "not": { "required": ["routes"] }
+}
