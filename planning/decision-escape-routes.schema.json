@@ -52,6 +52,7 @@
     },
     "records": {
       "type": "array",
+      "maxItems": 0,
       "items": {
         "type": "object",
         "not": {
