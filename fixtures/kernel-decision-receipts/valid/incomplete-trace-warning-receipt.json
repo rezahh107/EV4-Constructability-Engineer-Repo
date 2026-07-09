@@ -1,0 +1,31 @@
+{
+  "fixture_id": "synthetic-ce-kernel-receipt-valid-warning-incomplete-trace-001",
+  "synthetic": true,
+  "ce_output": {
+    "consumer_stage": "ce_constructability_output",
+    "decision_lineage": [
+      {
+        "decision_family": "layout_structure",
+        "selected_option": "center_anchored_symmetric_pill_cards",
+        "rejected_options": [
+          "freeform_builder_layout",
+          "unanchored_grid"
+        ],
+        "evidence_refs": [
+          "architect-stage-evidence-layout-001"
+        ],
+        "evidence_state": "validated",
+        "consumer_stage": "ce_intake"
+      }
+    ],
+    "kernel_decision_receipt": {
+      "visible_status_marker": "⚠️",
+      "status": "insufficient_evidence",
+      "message": "⚠️ این آیتم هنوز رسید معتبر کرنل ندارد؛ CE نمی‌تواند بدون machine-readable trace کامل آن را قابل‌عبور اعلام کند.",
+      "source": "insufficient_machine_readable_decision_trace"
+    }
+  },
+  "expected": {
+    "validation_pass": true
+  }
+}
