@@ -110,8 +110,8 @@ derived_from:
   - session_scope
   - enforcement_status
   - carriers
-  - downstream evidence
-  - inspected proof
+  - downstream_evidence
+  - inspected_proof
 ```
 
 Do not add authored `resolved` or `production_ready` fields to `DECISION_ESCAPE_ROUTES.yml` records.
