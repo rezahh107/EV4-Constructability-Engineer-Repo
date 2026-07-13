@@ -1,1 +1,686 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://ev4.local/schemas/decision-escape-routes.schema.json","title":"EV4 Decision Escape Routes State","description":"Schema for planning/DECISION_ESCAPE_ROUTES.yml. It validates recorded escape-route enforcement evidence without converting repository assertions into remote CI or runtime proof.","type":"object","additionalProperties":false,"required":["schema_version","consumer_repo","consumer_repo_evidence_state","authority_provenance","last_updated","brc_reference","kernel_reference","records"],"properties":{"schema_version":{"const":3},"consumer_repo":{"const":"EV4-Constructability-Engineer-Repo"},"consumer_repo_evidence_state":{"enum":["observed","exported","validated","resolved","derived","proposed","unverified","insufficient_evidence","not_applicable"]},"authority_provenance":{"type":"object","additionalProperties":false,"required":["repository","default_branch","inspected_base_sha","source_state","evidence_scope"],"properties":{"repository":{"const":"rezahh107/EV4-Constructability-Engineer-Repo"},"default_branch":{"const":"main"},"inspected_base_sha":{"type":"string","pattern":"^[0-9a-f]{40}$"},"source_state":{"const":"live_default_branch"},"evidence_scope":{"type":"string","minLength":1}}},"last_updated":{"type":"object","additionalProperties":false,"required":["date","pr","commit"],"properties":{"date":{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},"pr":{"type":["integer","null"],"minimum":1},"commit":{"type":["string","null"],"pattern":"^[0-9a-f]{40}$"}}},"brc_reference":{"type":"object","additionalProperties":false,"required":["document","profile"],"properties":{"document":{"const":"Behavioral_Rule_Coverage_v0.4.1"},"profile":{"const":"EV4_CONSUMER_DECISION_TRIGGER_ARCHITECTURE_v0.4.1"}}},"kernel_reference":{"type":"object","additionalProperties":false,"required":["repo","decision_taxonomy_version","decision_cards_version"],"properties":{"repo":{"const":"EV4-Decision-Kernel"},"decision_taxonomy_version":{"type":["string","null"]},"decision_cards_version":{"type":["string","null"]}}},"records":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["escape_route_id","rule_id","concept","risk","session_scope","recovery_action","consumer_repo","consumer_stage","surface_type","file_path","trigger_type","detected_problem","mapping_status","decision_family","required_decision_card_ref_pattern","not_applicable_reason","rule_shape","status","carriers","notes"],"properties":{"escape_route_id":{"type":"string","pattern":"^[A-Z0-9_-]+$"},"rule_id":{"type":"string","pattern":"^[A-Z0-9_-]+$"},"concept":{"type":"string","minLength":1},"risk":{"enum":["Critical","High"]},"session_scope":{"enum":["per_artifact","cross_turn"]},"recovery_action":{"enum":["block","repair_request","rollback","flag_for_review","reopen_decision"]},"consumer_repo":{"const":"EV4-Constructability-Engineer-Repo"},"consumer_stage":{"type":"string","minLength":1},"surface_type":{"type":"string","minLength":1},"file_path":{"type":"string","minLength":1},"trigger_type":{"type":"string","minLength":1},"detected_problem":{"type":"string","minLength":1},"mapping_status":{"enum":["mapped","unmapped","insufficient_evidence","not_applicable_with_reason"]},"decision_family":{"type":["string","null"]},"required_decision_card_ref_pattern":{"type":["string","null"]},"not_applicable_reason":{"type":["string","null"]},"rule_shape":{"type":"object","additionalProperties":false,"required":["trigger","predicate","enforcement"],"properties":{"trigger":{"type":"string","minLength":1},"predicate":{"type":"string","minLength":1},"enforcement":{"type":"string","minLength":1}}},"status":{"type":"object","additionalProperties":false,"required":["enforcement_status","evidence_state"],"properties":{"enforcement_status":{"enum":["prose_only","schema_backed","validator_backed","fixture_tested","advisory_ci_observed","ci_enforced","sequence_ci_enforced","runtime_monitor_enforced","os_harness_enforced","downstream_contract_enforced"]},"evidence_state":{"enum":["observed","exported","validated","resolved","derived","proposed","unverified","insufficient_evidence","not_applicable"]}}},"carriers":{"type":"object","additionalProperties":false,"required":["schema_carrier","CI_step","sequence_CI_step","runtime_monitor","os_harness_policy","test_command","positive_fixture","negative_fixture","validator_rule","validator_diagnostic","downstream_contract"],"properties":{"schema_carrier":{"type":["string","null"]},"CI_step":{"type":["string","null"]},"sequence_CI_step":{"type":["string","null"]},"runtime_monitor":{"type":["string","null"]},"os_harness_policy":{"type":["string","null"]},"test_command":{"type":["string","null"]},"positive_fixture":{"type":["string","null"]},"negative_fixture":{"type":["string","null"]},"validator_rule":{"type":["string","null"]},"validator_diagnostic":{"type":["string","null"]},"downstream_contract":{"type":["string","null"]}},"notes":{"type":"string","minLength":1}},"not":{"anyOf":[{"required":["resolved"]},{"required":["production_ready"]}]},"allOf":[{"if":{"properties":{"mapping_status":{"const":"mapped"}},"required":["mapping_status"]},"then":{"properties":{"decision_family":{"type":"string","minLength":1},"required_decision_card_ref_pattern":{"type":"string","minLength":1},"not_applicable_reason":{"type":"null"}},"required":["decision_family","required_decision_card_ref_pattern","not_applicable_reason"]}},{"if":{"properties":{"mapping_status":{"const":"not_applicable_with_reason"}},"required":["mapping_status"]},"then":{"properties":{"decision_family":{"type":"null"},"required_decision_card_ref_pattern":{"type":"null"},"not_applicable_reason":{"type":"string","minLength":1}},"required":["decision_family","required_decision_card_ref_pattern","not_applicable_reason"]}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"schema_backed"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"schema_carrier":{"type":"string","minLength":1}},"required":["schema_carrier"]}}}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"validator_backed"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"validator_rule":{"type":"string","minLength":1},"validator_diagnostic":{"type":"string","minLength":1}},"required":["validator_rule","validator_diagnostic"]}}}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"fixture_tested"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"test_command":{"type":"string","minLength":1},"positive_fixture":{"type":"string","minLength":1},"negative_fixture":{"type":"string","minLength":1},"validator_rule":{"type":"string","minLength":1},"validator_diagnostic":{"type":"string","minLength":1}},"required":["test_command","positive_fixture","negative_fixture","validator_rule","validator_diagnostic"]}}}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"advisory_ci_observed"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"CI_step":{"type":"string","minLength":1}},"required":["CI_step"]}}}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"ci_enforced"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"CI_step":{"type":"string","minLength":1},"test_command":{"type":"string","minLength":1},"positive_fixture":{"type":"string","minLength":1},"negative_fixture":{"type":"string","minLength":1},"validator_rule":{"type":"string","minLength":1},"validator_diagnostic":{"type":"string","minLength":1}},"required":["CI_step","test_command","positive_fixture","negative_fixture","validator_rule","validator_diagnostic"]}}}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"sequence_ci_enforced"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"sequence_CI_step":{"type":"string","minLength":1},"test_command":{"type":"string","minLength":1},"positive_fixture":{"type":"string","minLength":1},"negative_fixture":{"type":"string","minLength":1},"validator_rule":{"type":"string","minLength":1},"validator_diagnostic":{"type":"string","minLength":1}},"required":["sequence_CI_step","test_command","positive_fixture","negative_fixture","validator_rule","validator_diagnostic"]}}}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"runtime_monitor_enforced"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"runtime_monitor":{"type":"string","minLength":1}},"required":["runtime_monitor"]}}}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"os_harness_enforced"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"os_harness_policy":{"type":"string","minLength":1}},"required":["os_harness_policy"]}}}},{"if":{"properties":{"status":{"properties":{"enforcement_status":{"const":"downstream_contract_enforced"}},"required":["enforcement_status"]}},"required":["status"]},"then":{"properties":{"carriers":{"properties":{"downstream_contract":{"type":"string","minLength":1}},"required":["downstream_contract"]}}}}]}}},"not":{"required":["routes"]}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ev4.local/schemas/decision-escape-routes.schema.json",
+  "title": "EV4 Decision Escape Routes State",
+  "description": "Validates recorded escape-route evidence without converting repository assertions into remote CI or runtime proof.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "consumer_repo",
+    "consumer_repo_evidence_state",
+    "authority_provenance",
+    "last_updated",
+    "brc_reference",
+    "kernel_reference",
+    "records"
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "nullable_string": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": 3
+    },
+    "consumer_repo": {
+      "const": "EV4-Constructability-Engineer-Repo"
+    },
+    "consumer_repo_evidence_state": {
+      "enum": [
+        "observed",
+        "exported",
+        "validated",
+        "resolved",
+        "derived",
+        "proposed",
+        "unverified",
+        "insufficient_evidence",
+        "not_applicable"
+      ]
+    },
+    "authority_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "default_branch",
+        "inspected_base_sha",
+        "source_state",
+        "evidence_scope"
+      ],
+      "properties": {
+        "repository": {
+          "const": "rezahh107/EV4-Constructability-Engineer-Repo"
+        },
+        "default_branch": {
+          "const": "main"
+        },
+        "inspected_base_sha": {
+          "$ref": "#/$defs/sha"
+        },
+        "source_state": {
+          "const": "live_default_branch"
+        },
+        "evidence_scope": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "last_updated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "date",
+        "pr",
+        "commit"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "pr": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "commit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "brc_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document",
+        "profile"
+      ],
+      "properties": {
+        "document": {
+          "const": "Behavioral_Rule_Coverage_v0.4.1"
+        },
+        "profile": {
+          "const": "EV4_CONSUMER_DECISION_TRIGGER_ARCHITECTURE_v0.4.1"
+        }
+      }
+    },
+    "kernel_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo",
+        "decision_taxonomy_version",
+        "decision_cards_version"
+      ],
+      "properties": {
+        "repo": {
+          "const": "EV4-Decision-Kernel"
+        },
+        "decision_taxonomy_version": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "decision_cards_version": {
+          "$ref": "#/$defs/nullable_string"
+        }
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "escape_route_id",
+          "rule_id",
+          "concept",
+          "risk",
+          "session_scope",
+          "recovery_action",
+          "consumer_repo",
+          "consumer_stage",
+          "surface_type",
+          "file_path",
+          "trigger_type",
+          "detected_problem",
+          "mapping_status",
+          "decision_family",
+          "required_decision_card_ref_pattern",
+          "not_applicable_reason",
+          "rule_shape",
+          "status",
+          "carriers",
+          "notes"
+        ],
+        "properties": {
+          "escape_route_id": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_-]+$"
+          },
+          "rule_id": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_-]+$"
+          },
+          "concept": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "risk": {
+            "enum": [
+              "Critical",
+              "High"
+            ]
+          },
+          "session_scope": {
+            "enum": [
+              "per_artifact",
+              "cross_turn"
+            ]
+          },
+          "recovery_action": {
+            "enum": [
+              "block",
+              "repair_request",
+              "rollback",
+              "flag_for_review",
+              "reopen_decision"
+            ]
+          },
+          "consumer_repo": {
+            "const": "EV4-Constructability-Engineer-Repo"
+          },
+          "consumer_stage": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "surface_type": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "file_path": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "trigger_type": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "detected_problem": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "mapping_status": {
+            "enum": [
+              "mapped",
+              "unmapped",
+              "insufficient_evidence",
+              "not_applicable_with_reason"
+            ]
+          },
+          "decision_family": {
+            "$ref": "#/$defs/nullable_string"
+          },
+          "required_decision_card_ref_pattern": {
+            "$ref": "#/$defs/nullable_string"
+          },
+          "not_applicable_reason": {
+            "$ref": "#/$defs/nullable_string"
+          },
+          "rule_shape": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "trigger",
+              "predicate",
+              "enforcement"
+            ],
+            "properties": {
+              "trigger": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "predicate": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "enforcement": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enforcement_status",
+              "evidence_state"
+            ],
+            "properties": {
+              "enforcement_status": {
+                "enum": [
+                  "prose_only",
+                  "schema_backed",
+                  "validator_backed",
+                  "fixture_tested",
+                  "advisory_ci_observed",
+                  "ci_enforced",
+                  "sequence_ci_enforced",
+                  "runtime_monitor_enforced",
+                  "os_harness_enforced",
+                  "downstream_contract_enforced"
+                ]
+              },
+              "evidence_state": {
+                "enum": [
+                  "observed",
+                  "exported",
+                  "validated",
+                  "resolved",
+                  "derived",
+                  "proposed",
+                  "unverified",
+                  "insufficient_evidence",
+                  "not_applicable"
+                ]
+              }
+            }
+          },
+          "carriers": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schema_carrier": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "CI_step": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "sequence_CI_step": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "runtime_monitor": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "os_harness_policy": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "test_command": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "positive_fixture": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "negative_fixture": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "validator_rule": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "validator_diagnostic": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "downstream_contract": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          },
+          "notes": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "resolved"
+              ]
+            },
+            {
+              "required": [
+                "production_ready"
+              ]
+            }
+          ]
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "mapping_status": {
+                  "const": "mapped"
+                }
+              },
+              "required": [
+                "mapping_status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "decision_family": {
+                  "$ref": "#/$defs/non_empty_string"
+                },
+                "required_decision_card_ref_pattern": {
+                  "$ref": "#/$defs/non_empty_string"
+                },
+                "not_applicable_reason": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "mapping_status": {
+                  "const": "not_applicable_with_reason"
+                }
+              },
+              "required": [
+                "mapping_status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "decision_family": {
+                  "type": "null"
+                },
+                "required_decision_card_ref_pattern": {
+                  "type": "null"
+                },
+                "not_applicable_reason": {
+                  "$ref": "#/$defs/non_empty_string"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "schema_backed"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "schema_carrier"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "validator_backed"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "validator_rule",
+                    "validator_diagnostic"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "fixture_tested"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "test_command",
+                    "positive_fixture",
+                    "negative_fixture",
+                    "validator_rule",
+                    "validator_diagnostic"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "advisory_ci_observed"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "CI_step"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "ci_enforced"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "CI_step",
+                    "test_command",
+                    "positive_fixture",
+                    "negative_fixture",
+                    "validator_rule",
+                    "validator_diagnostic"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "sequence_ci_enforced"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "sequence_CI_step",
+                    "test_command",
+                    "positive_fixture",
+                    "negative_fixture",
+                    "validator_rule",
+                    "validator_diagnostic"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "runtime_monitor_enforced"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "runtime_monitor"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "os_harness_enforced"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "os_harness_policy"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "enforcement_status": {
+                      "const": "downstream_contract_enforced"
+                    }
+                  },
+                  "required": [
+                    "enforcement_status"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "carriers": {
+                  "required": [
+                    "downstream_contract"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "not": {
+    "required": [
+      "routes"
+    ]
+  }
+}
