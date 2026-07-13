@@ -49,14 +49,11 @@ records:
     schema_carrier: decision_lineage[]
     CI_step: .github/workflows/validate-fixtures.yml / test
     sequence_CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-decision-lineage-sequence.py
-    runtime_monitor: null
-    os_harness_policy: null
     test_command: python scripts/validate-ce-decision-lineage-sequence.py
     positive_fixture: fixtures/decision-lineage/valid/ce-intake-output-preserves-kernel-lineage.json
     negative_fixture: fixtures/decision-lineage/invalid/ce-output-replaces-kernel-lineage.json
     validator_rule: scripts/validate-ce-decision-lineage-sequence.py::validate_sequence
     validator_diagnostic: CE_LINEAGE_REPLACED
-    downstream_contract: null
   notes: Wave 4 sequence CI validates valid lineage preservation and rejects missing
     or replaced lineage. Downstream contract enforcement remains insufficient evidence.
 - escape_route_id: CE-W5-KERNEL-RECEIPT-001
@@ -89,15 +86,11 @@ records:
   carriers:
     schema_carrier: kernel_decision_receipt plus decision_lineage[]
     CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-kernel-decision-receipts.py
-    sequence_CI_step: null
-    runtime_monitor: null
-    os_harness_policy: null
     test_command: python scripts/validate-ce-kernel-decision-receipts.py
     positive_fixture: fixtures/kernel-decision-receipts/valid/complete-trace-success-receipt.json
     negative_fixture: fixtures/kernel-decision-receipts/invalid/missing-decision-card-ref-green-receipt.json
     validator_rule: validator/kernel_decision_receipts.py::validate_receipt_surface
     validator_diagnostic: CE_RECEIPT_GREEN_WITHOUT_MACHINE_TRACE
-    downstream_contract: null
   notes: The validator is executed by pull-request CI and exact PR head 0ab54f4fb1e953408d50896190c9464bb6e22215
     had successful validate-fixtures evidence. This does not claim sequence, runtime,
     downstream, or production enforcement.
