@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "validate-fixtures.yml"
 
-ACTION_REFERENCE = re.compile(r"^\s*uses:\s*([^\s#]+)", re.MULTILINE)
+ACTION_REFERENCE = re.compile(r"^[ \t]*uses:[ \t]*([^\s#]+)", re.MULTILINE)
 IMMUTABLE_ACTION_REFERENCE = re.compile(
     r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$"
 )
