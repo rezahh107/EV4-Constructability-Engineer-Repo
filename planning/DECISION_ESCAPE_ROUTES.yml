@@ -1,10 +1,16 @@
 schema_version: 3
 consumer_repo: EV4-Constructability-Engineer-Repo
-consumer_repo_evidence_state: expected_unverified
+consumer_repo_evidence_state: observed
+authority_provenance:
+  repository: rezahh107/EV4-Constructability-Engineer-Repo
+  default_branch: main
+  inspected_base_sha: d58e98f487d5c6f3b9930de11f603e99c31f6600
+  source_state: live_default_branch
+  evidence_scope: authority reconciliation source state before CE-GOV-001 implementation
 last_updated:
-  date: '2026-07-09'
+  date: '2026-07-13'
   pr: null
-  commit: null
+  commit: d58e98f487d5c6f3b9930de11f603e99c31f6600
 brc_reference:
   document: Behavioral_Rule_Coverage_v0.4.1
   profile: EV4_CONSUMER_DECISION_TRIGGER_ARCHITECTURE_v0.4.1
@@ -14,50 +20,84 @@ kernel_reference:
   decision_cards_version: null
 records:
 - escape_route_id: CE-W4-CROSS-TURN-LINEAGE-001
-  consumer_repo: EV4-Constructability-Engineer-Repo
+  rule_id: CE-KERNEL-LINEAGE-001
+  concept: Preserve upstream Kernel decision lineage exactly from CE intake to CE
+    output.
   risk: Critical
   session_scope: cross_turn
+  recovery_action: block
+  consumer_repo: EV4-Constructability-Engineer-Repo
+  consumer_stage: ce_intake_to_constructability_output
+  surface_type: sequence_validator
+  file_path: scripts/validate-ce-decision-lineage-sequence.py
+  trigger_type: pull_request_ci
+  detected_problem: CE output could drop or replace a Kernel-governed decision lineage
+    entry after intake.
   mapping_status: mapped
   decision_family: layout_structure
   required_decision_card_ref_pattern: ^DK-CARD-layout-structure-[A-Za-z0-9._:-]+$
   not_applicable_reason: null
-  surface: CE intake to constructability output decision lineage preservation
+  rule_shape:
+    trigger: Validate a CE intake-to-output sequence fixture.
+    predicate: Every upstream decision lineage entry remains present and every required
+      lineage field is preserved exactly.
+    enforcement: Reject the sequence with a stable CE_LINEAGE_* diagnostic.
   status:
     enforcement_status: sequence_ci_enforced
     evidence_state: validated
   carriers:
+    schema_carrier: decision_lineage[]
+    CI_step: .github/workflows/validate-fixtures.yml / test
     sequence_CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-decision-lineage-sequence.py
+    runtime_monitor: null
+    os_harness_policy: null
     test_command: python scripts/validate-ce-decision-lineage-sequence.py
     positive_fixture: fixtures/decision-lineage/valid/ce-intake-output-preserves-kernel-lineage.json
     negative_fixture: fixtures/decision-lineage/invalid/ce-output-replaces-kernel-lineage.json
     validator_rule: scripts/validate-ce-decision-lineage-sequence.py::validate_sequence
     validator_diagnostic: CE_LINEAGE_REPLACED
     downstream_contract: null
-  notes: Added during Wave 4 because the Wave 0 state had no eligible CE records,
-    while inspected CE intake/output surfaces exist. Sequence CI validates valid lineage
-    preservation and invalid missing/replaced lineage failures. Downstream contract
-    enforcement remains insufficient evidence unless a real inspected downstream contract
-    is separately validated.
+  notes: Wave 4 sequence CI validates valid lineage preservation and rejects missing
+    or replaced lineage. Downstream contract enforcement remains insufficient evidence.
 - escape_route_id: CE-W5-KERNEL-RECEIPT-001
-  consumer_repo: EV4-Constructability-Engineer-Repo
+  rule_id: CE-KERNEL-RECEIPT-001
+  concept: Allow a success receipt only when complete machine-readable Kernel decision
+    lineage exists.
   risk: High
-  session_scope: single_turn
+  session_scope: per_artifact
+  recovery_action: repair_request
+  consumer_repo: EV4-Constructability-Engineer-Repo
+  consumer_stage: ce_decision_receipt_surfaces
+  surface_type: artifact_validator
+  file_path: validator/kernel_decision_receipts.py
+  trigger_type: pull_request_ci
+  detected_problem: A human-readable success receipt could imply a valid Kernel decision
+    without complete machine-readable trace.
   mapping_status: mapped
   decision_family: layout_structure
   required_decision_card_ref_pattern: ^DK-CARD-layout-structure-[A-Za-z0-9._:-]+$
   not_applicable_reason: null
-  surface: CE user-facing Kernel decision receipts for intake, output, repair, and handoff
+  rule_shape:
+    trigger: Validate a CE intake, output, repair, or handoff receipt surface.
+    predicate: A success receipt has complete decision lineage and no CE pass or Builder-readiness
+      claim is inferred from receipt text alone.
+    enforcement: Reject the artifact with CE_RECEIPT_GREEN_WITHOUT_MACHINE_TRACE or
+      a more specific stable receipt diagnostic.
   status:
-    enforcement_status: fixture_tested
+    enforcement_status: ci_enforced
     evidence_state: validated
   carriers:
-    sequence_CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-kernel-decision-receipts.py
+    schema_carrier: kernel_decision_receipt plus decision_lineage[]
+    CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-kernel-decision-receipts.py
+    sequence_CI_step: null
+    runtime_monitor: null
+    os_harness_policy: null
     test_command: python scripts/validate-ce-kernel-decision-receipts.py
     positive_fixture: fixtures/kernel-decision-receipts/valid/complete-trace-success-receipt.json
     negative_fixture: fixtures/kernel-decision-receipts/invalid/missing-decision-card-ref-green-receipt.json
     validator_rule: validator/kernel_decision_receipts.py::validate_receipt_surface
     validator_diagnostic: CE_RECEIPT_GREEN_WITHOUT_MACHINE_TRACE
     downstream_contract: null
-  notes: Wave 5 is presentation-layer only. The record is intentionally limited to
-    fixture_tested and does not claim ci_enforced, sequence_ci_enforced, downstream
-    contract enforcement, runtime enforcement, or production readiness.
+  notes: The validator is executed by pull-request CI and exact PR head 0ab54f4fb1e953408d50896190c9464bb6e22215
+    had successful validate-fixtures evidence. This does not claim sequence, runtime,
+    downstream, or production enforcement.
