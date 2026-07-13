@@ -70,6 +70,7 @@ jobs:
         with:
           name: ai-governance-evidence-${{ github.event.pull_request.head.sha }}
           path: .governance-evidence/*.json
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
       - name: Upload exact-head validation receipt
