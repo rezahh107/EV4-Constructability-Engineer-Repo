@@ -1,4 +1,5 @@
 schema_version: 1
+profile_version: v1.0.0
 profile_id: personal_ai_operated_strong_governance_minimum_security
 repository: rezahh107/EV4-Constructability-Engineer-Repo
 authority:
@@ -53,9 +54,15 @@ evidence_states:
 review_protocol:
   name: PR-Inspector
   minimum_protocol_version: v1.9.0
+  inspector_repository: rezahh107/PR-Inspector
+  canonical_artifacts:
+    - review-package.json
+    - DECISION_PROJECTION.json
+    - artifact-manifest.json
   exact_head_required: true
   stale_on_head_change: true
   separate_session_required: true
+  official_completion_required: true
   allowed_verdicts:
     - GREEN_MERGE_RECOMMENDED
     - YELLOW_REPAIR_OR_VERIFICATION_REQUIRED
