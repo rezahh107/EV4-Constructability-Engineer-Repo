@@ -58,6 +58,20 @@ jobs:
       - run: python scripts/validate-ce-decision-lineage-sequence.py
       - run: python scripts/validate-ce-kernel-decision-receipts.py
       - run: python scripts/validate-project-gate-producer-adoption.py
+      - name: Generate exact-head AI governance evidence
+        env:
+          REVIEWED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python scripts/validate-ai-governance.py \
+            --head-sha "$REVIEWED_HEAD_SHA" \
+            --emit-dir .governance-evidence
+      - name: Upload exact-head AI governance evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ai-governance-evidence-${{ github.event.pull_request.head.sha }}
+          path: .governance-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload exact-head validation receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
