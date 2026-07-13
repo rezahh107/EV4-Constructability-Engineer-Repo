@@ -1,170 +1,429 @@
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
-from validator.ai_governance import (
-    DEFAULT_PROFILE,
-    DEFAULT_SCHEMA,
-    DEFAULT_STATE,
-    compute_completion_receipt,
-    compute_scope_disclosure,
-    emit_evidence,
-    evaluate_merge_gate,
-    load_json,
-    load_yaml,
-    validate_profile,
-    validate_repository_state,
-    validate_review_package,
-    validate_scope_semantics,
-    validate_state_schema,
-)
+import pytest
+import yaml
+
+import validator.ai_governance as gov
 
 ROOT = Path(__file__).resolve().parents[1]
 HEAD = "f" * 40
+PR_NUMBER = 35
+SCOPE_REVISION = "CE-GOV-ALL-v2"
+
+
+def _canonical_json(value: dict[str, object]) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _write_review_bundle(
+    directory: Path,
+    *,
+    head_sha: str = HEAD,
+    scope_revision: str = SCOPE_REVISION,
+    protocol_version: str = "v1.9.0",
+    include_session_id: bool = True,
+    technical_status: str = "RED_DO_NOT_MERGE",
+    blocking_findings_count: int = 1,
+    include_self_declared_separation: bool = False,
+) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    identity: dict[str, object] = {
+        "target_repository": gov.EXPECTED_REPOSITORY,
+        "pr_number": PR_NUMBER,
+        "reviewed_head_sha": head_sha,
+        "reviewed_scope_revision": scope_revision,
+        "review_validity": "CURRENT",
+        "inspector_repository": gov.EXPECTED_INSPECTOR_REPOSITORY,
+        "inspector_commit_sha": "1" * 40,
+    }
+    if include_session_id:
+        identity["review_session_id"] = "review-session-001"
+    if include_self_declared_separation:
+        identity["session_is_separate"] = True
+    findings = [
+        {"finding_id": f"PRF-{index + 1:03d}", "blocking": True}
+        for index in range(blocking_findings_count)
+    ]
+    package = {
+        "protocol_version": protocol_version,
+        "protocol_sha256": "a" * 64,
+        "review_identity": identity,
+        "scope": {
+            "coverage_complete": True,
+            "files_fully_reviewed": ["planning/GOVERNANCE_SCOPE_STATE.yml"],
+        },
+        "decision": {
+            "technical_status": technical_status,
+            "blocking_findings_count": blocking_findings_count,
+        },
+        "findings": findings,
+    }
+    projection = {
+        "protocol_version": protocol_version,
+        "review_identity": {
+            "reviewed_head_sha": head_sha,
+            "reviewed_scope_revision": scope_revision,
+            "validity": "CURRENT",
+        },
+        "technical_status": technical_status,
+    }
+    package_bytes = json.dumps(package, indent=2, ensure_ascii=False).encode("utf-8")
+    projection_bytes = json.dumps(projection, indent=2, ensure_ascii=False).encode("utf-8")
+    (directory / "review-package.json").write_bytes(package_bytes)
+    (directory / "DECISION_PROJECTION.json").write_bytes(projection_bytes)
+    manifest = {
+        "schema_version": 2,
+        "canonical_review_package": {
+            "path": "review-package.json",
+            "canonical_hash_scope": "canonical_sorted_compact_utf8_json",
+            "canonical_sha256": hashlib.sha256(_canonical_json(package)).hexdigest(),
+            "file_hash_scope": "final_file_bytes",
+            "file_sha256": hashlib.sha256(package_bytes).hexdigest(),
+        },
+        "decision_projection": {
+            "path": "DECISION_PROJECTION.json",
+            "hash_scope": "final_file_bytes",
+            "sha256": hashlib.sha256(projection_bytes).hexdigest(),
+        },
+    }
+    (directory / "artifact-manifest.json").write_text(
+        json.dumps(manifest, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    return directory
+
+
+def _validated_state() -> gov.ValidatedGovernanceState:
+    result = gov.validate_repository_state(repository_root=ROOT)
+    assert result["passed"], result["diagnostics"]
+    return result["verification"]
+
+
+def _gate_evidence() -> gov.VerifiedGateEvidence:
+    verification = _validated_state()
+    return gov.derive_gate_evidence(
+        verification,
+        head_sha=HEAD,
+        pr_number=PR_NUMBER,
+        git_head=HEAD,
+        environ={},
+    )
 
 
 def test_repository_governance_state_is_valid() -> None:
-    result = validate_repository_state()
-    assert result["passed"], result["errors"]
+    result = gov.validate_repository_state(repository_root=ROOT)
+    assert result["passed"], result["diagnostics"]
+    assert gov.is_validated_governance_state(result["verification"])
 
 
-def test_scope_projection_rejects_silent_capability_deletion() -> None:
-    state = load_yaml(ROOT / "fixtures" / "governance" / "invalid" / "silent-scope-deletion.yml")
-    errors = validate_scope_semantics(state)
-    assert any("silent capability deletion" in error for error in errors)
+@pytest.mark.parametrize(
+    ("field", "required"),
+    [
+        ("minimum_security_controls", gov.MINIMUM_SECURITY_CONTROLS_V1),
+        ("intentionally_out_of_scope_controls", gov.INTENTIONAL_EXCLUSIONS_V1),
+        ("activation_triggers", gov.ACTIVATION_TRIGGERS_V1),
+    ],
+)
+def test_security_identity_sets_reject_each_deleted_identity(
+    field: str,
+    required: tuple[str, ...],
+) -> None:
+    for identity in required:
+        profile = gov.load_yaml(gov.DEFAULT_PROFILE)
+        profile[field].remove(identity)
+        errors = gov.validate_profile(profile)
+        assert any(identity in error or "exactly" in error for error in errors), identity
 
 
-def test_scope_projection_rejects_incompatible_dispositions() -> None:
-    state = load_yaml(DEFAULT_STATE)
-    capability_id = state["scope_projection"]["implemented_ids"][0]
-    state["scope_projection"]["committed_now_ids"].append(capability_id)
-    errors = validate_scope_semantics(state)
-    assert any("incompatible dispositions" in error for error in errors)
+@pytest.mark.parametrize(
+    "field",
+    [
+        "minimum_security_controls",
+        "intentionally_out_of_scope_controls",
+        "activation_triggers",
+    ],
+)
+def test_security_identity_sets_reject_substitution_and_duplicate_padding(field: str) -> None:
+    profile = gov.load_yaml(gov.DEFAULT_PROFILE)
+    profile[field][-1] = "substituted_dummy_identity"
+    errors = gov.validate_profile(profile)
+    assert any("substituted" in error for error in errors)
+
+    profile = gov.load_yaml(gov.DEFAULT_PROFILE)
+    profile[field][-1] = profile[field][0]
+    errors = gov.validate_profile(profile)
+    assert any("duplicate padding" in error for error in errors)
 
 
-def test_capability_memory_must_match_projection_disposition() -> None:
-    state = load_yaml(DEFAULT_STATE)
-    state["capability_memory"][0]["disposition"] = "committed_now"
-    errors = validate_scope_semantics(state)
-    assert any("does not match" in error for error in errors)
-
-
-def test_schema_rejects_human_technical_approval_field() -> None:
-    state = load_yaml(ROOT / "fixtures" / "governance" / "invalid" / "human-approval.yml")
-    schema = load_json(DEFAULT_SCHEMA)
-    errors = validate_state_schema(state, schema)
+def test_profile_null_fields_return_diagnostics_not_tracebacks() -> None:
+    profile = gov.load_yaml(gov.DEFAULT_PROFILE)
+    profile["technical_authority"] = None
+    profile["review_protocol"] = None
+    profile["evidence_states"] = None
+    profile["minimum_security_controls"] = None
+    errors = gov.validate_profile(profile)
     assert errors
+    assert any("technical_authority" in error for error in errors)
+    assert any("review protocol" in error for error in errors)
 
 
-def test_profile_rejects_human_technical_approval_requirement() -> None:
-    profile = load_yaml(DEFAULT_PROFILE)
-    profile["technical_authority"]["human_technical_approval_required"] = True
-    errors = validate_profile(profile)
-    assert any("must not be required" in error for error in errors)
-
-
-def test_scope_disclosure_counts_are_computed_and_exact_head_bound() -> None:
-    state = load_yaml(DEFAULT_STATE)
-    disclosure = compute_scope_disclosure(state, HEAD)
-    assert disclosure["reviewed_head_sha"] == HEAD
-    assert disclosure["computed_counts"]["long_term_target_count"] == 5
-    assert disclosure["computed_counts"]["committed_now_count"] == 4
-    assert disclosure["computed_counts"]["implemented_count"] == 1
-    assert disclosure["owner_facing"]["permanently_deleted_count"] == 0
-
-
-def test_completion_receipt_is_pending_independent_review() -> None:
-    state = load_yaml(DEFAULT_STATE)
-    receipt = compute_completion_receipt(state, HEAD)
-    assert receipt["implementation_status"] == "implemented_pending_independent_review"
-    assert receipt["repository"]["reviewed_head_sha"] == HEAD
-    assert receipt["validation"]["exact_head"]["exact_head_match"] is True
-    assert receipt["validation"]["exact_head"]["synthetic_merge"] is False
-    assert "independent_ai_review" in receipt["open_gates"]
-
-
-def test_evidence_files_are_emitted(tmp_path: Path) -> None:
-    state = load_yaml(DEFAULT_STATE)
-    emitted = emit_evidence(state=state, head_sha=HEAD, output_dir=tmp_path)
-    disclosure = json.loads(Path(emitted["scope_disclosure"]).read_text(encoding="utf-8"))
-    receipt = json.loads(Path(emitted["completion_receipt"]).read_text(encoding="utf-8"))
-    assert disclosure["reviewed_head_sha"] == HEAD
-    assert receipt["repository"]["reviewed_head_sha"] == HEAD
-
-
-def test_stale_review_package_is_rejected() -> None:
-    package = load_json(ROOT / "fixtures" / "governance" / "invalid" / "stale-review.json")
-    errors = validate_review_package(
-        package,
-        current_head_sha=HEAD,
-        current_scope_revision="CE-GOV-ALL-v2",
+def test_schema_failure_skips_semantic_dereference(tmp_path: Path) -> None:
+    profile_path = tmp_path / "profile.yml"
+    state_path = tmp_path / "state.yml"
+    schema_path = tmp_path / "schema.json"
+    profile_path.write_text(gov.DEFAULT_PROFILE.read_text(encoding="utf-8"), encoding="utf-8")
+    state = gov.load_yaml(gov.DEFAULT_STATE)
+    state["scope_projection"] = None
+    state_path.write_text(yaml.safe_dump(state, sort_keys=False), encoding="utf-8")
+    schema_path.write_text(gov.DEFAULT_SCHEMA.read_text(encoding="utf-8"), encoding="utf-8")
+    result = gov.validate_repository_state(
+        profile_path=profile_path,
+        state_path=state_path,
+        schema_path=schema_path,
+        repository_root=ROOT,
     )
-    assert any("stale review" in error for error in errors)
+    assert result["passed"] is False
+    assert any(item["stage"] == "state_schema" for item in result["diagnostics"])
+    assert not any(item["stage"] == "scope_semantics" for item in result["diagnostics"])
 
 
-def test_implementer_session_cannot_self_review() -> None:
-    package = load_json(ROOT / "fixtures" / "governance" / "invalid" / "self-review.json")
-    errors = validate_review_package(
-        package,
-        current_head_sha=HEAD,
-        current_scope_revision="CE-GOV-ALL-v2",
-        implementer_session_id="implementer-session-001",
-    )
-    assert any("cannot self-issue" in error for error in errors)
+@pytest.mark.parametrize("missing_path", sorted(gov.CANONICAL_REQUIRED_ARTIFACTS))
+def test_each_missing_required_artifact_blocks_progress(
+    tmp_path: Path,
+    missing_path: str,
+) -> None:
+    state = gov.load_yaml(gov.DEFAULT_STATE)
+    for relative in state["progress_gate"]["required_artifacts"]:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("evidence\n", encoding="utf-8")
+    (tmp_path / missing_path).unlink()
+    records, errors = gov.validate_required_artifacts(state, repository_root=tmp_path)
+    assert any(missing_path in error for error in errors)
+    assert any(record["path"] == missing_path and record["exists"] is False for record in records)
 
 
-def test_missing_review_stays_pending_not_green() -> None:
-    state = load_yaml(DEFAULT_STATE)
-    result = evaluate_merge_gate(
-        state=state,
+def test_empty_required_artifact_blocks_progress(tmp_path: Path) -> None:
+    state = gov.load_yaml(gov.DEFAULT_STATE)
+    for relative in state["progress_gate"]["required_artifacts"]:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("evidence\n", encoding="utf-8")
+    empty_path = state["progress_gate"]["required_artifacts"][0]
+    (tmp_path / empty_path).write_bytes(b"")
+    _, errors = gov.validate_required_artifacts(state, repository_root=tmp_path)
+    assert any("empty" in error and empty_path in error for error in errors)
+
+
+def test_locally_generated_context_is_not_ci_confirmed(tmp_path: Path) -> None:
+    verification = _validated_state()
+    context_path = tmp_path / "ci-context.json"
+    env = {
+        "GITHUB_ACTIONS": "true",
+        "GITHUB_EVENT_NAME": "pull_request",
+        "GITHUB_REPOSITORY": gov.EXPECTED_REPOSITORY,
+        "GITHUB_RUN_ID": "12345",
+        "GITHUB_JOB": "test",
+    }
+    gov.record_ci_context(
+        verification,
         head_sha=HEAD,
-        review_package=None,
-        exact_head_ci_passed=True,
-        scope_gate_passed=True,
-        progress_gate_passed=True,
-        blocking_findings=0,
+        pr_number=PR_NUMBER,
+        output_path=context_path,
+        environ=env,
+        git_head=HEAD,
+    )
+    evidence = gov.derive_gate_evidence(
+        verification,
+        head_sha=HEAD,
+        pr_number=PR_NUMBER,
+        ci_context_path=context_path,
+        environ=env,
+        git_head=HEAD,
+    )
+    assert evidence.exact_head_context_verified is True
+    assert evidence.exact_head_ci_passed is False
+    assert evidence.evidence_state == "TOOL_CONFIRMED"
+    receipt = gov.compute_completion_receipt(evidence)
+    assert receipt["gates"]["exact_head_ci_passed"] is False
+    assert receipt["validation"]["exact_head"]["evidence"] != "CI_CONFIRMED"
+
+
+def test_plain_mappings_and_caller_true_predicates_cannot_unlock_green() -> None:
+    result = gov.evaluate_merge_gate(
+        gate_evidence={
+            "exact_head_ci_passed": True,
+            "scope_gate_passed": True,
+            "progress_gate_passed": True,
+        },
+        review_capability={
+            "verdict": gov.GREEN,
+            "blocking_findings": 0,
+        },
     )
     assert result["passed"] is False
     assert result["merge_recommendation"] is False
-    assert result["status"] == "VALIDATED_PENDING_INDEPENDENT_AI_REVIEW"
+    assert result["status"] == "FAIL-CLOSED"
 
 
-def test_green_review_still_requires_all_merge_predicates() -> None:
-    state = load_yaml(DEFAULT_STATE)
-    package = load_json(ROOT / "fixtures" / "governance" / "valid" / "independent-review-green.json")
-    result = evaluate_merge_gate(
-        state=state,
-        head_sha=HEAD,
-        review_package=package,
-        exact_head_ci_passed=False,
-        scope_gate_passed=True,
-        progress_gate_passed=True,
-        blocking_findings=0,
+def test_missing_review_stays_pending_rereview() -> None:
+    result = gov.evaluate_merge_gate(gate_evidence=_gate_evidence(), review_capability=None)
+    assert result["passed"] is False
+    assert result["merge_recommendation"] is False
+    assert result["status"] == "IMPLEMENTED_PENDING_REREVIEW"
+
+
+def test_canonical_bundle_alone_cannot_unlock_green(tmp_path: Path) -> None:
+    bundle_dir = _write_review_bundle(
+        tmp_path / "bundle",
+        technical_status=gov.GREEN,
+        blocking_findings_count=0,
+    )
+    evidence = gov.inspect_canonical_review_bundle(
+        bundle_dir,
+        expected_repository=gov.EXPECTED_REPOSITORY,
+        expected_pr_number=PR_NUMBER,
+        expected_head_sha=HEAD,
+        expected_scope_revision=SCOPE_REVISION,
+        minimum_protocol_version="v1.9.0",
+    )
+    result = gov.evaluate_merge_gate(
+        gate_evidence=_gate_evidence(),
+        review_capability=evidence,
     )
     assert result["passed"] is False
-    assert any("exact-head CI" in error for error in result["errors"])
+    assert "official PR Inspector" in result["errors"][0]
 
 
-def test_valid_exact_head_independent_review_can_pass_merge_gate() -> None:
-    state = load_yaml(DEFAULT_STATE)
-    package = load_json(ROOT / "fixtures" / "governance" / "valid" / "independent-review-green.json")
-    result = evaluate_merge_gate(
-        state=state,
-        head_sha=HEAD,
-        review_package=package,
-        exact_head_ci_passed=True,
-        scope_gate_passed=True,
-        progress_gate_passed=True,
-        blocking_findings=0,
-        implementer_session_id="implementer-session-001",
+def test_old_protocol_version_cannot_pass(tmp_path: Path) -> None:
+    bundle_dir = _write_review_bundle(tmp_path / "bundle", protocol_version="v0.0.1")
+    with pytest.raises(ValueError, match="below the required minimum"):
+        gov.inspect_canonical_review_bundle(
+            bundle_dir,
+            expected_repository=gov.EXPECTED_REPOSITORY,
+            expected_pr_number=PR_NUMBER,
+            expected_head_sha=HEAD,
+            expected_scope_revision=SCOPE_REVISION,
+            minimum_protocol_version="v1.9.0",
+        )
+
+
+def test_missing_review_session_id_cannot_pass_even_with_self_declared_separation(
+    tmp_path: Path,
+) -> None:
+    bundle_dir = _write_review_bundle(
+        tmp_path / "bundle",
+        include_session_id=False,
+        include_self_declared_separation=True,
     )
-    assert result["passed"] is True
-    assert result["status"] == "GREEN_MERGE_RECOMMENDED"
+    with pytest.raises(ValueError, match="review_session_id"):
+        gov.inspect_canonical_review_bundle(
+            bundle_dir,
+            expected_repository=gov.EXPECTED_REPOSITORY,
+            expected_pr_number=PR_NUMBER,
+            expected_head_sha=HEAD,
+            expected_scope_revision=SCOPE_REVISION,
+            minimum_protocol_version="v1.9.0",
+        )
 
 
-def test_security_activation_triggers_are_required() -> None:
-    profile = load_yaml(DEFAULT_PROFILE)
-    profile["activation_triggers"] = []
-    errors = validate_profile(profile)
-    assert any("activation triggers" in error for error in errors)
+def test_stale_head_and_scope_are_rejected(tmp_path: Path) -> None:
+    stale_head = _write_review_bundle(tmp_path / "head", head_sha="e" * 40)
+    with pytest.raises(ValueError, match="repository/PR/head/scope"):
+        gov.inspect_canonical_review_bundle(
+            stale_head,
+            expected_repository=gov.EXPECTED_REPOSITORY,
+            expected_pr_number=PR_NUMBER,
+            expected_head_sha=HEAD,
+            expected_scope_revision=SCOPE_REVISION,
+            minimum_protocol_version="v1.9.0",
+        )
+    stale_scope = _write_review_bundle(tmp_path / "scope", scope_revision="CE-GOV-OLD-v1")
+    with pytest.raises(ValueError, match="repository/PR/head/scope"):
+        gov.inspect_canonical_review_bundle(
+            stale_scope,
+            expected_repository=gov.EXPECTED_REPOSITORY,
+            expected_pr_number=PR_NUMBER,
+            expected_head_sha=HEAD,
+            expected_scope_revision=SCOPE_REVISION,
+            minimum_protocol_version="v1.9.0",
+        )
+
+
+def test_manifest_hash_tampering_is_rejected(tmp_path: Path) -> None:
+    bundle_dir = _write_review_bundle(tmp_path / "bundle")
+    package_path = bundle_dir / "review-package.json"
+    package_path.write_text(package_path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="file hash mismatch"):
+        gov.inspect_canonical_review_bundle(
+            bundle_dir,
+            expected_repository=gov.EXPECTED_REPOSITORY,
+            expected_pr_number=PR_NUMBER,
+            expected_head_sha=HEAD,
+            expected_scope_revision=SCOPE_REVISION,
+            minimum_protocol_version="v1.9.0",
+        )
+
+
+def test_forged_capability_marker_cannot_unlock_green() -> None:
+    forged = gov.VerifiedReviewCapability(
+        gov.EXPECTED_REPOSITORY,
+        PR_NUMBER,
+        HEAD,
+        SCOPE_REVISION,
+        "v1.9.0",
+        gov.EXPECTED_INSPECTOR_REPOSITORY,
+        "1" * 40,
+        "fake-session",
+        gov.GREEN,
+        0,
+        {},
+        True,
+        object(),
+    )
+    assert gov.is_verified_review_capability(forged) is False
+    result = gov.evaluate_merge_gate(gate_evidence=_gate_evidence(), review_capability=forged)
+    assert result["passed"] is False
+    assert result["merge_recommendation"] is False
+
+
+def test_cli_malformed_profile_returns_structured_fail_closed_json(tmp_path: Path) -> None:
+    profile = gov.load_yaml(gov.DEFAULT_PROFILE)
+    profile["technical_authority"] = None
+    profile_path = tmp_path / "profile.yml"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "validate-ai-governance.py"),
+            "--profile",
+            str(profile_path),
+            "--head-sha",
+            HEAD,
+            "--pr-number",
+            str(PR_NUMBER),
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode != 0
+    payload = json.loads(completed.stdout)
+    assert payload["status"] == "FAIL-CLOSED"
+    assert isinstance(payload["diagnostics"], list)
+    assert "Traceback" not in completed.stderr
