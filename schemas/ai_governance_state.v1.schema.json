@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ev4.local/schemas/ai_governance_state.v1.schema.json",
+  "title": "EV4 CE AI Governance State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan",
+    "repository",
+    "scope_projection",
+    "capability_memory",
+    "progress_gate",
+    "review_merge_gate"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_id",
+        "plan_version",
+        "target_standard",
+        "consolidated_task"
+      ],
+      "properties": {
+        "plan_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plan_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$"
+        },
+        "target_standard": {
+          "const": "AI Authority Deterministic Governance — Source of Truth v1.0.2"
+        },
+        "consolidated_task": {
+          "const": true
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "default_branch",
+        "audit_base_sha",
+        "authority_refs"
+      ],
+      "properties": {
+        "name": {
+          "const": "rezahh107/EV4-Constructability-Engineer-Repo"
+        },
+        "default_branch": {
+          "const": "main"
+        },
+        "audit_base_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "authority_refs": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "scope_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase",
+        "scope_revision",
+        "long_term_target_ids",
+        "committed_now_ids",
+        "implemented_ids",
+        "deferred_not_deleted_ids",
+        "rejected_ids",
+        "superseded_ids",
+        "excluded_now",
+        "decision_provenance"
+      ],
+      "properties": {
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope_revision": {
+          "type": "string",
+          "pattern": "^[A-Z0-9-]+-v[0-9]+$"
+        },
+        "long_term_target_ids": {
+          "$ref": "#/$defs/id_set"
+        },
+        "committed_now_ids": {
+          "$ref": "#/$defs/id_set"
+        },
+        "implemented_ids": {
+          "$ref": "#/$defs/id_set"
+        },
+        "deferred_not_deleted_ids": {
+          "$ref": "#/$defs/id_set"
+        },
+        "rejected_ids": {
+          "$ref": "#/$defs/id_set"
+        },
+        "superseded_ids": {
+          "$ref": "#/$defs/id_set"
+        },
+        "excluded_now": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "decision_provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "reason",
+            "previous_plan_id"
+          ],
+          "properties": {
+            "source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            },
+            "previous_plan_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "capability_memory": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "capability_id",
+          "title",
+          "disposition",
+          "provenance",
+          "aliases"
+        ],
+        "properties": {
+          "capability_id": {
+            "$ref": "#/$defs/capability_id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "disposition": {
+            "enum": [
+              "committed_now",
+              "implemented",
+              "deferred",
+              "remembered",
+              "rejected",
+              "superseded",
+              "implemented_elsewhere",
+              "not_applicable"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aliases": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "progress_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementation_status",
+        "required_artifacts",
+        "required_validation",
+        "open_gates",
+        "prohibited_claims"
+      ],
+      "properties": {
+        "implementation_status": {
+          "enum": [
+            "partially_implemented",
+            "implemented_pending_validation",
+            "implemented_pending_independent_review",
+            "blocked",
+            "unknown"
+          ]
+        },
+        "required_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_validation": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "open_gates": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prohibited_claims": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "review_merge_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_protocol",
+        "minimum_protocol_version",
+        "exact_head_required",
+        "exact_scope_revision_required",
+        "separate_session_required",
+        "stale_on_head_or_scope_change",
+        "green_requires",
+        "merge_is_user_action_not_technical_approval"
+      ],
+      "properties": {
+        "review_protocol": {
+          "const": "PR-Inspector"
+        },
+        "minimum_protocol_version": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "exact_head_required": {
+          "const": true
+        },
+        "exact_scope_revision_required": {
+          "const": true
+        },
+        "separate_session_required": {
+          "const": true
+        },
+        "stale_on_head_or_scope_change": {
+          "const": true
+        },
+        "green_requires": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "merge_is_user_action_not_technical_approval": {
+          "const": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "capability_id": {
+      "type": "string",
+      "pattern": "^CE-GOV-[0-9]{3}-[A-Z0-9-]+$"
+    },
+    "id_set": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/capability_id"
+      }
+    }
+  },
+  "not": {
+    "anyOf": [
+      {
+        "required": [
+          "human_technical_approval"
+        ]
+      },
+      {
+        "required": [
+          "owner_technical_signoff"
+        ]
+      },
+      {
+        "required": [
+          "owner_scope_acknowledgement"
+        ]
+      },
+      {
+        "required": [
+          "human_review_required"
+        ]
+      },
+      {
+        "required": [
+          "specialist_signoff"
+        ]
+      }
+    ]
+  }
+}
