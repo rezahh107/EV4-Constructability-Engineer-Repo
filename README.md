@@ -1,6 +1,6 @@
 # EV4 Constructability Engineer Repo
 
-Status: constructability system active; CE Project Gate producer adoption implemented in CE; Project Gate runtime integration not implemented.
+Mutable status authority: `STATUS.md`
 
 Role: `implementation_strategy_gate`
 
@@ -37,7 +37,7 @@ Architect output
 
 If Architect input fails the first gate, the user receives an Architect repair package. If CE output fails the second gate, the user receives a CE repair package or an Architect amendment package only when evidence establishes upstream ownership.
 
-The CE repository now owns a producer-emitted Project Gate artifact path for CE output. The Project Gate runtime join remains outside this repository and is still `not_implemented` here.
+The CE repository owns a producer-emitted Project Gate artifact path for CE output. Project Gate runtime integration remains outside this repository.
 
 ## Canonical Architect-facing CE intake
 
@@ -80,7 +80,7 @@ Those files target previous compatibility paths and must not be treated as the p
 
 ## CE Project Gate Producer Export
 
-CE producer adoption adds these CE-owned artifacts:
+CE producer adoption uses these CE-owned artifacts:
 
 ```text
 manifests/ce_pipeline_manifest.v1.json
@@ -174,17 +174,12 @@ https://github.com/rezahh107/EV4-Builder-Assistant-Repo
 https://github.com/rezahh107/EV4-Responsive-Architect
 ```
 
-## Status
+## Current Status Authority
 
-```yaml
-role: implementation_strategy_gate
-fail_closed_default: true
-project_gate_handoff: documented
-ce_producer_adoption: implemented_in_ce_pending_project_gate_integration
-project_gate_runtime: not_implemented
-canonical_architect_facing_intake: ev4-ce-architect-stage-intake@1.1.0
-architect_stage_to_ce_mapping: ev4-architect-stage-to-ce-intake-mapping@1.1.0
-builder_package_emission: evidence_gated
-builder_executable_package_schema: ev4-builder-executable-package@1.0.0_required
-production_ready: false
+Current mutable implementation and readiness claims are maintained only in:
+
+```text
+STATUS.md
 ```
+
+This README describes stable mission, contracts, and boundaries. It must not be used as the current mutable status authority. When README wording, `STATUS.md`, and live repository evidence differ, live default-branch evidence wins and `STATUS.md` must be reconciled.
