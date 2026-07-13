@@ -1,6 +1,6 @@
 # STATUS — EV4 Constructability Engineer Repo
 
-Version: 0.3.1  
+Version: 0.3.2  
 Status: constructability_system_active  
 Date: 2026-07-13  
 Authority role: canonical mutable repository status
@@ -44,14 +44,17 @@ project_status:
   decision_escape_route_state: observed
   kernel_decision_lineage_sequence: sequence_ci_enforced
   kernel_decision_receipts: ci_enforced
-  ai_authority_deterministic_governance_v1_0_2: repair_implemented_pending_fresh_review
+  ai_authority_deterministic_governance_v1_0_2: merged_on_main_post_merge_verified
   ai_governance_profile: v1_0_0_identity_enforced
   governance_scope_revision: CE-GOV-ALL-v2
   scope_projection_gate: ci_enforced
   computed_scope_disclosure_gate: ci_enforced
   progress_evidence_gate: ci_enforced_required_artifact_hashes
-  independent_review_merge_gate: fail_closed_official_completion_required
-  authoritative_exact_head_ci_confirmation: external_verification_required
+  independent_review_merge_gate: implemented_review_not_observed_before_merge
+  authoritative_exact_head_ci_confirmation: confirmed_run_29279294022
+  governance_implementation_complete: true
+  governance_post_merge_verification: confirmed_content_equivalent
+  fresh_independent_review_after_repair: not_observed
   governance_adoption_complete: false
   production_ready: false
 ```
@@ -101,7 +104,7 @@ ai_governance_adoption:
   active_profile: personal_ai_operated_strong_governance_minimum_security@v1.0.0
   completed_before_this_increment:
     - CE-GOV-001-AUTHORITY-RECONCILIATION
-  implemented_in_current_pr:
+  implemented_in_pr_35:
     - CE-GOV-002-AI-AUTHORITY-PROFILE
     - CE-GOV-003-SCOPE-DISCLOSURE-GATES
     - CE-GOV-004-PROGRESS-EVIDENCE-GATES
@@ -110,20 +113,65 @@ ai_governance_adoption:
     - scope-change-disclosure.json
     - completion-receipt.json
     - governance-gate-evidence.json
-  current_status: implemented_pending_rereview
-  open_gates:
+  current_status: merged_on_main_post_merge_verified_review_gap_recorded
+  merge_evidence:
+    pull_request: 35
+    validated_head_sha: 0847bf63928e5fa687615369142d78bf4cec6fcb
+    merge_commit_sha: 8234d356d86bbcf5e1fa3f533d4c209794887272
+    content_equivalent_to_validated_head: true
+    exact_head_ci_run_id: 29279294022
+    exact_head_ci_job_id: 86916239709
+    exact_head_ci_conclusion: success
+    project_gate_verification_run_id: 29279294482
+    project_gate_verification_job_id: 86916241112
+    project_gate_verification_conclusion: success
+  closed_gates:
     - authoritative_exact_head_ci_confirmation
-    - fresh_independent_ai_review
     - user_merge
     - post_merge_verification
+  open_gates:
+    - fresh_independent_ai_review
+  review_gap:
+    fresh_review_on_repaired_head: not_observed
+    findings_closed: false
+    merge_occurred_before_required_fresh_review_was_observed: true
   prohibited_inferences:
     - findings_closed
     - governance_adoption_complete
-    - merged
     - production_ready
     - runtime_verified
     - repository_settings_enforced
 ```
+
+---
+
+## AI Governance Post-Merge Closure Addendum
+
+```yaml
+AI_GOVERNANCE_POST_MERGE_CLOSURE:
+  pull_request: 35
+  validated_head_sha: 0847bf63928e5fa687615369142d78bf4cec6fcb
+  merge_commit_sha: 8234d356d86bbcf5e1fa3f533d4c209794887272
+  merge_commit_file_delta_from_validated_head: none
+  exact_head_validation:
+    workflow: validate-fixtures
+    run_id: 29279294022
+    job_id: 86916239709
+    conclusion: success
+  project_gate_contract_validation:
+    workflow: verify-project-gate-contract
+    run_id: 29279294482
+    job_id: 86916241112
+    conclusion: success
+  implementation_merged_on_main: true
+  post_merge_content_verification: confirmed
+  status_memory_synchronized: true
+  fresh_independent_review_on_repaired_head: not_observed
+  findings_closed: false
+  closure_result: implementation_merged_memory_synchronized_review_gap_retained
+```
+
+This addendum closes repository-memory and post-merge verification for PR #35. It does not retroactively create independent review evidence, close PR Inspector findings, prove repository-setting enforcement, or claim production readiness.
 
 ---
 
