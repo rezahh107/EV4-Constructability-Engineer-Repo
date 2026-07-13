@@ -1,0 +1,70 @@
+schema_version: 1
+profile_version: v1.0.0
+profile_id: personal_ai_operated_strong_governance_minimum_security
+repository: rezahh107/EV4-Constructability-Engineer-Repo
+authority:
+  mission: AGENTS.md
+  mutable_status: STATUS.md
+  behavioral_coverage: docs/BEHAVIORAL_RULE_COVERAGE.md
+  scope_state: planning/GOVERNANCE_SCOPE_STATE.yml
+technical_authority:
+  decision_authority: AI
+  factual_authority: evidence
+  human_technical_approval_required: false
+  user_merge_action_is_technical_approval: false
+minimum_security_controls:
+  - no_secrets_in_repository_prompt_log_or_artifact
+  - exact_repository_branch_and_target_identity
+  - destructive_action_scope_and_recovery
+  - untrusted_input_boundary
+  - explicit_authorization_for_production_credentials_dns_billing_or_real_data
+  - dependency_source_and_necessity_review
+  - reversible_version_controlled_changes
+  - fail_closed_on_missing_access_identity_or_evidence
+intentionally_out_of_scope_controls:
+  - mandatory_branch_protection
+  - merge_queue
+  - CODEOWNERS_security_approval
+  - formal_threat_model_program
+  - penetration_testing
+  - continuous_SAST_DAST
+  - SBOM_and_supply_chain_attestation
+  - signed_artifact_provenance_infrastructure
+  - runtime_security_monitoring
+  - OS_harness_enforcement
+activation_triggers:
+  - external_contributors
+  - real_personal_or_customer_data
+  - production_or_public_service
+  - persistent_credentials_or_privileged_APIs
+  - money_billing_or_financial_assets
+  - physical_health_or_safety_impact
+  - third_party_reliance
+  - legal_contractual_or_regulatory_duties
+  - irreversible_infrastructure_or_account_changes
+evidence_states:
+  - REPOSITORY_CONFIRMED
+  - TEST_CONFIRMED
+  - CI_CONFIRMED
+  - TOOL_CONFIRMED
+  - AI_REVIEW_SIGNAL
+  - USER_REPORTED
+  - UNVERIFIED
+  - INSUFFICIENT_EVIDENCE
+review_protocol:
+  name: PR-Inspector
+  minimum_protocol_version: v1.9.0
+  inspector_repository: rezahh107/PR-Inspector
+  canonical_artifacts:
+    - review-package.json
+    - DECISION_PROJECTION.json
+    - artifact-manifest.json
+  exact_head_required: true
+  stale_on_head_change: true
+  separate_session_required: true
+  official_completion_required: true
+  allowed_verdicts:
+    - GREEN_MERGE_RECOMMENDED
+    - YELLOW_REPAIR_OR_VERIFICATION_REQUIRED
+    - RED_DO_NOT_MERGE
+    - BLOCKED_INSUFFICIENT_EVIDENCE
