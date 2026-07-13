@@ -1,6 +1,6 @@
 # Behavioral Rule Coverage
 
-Version: 0.1.0  
+Version: 0.2.0  
 Status: active  
 Scope: high-risk LLM behavioral gates in the Constructability Engineer repo
 
@@ -13,6 +13,8 @@ This document tracks whether high-risk behavioral rules are only written as pros
 In an LLM-executed repository, prompts, protocols, schemas, validators, fixtures, and CI workflows act as behavioral source code. Prose is useful for human and model understanding, but prose alone is not an enforcement mechanism.
 
 The goal is not to turn every instruction into machinery. The goal is to ensure that Critical and High behavioral gates cannot be silently ignored by a downstream LLM agent.
+
+`planning/DECISION_ESCAPE_ROUTES.yml` uses the same enforcement ladder for Kernel-governed decision escape routes. Cross-turn thresholds are enforced by its state-aware schema and sequence carriers.
 
 ---
 
@@ -74,8 +76,8 @@ first_batch_requirements
 
 | risk | definition | enforcement expectation |
 |---|---|---|
-| `Critical` | Ignoring the rule can cause architecture drift, visual paradigm drift, class-name drift, unsafe Builder decisions, invalid package emission, false readiness, or expensive rework. | Must not remain `prose_only` or shallow `schema_backed`. Requires validator, invalid fixture, and CI enforcement. |
-| `High` | Ignoring the rule can cause significant ambiguity, layout drift, wrong implementation strategy, or unsupported assumptions. | Should reach at least `validator_backed`; preferably `fixture_tested`. |
+| `Critical` | Ignoring the rule can cause architecture drift, visual paradigm drift, class-name drift, unsafe Builder decisions, invalid package emission, false readiness, or expensive rework. | Per-artifact rules require at least `ci_enforced`. Cross-turn rules require `sequence_ci_enforced`, `runtime_monitor_enforced`, or stronger state-aware enforcement. |
+| `High` | Ignoring the rule can cause significant ambiguity, layout drift, wrong implementation strategy, or unsupported assumptions. | Must reach at least `validator_backed`; `fixture_tested` or `ci_enforced` is preferred. |
 | `Medium` | Ignoring the rule can reduce quality or clarity but does not directly break architecture, package safety, or downstream execution. | Schema or prose may be acceptable. |
 | `Low` | Tone, style, formatting, or low-risk guidance. | Prose is usually sufficient. |
 
@@ -90,17 +92,22 @@ This file should normally track only `Critical` and `High` rules.
 | `prose_only` | The rule exists only in markdown, prompt text, examples, or role guidance. |
 | `schema_backed` | The rule has a schema field or typed structure, but no validator logic or failing fixture proves behavior. |
 | `validator_backed` | A validator checks the rule, but fixture coverage may be incomplete. |
-| `fixture_tested` | The rule has valid or invalid fixtures proving validator behavior. |
-| `ci_enforced` | CI runs the relevant validator or tests automatically. |
+| `fixture_tested` | Positive and negative fixtures prove validator behavior. |
+| `advisory_ci_observed` | A CI run was observed, but the check is not proven to be a required blocking gate. |
+| `ci_enforced` | Pull-request CI automatically executes the relevant blocking validator or tests. |
+| `sequence_ci_enforced` | State-aware CI validates a cross-turn or multi-stage sequence. |
+| `runtime_monitor_enforced` | Runtime monitoring enforces the rule on execution evidence. |
+| `os_harness_enforced` | An OS, file, network, process, or tool harness enforces the rule. |
 | `downstream_contract_enforced` | The downstream consumer rejects missing or invalid carriers. |
 
 Recommended thresholds:
 
 ```text
-Critical -> fixture_tested minimum; ci_enforced preferred; downstream_contract_enforced final target
-High     -> validator_backed minimum; fixture_tested preferred
-Medium   -> schema_backed or prose may be acceptable
-Low      -> prose is usually acceptable
+Critical per_artifact -> ci_enforced minimum; downstream_contract_enforced target
+Critical cross_turn   -> sequence_ci_enforced or runtime_monitor_enforced minimum
+High                  -> validator_backed minimum; fixture_tested or ci_enforced preferred
+Medium                -> schema_backed or prose may be acceptable
+Low                   -> prose is usually acceptable
 ```
 
 ---
@@ -126,9 +133,11 @@ Low      -> prose is usually acceptable
 
 ## Interpretation Rules
 
-A Critical rule with status `prose_only` or `schema_backed` is an open enforcement gap.
+A Critical per-artifact rule below `ci_enforced` is an open enforcement gap.
 
-A High rule with status `prose_only` should be scheduled for schema or validator work.
+A Critical cross-turn rule below `sequence_ci_enforced` or equivalent state-aware enforcement is an open enforcement gap.
+
+A High rule below `validator_backed` is an open enforcement gap.
 
 A rule can be `ci_enforced` and still not fully safe if the downstream consumer accepts invalid or missing data. Final target for cross-agent handoffs is `downstream_contract_enforced`.
 
