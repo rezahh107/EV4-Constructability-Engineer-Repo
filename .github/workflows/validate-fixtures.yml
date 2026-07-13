@@ -10,7 +10,37 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Assert exact PR-head identity
+        env:
+          REVIEWED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          TESTED_SHA="$(git rev-parse HEAD)"
+          test "$TESTED_SHA" = "$REVIEWED_HEAD_SHA"
+          cat > exact-head-validation-receipt.json <<EOF
+          {
+            "tested_ref_type": "pull_request_head",
+            "tested_sha": "$TESTED_SHA",
+            "reviewed_head_sha": "$REVIEWED_HEAD_SHA",
+            "exact_head_match": true,
+            "synthetic_merge": false,
+            "workflow": "validate-fixtures",
+            "run_id": "${GITHUB_RUN_ID}",
+            "job": "${GITHUB_JOB}"
+          }
+          EOF
+          cat exact-head-validation-receipt.json
+          {
+            echo "### Exact-head validation identity"
+            echo '```json'
+            cat exact-head-validation-receipt.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -28,3 +58,11 @@ jobs:
       - run: python scripts/validate-ce-decision-lineage-sequence.py
       - run: python scripts/validate-ce-kernel-decision-receipts.py
       - run: python scripts/validate-project-gate-producer-adoption.py
+      - name: Upload exact-head validation receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-head-validation-receipt-${{ github.event.pull_request.head.sha }}
+          path: exact-head-validation-receipt.json
+          if-no-files-found: error
+          retention-days: 30
