@@ -2,10 +2,15 @@ from pathlib import Path
 import subprocess
 import sys
 
-from validator.behavioral_rule_coverage import parse_coverage_markdown, validate_coverage_file, validate_rows
+from validator.behavioral_rule_coverage import (
+    ALLOWED_STATUSES,
+    parse_coverage_markdown,
+    validate_coverage_file,
+    validate_rows,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
-COVERAGE = ROOT / "docs/BEHAVIORAL_RULE_COVERAGE.md"
+COVERAGE = ROOT / "docs" / "BEHAVIORAL_RULE_COVERAGE.md"
 
 
 def _row(rule_id: str, risk: str, status: str) -> dict[str, str]:
@@ -73,22 +78,46 @@ def test_parse_coverage_markdown_allows_spaced_header_cells() -> None:
     assert rows[0]["rule_id"] == "R-TEST-SPACED-HEADER"
 
 
-def test_critical_schema_backed_rule_fails_closed() -> None:
-    errors = validate_rows([_row("R-TEST-CRITICAL", "Critical", "schema_backed")])
-
-    assert errors
-    assert "R-TEST-CRITICAL" in errors[0]
-
-
-def test_critical_prose_only_rule_fails_closed() -> None:
-    errors = validate_rows([_row("R-TEST-PROSE", "Critical", "prose_only")])
-
-    assert errors
-    assert "R-TEST-PROSE" in errors[0]
+def test_full_enforcement_ladder_is_recognized() -> None:
+    assert {
+        "advisory_ci_observed",
+        "sequence_ci_enforced",
+        "runtime_monitor_enforced",
+        "os_harness_enforced",
+    } <= ALLOWED_STATUSES
 
 
-def test_high_schema_backed_rule_is_allowed_temporarily() -> None:
+def test_critical_below_ci_enforced_fails_closed() -> None:
+    for status in [
+        "prose_only",
+        "schema_backed",
+        "validator_backed",
+        "fixture_tested",
+        "advisory_ci_observed",
+    ]:
+        errors = validate_rows([_row(f"R-TEST-{status}", "Critical", status)])
+        assert errors, status
+
+
+def test_critical_ci_enforced_or_stronger_is_allowed() -> None:
+    for status in [
+        "ci_enforced",
+        "sequence_ci_enforced",
+        "runtime_monitor_enforced",
+        "os_harness_enforced",
+        "downstream_contract_enforced",
+    ]:
+        assert validate_rows([_row(f"R-TEST-{status}", "Critical", status)]) == []
+
+
+def test_high_schema_backed_fails_closed() -> None:
     errors = validate_rows([_row("R-TEST-HIGH", "High", "schema_backed")])
+
+    assert errors
+
+
+def test_high_validator_backed_is_allowed() -> None:
+    errors = validate_rows([_row("R-TEST-HIGH", "High", "validator_backed")])
 
     assert errors == []
 
@@ -111,7 +140,7 @@ def test_cli_rejects_invalid_critical_gap(tmp_path: Path) -> None:
                 "",
                 "| rule_id | concept | risk | prose_source | schema_carrier | validator_rule | valid_fixture | invalid_fixture | CI_step | downstream_contract | status |",
                 "|---|---|---:|---|---|---|---|---|---|---|---|",
-                "| `R-TEST-001` | Test | Critical | `docs/test.md` | `field` | `None` | `None` | `None` | `None` | `None` | `schema_backed` |",
+                "| `R-TEST-001` | Test | Critical | `docs/test.md` | `field` | `R_TEST` | `valid` | `invalid` | `None` | `None` | `fixture_tested` |",
             ]
         ),
         encoding="utf-8",
