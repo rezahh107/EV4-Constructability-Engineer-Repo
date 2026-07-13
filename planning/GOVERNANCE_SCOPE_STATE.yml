@@ -74,12 +74,23 @@ progress_gate:
     - planning/GOVERNANCE_SCOPE_STATE.yml
     - schemas/ai_governance_state.v1.schema.json
     - validator/ai_governance.py
+    - validator/ai_governance_core.py
+    - validator/ai_governance_evidence.py
+    - validator/ai_governance_review.py
     - scripts/validate-ai-governance.py
     - tests/test_ai_governance.py
   required_validation:
+    - python -m pip install --upgrade pip
     - python -m pip install -e '.[dev]'
     - pytest -q
-    - python scripts/validate-ai-governance.py --head-sha <exact_pr_head> --emit-dir .governance-evidence
+    - python scripts/validate-behavioral-rule-coverage.py
+    - python scripts/validate-role-alignment-fixtures.py
+    - npm run test:reference-paradigm-lock
+    - python scripts/validate-ce-architect-stage-intake.py
+    - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py
+    - python scripts/validate-ce-decision-lineage-sequence.py
+    - python scripts/validate-ce-kernel-decision-receipts.py
+    - python scripts/validate-project-gate-producer-adoption.py
   open_gates:
     - exact_head_ci
     - independent_ai_review
