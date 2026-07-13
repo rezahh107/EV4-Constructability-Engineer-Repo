@@ -12,10 +12,21 @@ ALLOWED_STATUSES = {
     "schema_backed",
     "validator_backed",
     "fixture_tested",
+    "advisory_ci_observed",
     "ci_enforced",
+    "sequence_ci_enforced",
+    "runtime_monitor_enforced",
+    "os_harness_enforced",
     "downstream_contract_enforced",
 }
-CRITICAL_WEAK_STATUSES = {"prose_only", "schema_backed"}
+CRITICAL_WEAK_STATUSES = {
+    "prose_only",
+    "schema_backed",
+    "validator_backed",
+    "fixture_tested",
+    "advisory_ci_observed",
+}
+HIGH_WEAK_STATUSES = {"prose_only", "schema_backed"}
 REQUIRED_HEADERS = [
     "rule_id",
     "concept",
@@ -79,7 +90,10 @@ def parse_coverage_markdown(content: str) -> list[dict[str, str]]:
             break
         cells = _split_row(line)
         if len(cells) != len(headers):
-            raise ValueError(f"Coverage table row at line {line_number} has {len(cells)} cells, expected {len(headers)}.")
+            raise ValueError(
+                f"Coverage table row at line {line_number} has {len(cells)} cells, "
+                f"expected {len(headers)}."
+            )
         row = dict(zip(headers, cells, strict=True))
         row["line"] = str(line_number)
         rows.append(row)
@@ -110,10 +124,18 @@ def validate_rows(rows: list[dict[str, str]]) -> list[str]:
             errors.append(f"line {line}: {rule_id} has invalid risk {risk}")
         if status not in ALLOWED_STATUSES:
             errors.append(f"line {line}: {rule_id} has invalid status {status}")
+            continue
 
         if risk == "Critical" and status in CRITICAL_WEAK_STATUSES:
             errors.append(
-                f"line {line}: {rule_id} is Critical but only {status}; add validator, invalid fixture, and CI coverage or lower the risk honestly"
+                f"line {line}: {rule_id} is Critical but only {status}; "
+                "Critical per-artifact rules require ci_enforced or stronger, "
+                "and cross-turn thresholds must be checked by the state-aware sequence gate"
+            )
+        if risk == "High" and status in HIGH_WEAK_STATUSES:
+            errors.append(
+                f"line {line}: {rule_id} is High but only {status}; "
+                "add validator-backed enforcement or lower the risk honestly"
             )
 
     return errors
