@@ -1,0 +1,100 @@
+schema_version: 1
+plan:
+  plan_id: GOV-ADOPTION-EV4-CONSTRUCTABILITY-ENGINEER-REPO-1F27313-V2
+  plan_version: '2.0'
+  target_standard: AI Authority Deterministic Governance — Source of Truth v1.0.2
+  consolidated_task: true
+repository:
+  name: rezahh107/EV4-Constructability-Engineer-Repo
+  default_branch: main
+  audit_base_sha: 1f27313e2aab6c751a7915eec787e6ab70152768
+  authority_refs:
+  - AGENTS.md
+  - STATUS.md
+  - docs/BEHAVIORAL_RULE_COVERAGE.md
+scope_projection:
+  phase: AI_GOVERNANCE_ADOPTION
+  scope_revision: CE-GOV-ALL-v2
+  long_term_target_ids:
+  - CE-GOV-001-AUTHORITY-RECONCILIATION
+  - CE-GOV-002-AI-AUTHORITY-PROFILE
+  - CE-GOV-003-SCOPE-DISCLOSURE-GATES
+  - CE-GOV-004-PROGRESS-EVIDENCE-GATES
+  - CE-GOV-005-INDEPENDENT-REVIEW-MERGE-GATE
+  committed_now_ids:
+  - CE-GOV-002-AI-AUTHORITY-PROFILE
+  - CE-GOV-003-SCOPE-DISCLOSURE-GATES
+  - CE-GOV-004-PROGRESS-EVIDENCE-GATES
+  implemented_ids:
+  - CE-GOV-001-AUTHORITY-RECONCILIATION
+  deferred_not_deleted_ids: []
+  rejected_ids: []
+  superseded_ids: []
+  excluded_now:
+  - production_deployment
+  - external_repository_modification
+  - enterprise_security_program
+  - runtime_monitor_enforcement
+  - OS_harness_enforcement
+  decision_provenance:
+    source: user_authorized_consolidation
+    reason: execute_all_remaining_frozen_plan_increments_in_one_task
+    previous_plan_id: GOV-ADOPTION-EV4-CONSTRUCTABILITY-ENGINEER-REPO-D58E98F-V1
+capability_memory:
+- capability_id: CE-GOV-001-AUTHORITY-RECONCILIATION
+  title: Authority reconciliation
+  disposition: implemented
+  provenance: merged_pr_34
+  aliases: []
+- capability_id: CE-GOV-002-AI-AUTHORITY-PROFILE
+  title: AI authority and minimum-security profile
+  disposition: committed_now
+  provenance: consolidated_adoption_task
+  aliases: []
+- capability_id: CE-GOV-003-SCOPE-DISCLOSURE-GATES
+  title: Scope projection, capability memory and computed disclosure
+  disposition: committed_now
+  provenance: consolidated_adoption_task
+  aliases: []
+- capability_id: CE-GOV-004-PROGRESS-EVIDENCE-GATES
+  title: Progress gate and completion evidence
+  disposition: committed_now
+  provenance: consolidated_adoption_task
+  aliases: []
+progress_gate:
+  implementation_status: implemented_pending_independent_review
+  required_artifacts:
+  - governance/AI_AUTHORITY_PROFILE.yml
+  - planning/GOVERNANCE_SCOPE_STATE.yml
+  - schemas/ai_governance_state.v1.schema.json
+  - validator/ai_governance.py
+  - scripts/validate-ai-governance.py
+  - tests/test_ai_governance.py
+  required_validation:
+  - python -m pip install -e '.[dev]'
+  - pytest -q
+  - python scripts/validate-ai-governance.py --head-sha <exact_pr_head> --emit-dir .governance-evidence
+  open_gates:
+  - exact_head_ci
+  - independent_ai_review
+  - user_merge
+  - post_merge_verification
+  prohibited_claims:
+  - production_ready
+  - runtime_verified
+  - repository_settings_enforced
+  - merged
+review_merge_gate:
+  review_protocol: PR-Inspector
+  minimum_protocol_version: v1.9.0
+  exact_head_required: true
+  exact_scope_revision_required: true
+  separate_session_required: true
+  stale_on_head_or_scope_change: true
+  green_requires:
+  - exact_head_ci_passed
+  - scope_gate_passed
+  - progress_gate_passed
+  - independent_review_green
+  - no_blocking_findings
+  merge_is_user_action_not_technical_approval: true
