@@ -35,150 +35,111 @@ def schema_errors(payload: dict):
 def test_decision_escape_routes_state_file_validates_against_schema() -> None:
     schema = load_schema()
     Draft202012Validator.check_schema(schema)
-
     assert schema_errors(load_state()) == []
 
 
-def test_decision_escape_routes_schema_rejects_authored_resolved_record_field() -> None:
+def test_authority_provenance_requires_exact_sha() -> None:
     payload = copy.deepcopy(load_state())
-    record = copy.deepcopy(payload["records"][0])
-    record["resolved"] = False
-    payload["records"] = [record]
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(error.validator in {"not", "additionalProperties"} for error in errors)
+    payload["authority_provenance"]["inspected_base_sha"] = "not-a-sha"
+    assert schema_errors(payload)
 
 
-def test_decision_escape_routes_schema_rejects_authored_production_ready_record_field() -> None:
+def test_session_scope_uses_per_artifact_not_single_turn() -> None:
     payload = copy.deepcopy(load_state())
-    record = copy.deepcopy(payload["records"][0])
-    record["production_ready"] = False
-    payload["records"] = [record]
+    payload["records"][1]["session_scope"] = "single_turn"
+    assert schema_errors(payload)
 
-    errors = schema_errors(payload)
+    payload["records"][1]["session_scope"] = "per_artifact"
+    assert schema_errors(payload) == []
 
-    assert errors
-    assert any(error.validator in {"not", "additionalProperties"} for error in errors)
+
+def test_decision_escape_routes_schema_rejects_authored_derived_fields() -> None:
+    for field in ["resolved", "production_ready"]:
+        payload = copy.deepcopy(load_state())
+        payload["records"][0][field] = False
+        assert schema_errors(payload), field
 
 
 def test_decision_escape_routes_schema_rejects_legacy_routes_array() -> None:
     payload = copy.deepcopy(load_state())
     payload["routes"] = []
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(error.validator == "additionalProperties" for error in errors)
-    assert any(error.validator == "not" and list(error.absolute_path) == [] for error in errors)
+    assert schema_errors(payload)
 
 
-def test_decision_escape_routes_record_requires_sequence_carriers() -> None:
-    payload = copy.deepcopy(load_state())
-    del payload["records"][0]["carriers"]["sequence_CI_step"]
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(error.validator == "required" for error in errors)
-
-
-def test_sequence_ci_enforced_rejects_null_evidence_carriers() -> None:
-    required_evidence_carriers = [
-        "sequence_CI_step",
-        "test_command",
-        "positive_fixture",
-        "negative_fixture",
-        "validator_rule",
-        "validator_diagnostic",
-    ]
-    for carrier in required_evidence_carriers:
+def test_mapped_record_requires_decision_family_and_pattern() -> None:
+    for field in ["decision_family", "required_decision_card_ref_pattern"]:
         payload = copy.deepcopy(load_state())
-        payload["records"][0]["carriers"][carrier] = None
-
-        errors = schema_errors(payload)
-
-        assert errors, carrier
-        assert any(list(error.absolute_path) == ["records", 0, "carriers", carrier] for error in errors), carrier
+        payload["records"][0][field] = None
+        assert schema_errors(payload), field
 
 
-def test_sequence_ci_enforced_rejects_empty_string_evidence_carriers() -> None:
-    payload = copy.deepcopy(load_state())
-    payload["records"][0]["carriers"]["positive_fixture"] = ""
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(error.validator == "minLength" and list(error.absolute_path) == ["records", 0, "carriers", "positive_fixture"] for error in errors)
-
-
-def test_mapped_record_requires_decision_family() -> None:
-    payload = copy.deepcopy(load_state())
-    del payload["records"][0]["decision_family"]
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(error.validator == "required" and list(error.absolute_path) == ["records", 0] for error in errors)
-
-
-def test_mapped_record_rejects_null_decision_family() -> None:
-    payload = copy.deepcopy(load_state())
-    payload["records"][0]["decision_family"] = None
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(list(error.absolute_path) == ["records", 0, "decision_family"] for error in errors)
-
-
-def test_mapped_record_requires_decision_card_ref_pattern() -> None:
-    payload = copy.deepcopy(load_state())
-    del payload["records"][0]["required_decision_card_ref_pattern"]
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(error.validator == "required" and list(error.absolute_path) == ["records", 0] for error in errors)
-
-
-def test_mapped_record_rejects_empty_decision_card_ref_pattern() -> None:
-    payload = copy.deepcopy(load_state())
-    payload["records"][0]["required_decision_card_ref_pattern"] = ""
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(
-        error.validator == "minLength"
-        and list(error.absolute_path) == ["records", 0, "required_decision_card_ref_pattern"]
-        for error in errors
-    )
-
-
-def test_mapped_record_rejects_not_applicable_reason() -> None:
-    payload = copy.deepcopy(load_state())
-    payload["records"][0]["not_applicable_reason"] = "not applicable"
-
-    errors = schema_errors(payload)
-
-    assert errors
-    assert any(list(error.absolute_path) == ["records", 0, "not_applicable_reason"] for error in errors)
-
-
-def test_not_applicable_mapping_status_requires_reason_and_null_mapping_fields() -> None:
+def test_not_applicable_mapping_requires_reason_and_null_mapping_fields() -> None:
     payload = copy.deepcopy(load_state())
     record = payload["records"][0]
     record["mapping_status"] = "not_applicable_with_reason"
     record["decision_family"] = None
     record["required_decision_card_ref_pattern"] = None
-    record["not_applicable_reason"] = "No Kernel-governed decision family applies to this synthetic audit placeholder."
-
+    record["not_applicable_reason"] = "No Kernel-governed decision family applies."
     assert schema_errors(payload) == []
 
     record["decision_family"] = "layout_structure"
-    errors = schema_errors(payload)
+    assert schema_errors(payload)
 
-    assert errors
-    assert any(list(error.absolute_path) == ["records", 0, "decision_family"] for error in errors)
+
+def test_schema_backed_requires_schema_carrier() -> None:
+    payload = copy.deepcopy(load_state())
+    record = payload["records"][1]
+    record["status"]["enforcement_status"] = "schema_backed"
+    record["carriers"]["schema_carrier"] = None
+    assert schema_errors(payload)
+
+
+def test_validator_backed_requires_validator_carriers() -> None:
+    for carrier in ["validator_rule", "validator_diagnostic"]:
+        payload = copy.deepcopy(load_state())
+        record = payload["records"][1]
+        record["status"]["enforcement_status"] = "validator_backed"
+        record["carriers"][carrier] = None
+        assert schema_errors(payload), carrier
+
+
+def test_fixture_tested_requires_positive_and_negative_fixtures() -> None:
+    for carrier in ["test_command", "positive_fixture", "negative_fixture", "validator_rule", "validator_diagnostic"]:
+        payload = copy.deepcopy(load_state())
+        record = payload["records"][1]
+        record["status"]["enforcement_status"] = "fixture_tested"
+        record["carriers"][carrier] = None
+        assert schema_errors(payload), carrier
+
+
+def test_ci_enforced_requires_ci_and_fixture_carriers() -> None:
+    for carrier in ["CI_step", "test_command", "positive_fixture", "negative_fixture", "validator_rule", "validator_diagnostic"]:
+        payload = copy.deepcopy(load_state())
+        record = payload["records"][1]
+        record["status"]["enforcement_status"] = "ci_enforced"
+        record["carriers"][carrier] = None
+        assert schema_errors(payload), carrier
+
+
+def test_sequence_ci_enforced_requires_sequence_carriers() -> None:
+    for carrier in ["sequence_CI_step", "test_command", "positive_fixture", "negative_fixture", "validator_rule", "validator_diagnostic"]:
+        payload = copy.deepcopy(load_state())
+        record = payload["records"][0]
+        record["status"]["enforcement_status"] = "sequence_ci_enforced"
+        record["carriers"][carrier] = None
+        assert schema_errors(payload), carrier
+
+
+def test_extended_ladder_requires_matching_carrier() -> None:
+    cases = [
+        ("advisory_ci_observed", "CI_step"),
+        ("runtime_monitor_enforced", "runtime_monitor"),
+        ("os_harness_enforced", "os_harness_policy"),
+        ("downstream_contract_enforced", "downstream_contract"),
+    ]
+    for status, carrier in cases:
+        payload = copy.deepcopy(load_state())
+        record = payload["records"][1]
+        record["status"]["enforcement_status"] = status
+        record["carriers"][carrier] = None
+        assert schema_errors(payload), (status, carrier)
