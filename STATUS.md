@@ -1,6 +1,6 @@
 # STATUS — EV4 Constructability Engineer Repo
 
-Version: 0.3.0  
+Version: 0.3.1  
 Status: constructability_system_active  
 Date: 2026-07-13  
 Authority role: canonical mutable repository status
@@ -44,13 +44,14 @@ project_status:
   decision_escape_route_state: observed
   kernel_decision_lineage_sequence: sequence_ci_enforced
   kernel_decision_receipts: ci_enforced
-  ai_authority_deterministic_governance_v1_0_2: implemented_pending_independent_review
-  ai_governance_profile: implemented
+  ai_authority_deterministic_governance_v1_0_2: repair_implemented_pending_fresh_review
+  ai_governance_profile: v1_0_0_identity_enforced
   governance_scope_revision: CE-GOV-ALL-v2
-  scope_projection_gate: sequence_ci_enforced
-  computed_scope_disclosure_gate: sequence_ci_enforced
-  progress_evidence_gate: sequence_ci_enforced
-  independent_review_merge_gate: sequence_ci_enforced_pending_external_review
+  scope_projection_gate: ci_enforced
+  computed_scope_disclosure_gate: ci_enforced
+  progress_evidence_gate: ci_enforced_required_artifact_hashes
+  independent_review_merge_gate: fail_closed_official_completion_required
+  authoritative_exact_head_ci_confirmation: external_verification_required
   governance_adoption_complete: false
   production_ready: false
 ```
@@ -70,7 +71,7 @@ validation_state:
   ce_kernel_decision_receipts: python scripts/validate-ce-kernel-decision-receipts.py
   ce_project_gate_producer_adoption: python scripts/validate-project-gate-producer-adoption.py
   decision_escape_routes_schema: pytest -q tests/test_decision_escape_routes_schema.py
-  ai_governance: python scripts/validate-ai-governance.py --head-sha <exact_pr_head> --emit-dir .governance-evidence
+  ai_governance: python scripts/validate-ai-governance.py --head-sha <exact_pr_head> --pr-number <pr_number> --ci-context .governance-ci-context.json --emit-dir .governance-evidence
   vendored_project_gate_contract: .github/workflows/verify-project-gate-contract.yml
   downstream_builder_gate_alignment: builder_executable_package.schema_required
 ```
@@ -97,7 +98,7 @@ Production ready remains false unless separate downstream evidence proves otherw
 ai_governance_adoption:
   plan_id: GOV-ADOPTION-EV4-CONSTRUCTABILITY-ENGINEER-REPO-1F27313-V2
   scope_revision: CE-GOV-ALL-v2
-  active_profile: personal_ai_operated_strong_governance_minimum_security
+  active_profile: personal_ai_operated_strong_governance_minimum_security@v1.0.0
   completed_before_this_increment:
     - CE-GOV-001-AUTHORITY-RECONCILIATION
   implemented_in_current_pr:
@@ -108,13 +109,15 @@ ai_governance_adoption:
   computed_evidence:
     - scope-change-disclosure.json
     - completion-receipt.json
-  current_status: implemented_pending_independent_review
+    - governance-gate-evidence.json
+  current_status: implemented_pending_rereview
   open_gates:
-    - exact_head_ci
-    - independent_ai_review
+    - authoritative_exact_head_ci_confirmation
+    - fresh_independent_ai_review
     - user_merge
     - post_merge_verification
   prohibited_inferences:
+    - findings_closed
     - governance_adoption_complete
     - merged
     - production_ready
