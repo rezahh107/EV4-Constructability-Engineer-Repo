@@ -58,12 +58,24 @@ jobs:
       - run: python scripts/validate-ce-decision-lineage-sequence.py
       - run: python scripts/validate-ce-kernel-decision-receipts.py
       - run: python scripts/validate-project-gate-producer-adoption.py
-      - name: Generate exact-head AI governance evidence
+      - name: Record completed AI governance validation sequence
         env:
           REVIEWED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           python scripts/validate-ai-governance.py \
             --head-sha "$REVIEWED_HEAD_SHA" \
+            --pr-number "$PR_NUMBER" \
+            --record-ci-context .governance-ci-context.json
+      - name: Generate exact-head AI governance evidence
+        env:
+          REVIEWED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python scripts/validate-ai-governance.py \
+            --head-sha "$REVIEWED_HEAD_SHA" \
+            --pr-number "$PR_NUMBER" \
+            --ci-context .governance-ci-context.json \
             --emit-dir .governance-evidence
       - name: Upload exact-head AI governance evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
