@@ -32,7 +32,7 @@ project_status:
   ce_pipeline_manifest: implemented
   ce_stage_payload: implemented
   ce_project_gate_export: implemented
-  ce_project_gate_exporter_command: implemented_in_pr_pending_ci_and_review
+  ce_project_gate_exporter_command: implemented_in_pr_ci_enforced_pending_independent_review
   ce_ci_adoption: implemented_or_exact_failure_reported
   builder_package_emission: evidence_gated
   builder_executable_package_schema: ev4-builder-executable-package@1.0.0_required
@@ -270,7 +270,7 @@ CE_ARCHITECT_STAGE_INTAKE_V1_1:
 CE_01_REAL_PROJECT_GATE_EXPORTER:
   prompt_id: P-002
   task_id: CE-01
-  implementation_state: implemented_in_pr_pending_ci_and_review
+  implementation_state: implemented_in_pr_ci_enforced_pending_independent_review
   operator_command: ev4-ce-project-gate-export
   script_entrypoint: scripts/export-ce-project-gate.py
   output_artifact: ce-project-gate.json
