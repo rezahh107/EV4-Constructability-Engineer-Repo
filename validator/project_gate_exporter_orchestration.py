@@ -14,6 +14,8 @@ from .project_gate_exporter_core import (
     GitProvenance,
     _json_hash,
     _load_object,
+    assert_source_intake_unchanged,
+    load_source_intake_snapshot,
     run_official_intake_validation,
     validate_builder_package,
     validate_identity_preservation,
@@ -88,10 +90,16 @@ def build_export(
     provenance: GitProvenance,
 ) -> tuple[dict[str, Any], dict[str, Any], tuple[ExportDiagnostic, ...]]:
     payload = _load_object(payload_path, "ce_payload_parse")
-    intake = _load_object(source_intake_path, "source_intake_parse")
+    intake, source_intake_bytes = load_source_intake_snapshot(source_intake_path)
     source_bundle = _load_object(source_bundle_path, "source_bundle_parse")
     intake_report = run_official_intake_validation(repo_root, source_intake_path, source_bundle_path)
-    source_hash = verify_source_intake_binding(payload, intake, source_intake_path)
+    assert_source_intake_unchanged(source_intake_path, source_intake_bytes)
+    source_hash = verify_source_intake_binding(
+        payload,
+        intake,
+        source_intake_path,
+        source_intake_bytes,
+    )
     validate_payload_and_ce_semantics(repo_root, payload)
     validate_identity_preservation(payload, intake)
     builder_package_hash = validate_builder_package(payload)
