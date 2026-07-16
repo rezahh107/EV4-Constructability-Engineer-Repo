@@ -143,7 +143,7 @@ def _payload(intake: dict, intake_path: Path, *, synthetic: bool = False) -> dic
                     "strategy_selected": "preserve-approved-structure",
                     "alternatives_considered": [],
                     "rationale": "Accepted architecture identity is preserved.",
-                    "evidence_source": "validated_ce_evidence",
+                    "evidence_source": "architect_package",
                     "builder_decisions_required": 0,
                     "architect_amendment_required": False,
                     "class_names_affected": [],
