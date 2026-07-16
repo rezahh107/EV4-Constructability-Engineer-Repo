@@ -2,7 +2,7 @@
 
 Version: 0.3.2  
 Status: constructability_system_active  
-Date: 2026-07-13  
+Date: 2026-07-16  
 Authority role: canonical mutable repository status
 
 Conflict rule:
@@ -32,7 +32,7 @@ project_status:
   ce_pipeline_manifest: implemented
   ce_stage_payload: implemented
   ce_project_gate_export: implemented
-  ce_project_gate_exporter_command: implemented_in_pr_ci_enforced_pending_independent_review
+  ce_project_gate_exporter_command: repaired_in_pr_pending_exact_head_ci_and_fresh_independent_rereview
   ce_ci_adoption: implemented_or_exact_failure_reported
   builder_package_emission: evidence_gated
   builder_executable_package_schema: ev4-builder-executable-package@1.0.0_required
@@ -270,7 +270,7 @@ CE_ARCHITECT_STAGE_INTAKE_V1_1:
 CE_01_REAL_PROJECT_GATE_EXPORTER:
   prompt_id: P-002
   task_id: CE-01
-  implementation_state: implemented_in_pr_ci_enforced_pending_independent_review
+  implementation_state: repaired_in_pr_pending_exact_head_ci_and_fresh_independent_rereview
   operator_command: ev4-ce-project-gate-export
   script_entrypoint: scripts/export-ce-project-gate.py
   output_artifact: ce-project-gate.json
@@ -280,16 +280,21 @@ CE_01_REAL_PROJECT_GATE_EXPORTER:
   stage_bundle: stage-evidence-bundle.v1@1.0.0
   producer_export: producer-gate-export.v1@1.0.0
   source_bundle_binding: required_from_supplied_canonical_json
+  source_intake_snapshot_stability: enforced
+  source_intake_read_failure_diagnostic: CE_EXPORT_SOURCE_INTAKE_READ_FAILED
+  git_provenance_source: verified_live_checkout_only
+  caller_supplied_git_provenance: forbidden
   official_ce_validation: required
   deterministic_atomic_output: implemented
   invalid_input_output_written: false
   blocked_diagnostic_export_allowed: true
   synthetic_evidence_handoff_allowed: false
   dirty_checkout_handoff_allowed: false
+  fresh_pr_inspector_review_after_repair: required
   project_gate_runtime_integration: not_implemented
   builder_context_package_generation: forbidden_in_ce
   builder_runtime_authorization: not_claimed
   production_ready: false
 ```
 
-This addendum records the bounded CE-owned exporter implementation. It does not claim merge, exact-head CI success, Project Gate runtime acceptance, Builder acceptance, cross-repository E2E completion, Responsive completion, or production readiness.
+This addendum records the bounded CE-owned exporter repair. It does not claim merge, fresh exact-head CI success, final closure of PR Inspector findings, Project Gate runtime acceptance, Builder acceptance, cross-repository E2E completion, Responsive completion, or production readiness.
