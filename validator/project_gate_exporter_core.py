@@ -85,14 +85,24 @@ class ExporterError(RuntimeError):
 
 
 def _run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command,
-        cwd=cwd,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_COMMAND_EXECUTION_FAILED",
+                "subprocess_execution",
+                f"Failed to execute command {' '.join(command)}: {exc}",
+                repair_owner="repository_owner",
+            )
+        ) from exc
 
 
 def _git(repo_root: Path, *args: str) -> str:
@@ -243,12 +253,15 @@ def run_official_intake_validation(
     result = _run(command, repo_root)
     try:
         report = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
+        if not isinstance(report, dict):
+            raise TypeError("Expected a JSON object from the official intake validator.")
+    except (json.JSONDecodeError, TypeError) as exc:
         raise ExporterError(
             ExportDiagnostic(
                 "CE_EXPORT_INTAKE_VALIDATOR_OUTPUT_INVALID",
                 "source_intake_validation",
-                result.stderr.strip() or "Official intake validator did not return valid JSON.",
+                result.stderr.strip()
+                or f"Official intake validator did not return a valid JSON object: {exc}",
                 repair_owner="ce",
             )
         ) from exc
@@ -438,4 +451,3 @@ def validate_builder_package(payload: dict[str, Any]) -> str | None:
             )
         )
     return _json_hash(package)
-
