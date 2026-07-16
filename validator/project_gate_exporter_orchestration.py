@@ -39,7 +39,7 @@ def _safe_output_path(repo_root: Path, output_path: Path, overwrite: bool) -> Pa
     except ValueError as exc:
         raise ExporterError(ExportDiagnostic("CE_EXPORT_OUTPUT_OUTSIDE_REPOSITORY", "output_safety", "Output path must remain inside the CE repository.", str(output_path), "repository_owner")) from exc
     if resolved.exists() and resolved.is_symlink():
-        raise ExporterError(ExporterError(ExportDiagnostic("CE_EXPORT_OUTPUT_SYMLINK_FORBIDDEN", "output_safety", "Refusing to write through a symbolic link.", str(resolved), "repository_owner")))
+        raise ExporterError(ExportDiagnostic("CE_EXPORT_OUTPUT_SYMLINK_FORBIDDEN", "output_safety", "Refusing to write through a symbolic link.", str(resolved), "repository_owner"))
     if resolved.exists() and not overwrite:
         raise ExporterError(ExportDiagnostic("CE_EXPORT_OUTPUT_EXISTS", "output_safety", "Output already exists; use --overwrite for an explicit replacement.", str(resolved), "repository_owner"))
     return resolved
