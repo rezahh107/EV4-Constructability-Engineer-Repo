@@ -165,7 +165,8 @@ def test_source_intake_hash_mismatch_produces_no_output(tmp_path: Path) -> None:
         assert result.diagnostics[0].code == "CE_EXPORT_SOURCE_INTAKE_HASH_MISMATCH"
         assert not output_path.exists()
     finally:
-        output_path.parent.rmdir()
+        if output_path.parent.exists():
+            output_path.parent.rmdir()
 
 
 def test_tampered_export_identity_is_rejected(tmp_path: Path) -> None:
