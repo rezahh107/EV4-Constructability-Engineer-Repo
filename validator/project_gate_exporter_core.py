@@ -232,6 +232,68 @@ def _load_object(path: Path, stage: str) -> dict[str, Any]:
         ) from exc
 
 
+def _reject_non_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON numeric constant is forbidden: {value}")
+
+
+def _read_source_intake_bytes(source_intake_path: Path) -> bytes:
+    try:
+        return source_intake_path.read_bytes()
+    except OSError as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_SOURCE_INTAKE_READ_FAILED",
+                "source_binding",
+                f"Failed to read source Architect intake: {exc}",
+                str(source_intake_path),
+                repair_owner="repository_owner",
+            )
+        ) from exc
+
+
+def load_source_intake_snapshot(source_intake_path: Path) -> tuple[dict[str, Any], bytes]:
+    raw = _read_source_intake_bytes(source_intake_path)
+    try:
+        decoded = raw.decode("utf-8")
+        intake = json.loads(decoded, parse_constant=_reject_non_json_constant)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_INPUT_INVALID_JSON",
+                "source_intake_parse",
+                str(exc),
+                str(source_intake_path),
+            )
+        ) from exc
+    if not isinstance(intake, dict):
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_INPUT_INVALID_JSON",
+                "source_intake_parse",
+                f"Expected JSON object in {source_intake_path}",
+                str(source_intake_path),
+            )
+        )
+    return intake, raw
+
+
+def assert_source_intake_unchanged(
+    source_intake_path: Path,
+    expected_bytes: bytes,
+) -> None:
+    observed_bytes = _read_source_intake_bytes(source_intake_path)
+    if observed_bytes != expected_bytes:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_SOURCE_INTAKE_CHANGED_DURING_EXPORT",
+                "source_binding",
+                "Source Architect intake changed between parsing and binding validation.",
+                str(source_intake_path),
+                repair_owner="repository_owner",
+            )
+        )
+
+
 def run_official_intake_validation(
     repo_root: Path,
     source_intake_path: Path,
@@ -298,6 +360,7 @@ def verify_source_intake_binding(
     payload: dict[str, Any],
     intake: dict[str, Any],
     source_intake_path: Path,
+    source_intake_bytes: bytes,
 ) -> dict[str, str]:
     source = payload.get("source_architect_intake")
     if not isinstance(source, dict):
@@ -333,7 +396,7 @@ def verify_source_intake_binding(
     if scope == "canonical_json":
         observed = _json_hash(intake)
     elif scope in {"file_bytes", "external_artifact"}:
-        observed = hashlib.sha256(source_intake_path.read_bytes()).hexdigest()
+        observed = hashlib.sha256(source_intake_bytes).hexdigest()
     else:
         raise ExporterError(
             ExportDiagnostic(
