@@ -1,6 +1,6 @@
 # CE Project Gate Exporter
 
-Status: `implemented_in_ce_pending_project_gate_integration`
+Status: `implemented_in_ce_pending_project_gate_integration_and_fresh_independent_rereview`
 
 ## Purpose
 
@@ -58,8 +58,10 @@ The common Project Gate contracts remain owned by `rezahh107/EV4-Project-Gate`. 
 ## Validation order
 
 ```text
-JSON parsing
+live repository, origin, branch, HEAD, and dirty-state inspection
+→ source-intake byte snapshot and JSON parsing
 → official CE Architect-intake validation
+→ source-intake byte-stability verification
 → source-bundle identity and hash verification
 → CE Stage Payload schema validation
 → official CE constructability semantic validation
@@ -72,13 +74,15 @@ JSON parsing
 → post-write re-read and validation
 ```
 
-Invalid semantic input or a source-binding mismatch produces no output.
+Invalid semantic input, source-binding mismatch, source-intake read failure, or source-intake mutation produces no output.
 
 A valid but blocked, insufficient-evidence, synthetic, or dirty-checkout run may produce a diagnostic Gate-ready artifact, but `handoff.allowed` remains `false`.
 
 ## Provenance and determinism
 
-The exporter derives repository identity, named Git ref, and exact `HEAD` from the live checkout. An unknown repository, wrong `origin`, detached `HEAD`, or missing Git metadata fails closed.
+The public/operator `export_file` path always derives repository identity, named Git ref, exact `HEAD`, and dirty state from the live checkout. It has no caller-supplied provenance parameter, environment override, or alternate operator bypass. An unknown repository, wrong `origin`, detached `HEAD`, missing Git metadata, or dirty checkout fails closed or blocks handoff according to the documented policy.
+
+The source intake is parsed from one captured byte snapshot. After the official intake validator runs, the exporter reads the file again and requires exact byte equality with that snapshot. Read failures are returned as structured `CE_EXPORT_SOURCE_INTAKE_READ_FAILED` diagnostics; mutation is returned as `CE_EXPORT_SOURCE_INTAKE_CHANGED_DURING_EXPORT`. Neither condition writes an output artifact.
 
 The exporter reuses repository canonical JSON rules: UTF-8, sorted keys, compact separators, and rejection of `NaN`/`Infinity`. Content hashes exclude the final newline. The written file is canonical JSON followed by one newline.
 
@@ -109,9 +113,11 @@ handoff_allowed
 
 ```text
 0  valid export with allowed Builder handoff
-1  invalid input, contract, provenance, path, or post-write validation; no output
+1  invalid input, contract, provenance, path, source read, mutation, or post-write validation; no output
 2  valid diagnostic export written with handoff blocked or insufficient_evidence
 ```
+
+Expected operational failures produce structured JSON and do not emit a traceback.
 
 ## Boundaries
 
@@ -123,3 +129,5 @@ CE does not:
 - claim Builder acceptance or runtime execution;
 - claim Responsive completion or production readiness;
 - silently repair invalid CE facts or fabricate missing evidence.
+
+A fresh independent PR Inspector review is required after repairs; this document does not claim that prior findings are finally closed.
