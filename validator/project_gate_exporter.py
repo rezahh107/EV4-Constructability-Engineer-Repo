@@ -12,7 +12,7 @@ from .project_gate_exporter_core import (
     GitProvenance,
     inspect_git_provenance,
 )
-from .project_gate_exporter_build import (
+from .project_gate_exporter_validation import (
     validate_stage_bundle_lock,
     validate_stage_bundle_schema,
     verify_export_identity,
@@ -53,23 +53,45 @@ def export_file(
         )
         data = canonical_bytes(export) + b"\n"
         _atomic_write(safe_output, data)
-        reread = _load_object(safe_output, "post_write_validation")
-        if canonical_bytes(reread) != canonical_bytes(export):
-            safe_output.unlink(missing_ok=True)
-            raise ExporterError(ExportDiagnostic("CE_EXPORT_POST_WRITE_MISMATCH", "post_write_validation", "Re-read output differs from the validated in-memory artifact.", str(safe_output)))
-        validate_stage_bundle_schema(root, reread["final_stage_bundle"])
-        post_diagnostics = validate_producer_gate_export(root, reread)
-        if post_diagnostics or not verify_export_identity(reread):
-            safe_output.unlink(missing_ok=True)
-            first = post_diagnostics[0] if post_diagnostics else None
-            raise ExporterError(
-                ExportDiagnostic(
-                    first.code if first else "CE_EXPORT_POST_WRITE_IDENTITY_INVALID",
-                    "post_write_validation",
-                    first.message if first else "Post-write export identity validation failed.",
-                    first.path if first else str(safe_output),
+        try:
+            reread = _load_object(safe_output, "post_write_validation")
+            if canonical_bytes(reread) != canonical_bytes(export):
+                raise ExporterError(
+                    ExportDiagnostic(
+                        "CE_EXPORT_POST_WRITE_MISMATCH",
+                        "post_write_validation",
+                        "Re-read output differs from the validated in-memory artifact.",
+                        str(safe_output),
+                    )
                 )
-            )
+            validate_stage_bundle_schema(root, reread["final_stage_bundle"])
+            post_diagnostics = validate_producer_gate_export(root, reread)
+            if post_diagnostics or not verify_export_identity(reread):
+                first = post_diagnostics[0] if post_diagnostics else None
+                raise ExporterError(
+                    ExportDiagnostic(
+                        first.code if first else "CE_EXPORT_POST_WRITE_IDENTITY_INVALID",
+                        "post_write_validation",
+                        first.message
+                        if first
+                        else "Post-write export identity validation failed.",
+                        first.path if first else str(safe_output),
+                    )
+                )
+        except Exception:
+            try:
+                safe_output.unlink(missing_ok=True)
+            except OSError as cleanup_exc:
+                raise ExporterError(
+                    ExportDiagnostic(
+                        "CE_EXPORT_POST_WRITE_CLEANUP_FAILED",
+                        "post_write_validation",
+                        f"Invalid output could not be removed: {cleanup_exc}",
+                        str(safe_output),
+                        "repository_owner",
+                    )
+                ) from cleanup_exc
+            raise
         return ExportResult(
             status="successful" if export["handoff"]["allowed"] else export["handoff"]["status"],
             output_path=str(safe_output),
