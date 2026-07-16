@@ -9,6 +9,7 @@ from .project_gate_exporter_core import (
     ExportDiagnostic,
     ExportResult,
     ExporterError,
+    GitProvenance as GitProvenance,
     inspect_git_provenance,
 )
 from .project_gate_exporter_validation import (
