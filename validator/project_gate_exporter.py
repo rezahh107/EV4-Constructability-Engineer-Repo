@@ -9,7 +9,6 @@ from .project_gate_exporter_core import (
     ExportDiagnostic,
     ExportResult,
     ExporterError,
-    GitProvenance,
     inspect_git_provenance,
 )
 from .project_gate_exporter_validation import (
@@ -34,12 +33,11 @@ def export_file(
     source_bundle_path: Path,
     output_path: Path,
     overwrite: bool = False,
-    provenance: GitProvenance | None = None,
 ) -> ExportResult:
     root = repo_root.resolve()
     try:
         safe_output = _safe_output_path(root, output_path, overwrite)
-        observed_provenance = provenance or inspect_git_provenance(
+        observed_provenance = inspect_git_provenance(
             root,
             ignored_paths=(payload_path, source_intake_path, source_bundle_path, safe_output),
         )
