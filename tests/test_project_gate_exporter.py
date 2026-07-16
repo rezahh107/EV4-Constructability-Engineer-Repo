@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
 
+import validator.project_gate_exporter as exporter_module
+import validator.project_gate_exporter_core as core_module
+import validator.project_gate_exporter_orchestration as orchestration_module
 from validator.project_gate_export import load_json
 from validator.project_gate_exporter import (
     EXPECTED_STAGE_BUNDLE_SHA256,
+    ExportDiagnostic,
+    ExporterError,
     _safe_output_path,
     export_file,
     validate_stage_bundle_lock,
@@ -196,3 +202,92 @@ def test_output_path_must_remain_inside_repository(tmp_path: Path) -> None:
     with pytest.raises(Exception) as exc_info:
         _safe_output_path(ROOT, tmp_path / "outside.json", overwrite=False)
     assert getattr(exc_info.value, "diagnostic").code == "CE_EXPORT_OUTPUT_OUTSIDE_REPOSITORY"
+
+
+def test_malformed_manifest_identity_fails_closed() -> None:
+    assert verify_export_identity({"export_id": "tampered"}) is False
+    assert verify_export_identity({"export_id": "tampered", "stage_manifest": []}) is False
+    assert verify_export_identity({"export_id": "tampered", "stage_manifest": [None]}) is False
+    assert verify_export_identity(
+        {"export_id": "tampered", "stage_manifest": [{"output": "invalid"}]}
+    ) is False
+
+
+def test_missing_stage_bundle_lock_has_stable_diagnostic(tmp_path: Path) -> None:
+    with pytest.raises(ExporterError) as exc_info:
+        validate_stage_bundle_lock(tmp_path)
+    assert exc_info.value.diagnostic.code == "CE_EXPORT_STAGE_BUNDLE_LOCK_MISSING"
+
+
+def test_subprocess_oserror_has_stable_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def raise_oserror(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise OSError("command unavailable")
+
+    monkeypatch.setattr(core_module.subprocess, "run", raise_oserror)
+    with pytest.raises(ExporterError) as exc_info:
+        core_module._run(["git", "status"], tmp_path)
+    assert exc_info.value.diagnostic.code == "CE_EXPORT_COMMAND_EXECUTION_FAILED"
+
+
+def test_non_object_intake_validator_output_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    completed = subprocess.CompletedProcess(
+        args=["validator"], returncode=0, stdout="[]", stderr=""
+    )
+    monkeypatch.setattr(core_module, "_run", lambda command, cwd: completed)
+    with pytest.raises(ExporterError) as exc_info:
+        core_module.run_official_intake_validation(
+            tmp_path, tmp_path / "intake.json", tmp_path / "bundle.json"
+        )
+    assert exc_info.value.diagnostic.code == "CE_EXPORT_INTAKE_VALIDATOR_OUTPUT_INVALID"
+
+
+def test_atomic_write_oserror_has_stable_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def raise_permission(*args: object, **kwargs: object) -> tuple[int, str]:
+        raise PermissionError("read-only filesystem")
+
+    monkeypatch.setattr(orchestration_module.tempfile, "mkstemp", raise_permission)
+    with pytest.raises(ExporterError) as exc_info:
+        orchestration_module._atomic_write(tmp_path / "output.json", b"{}\n")
+    assert exc_info.value.diagnostic.code == "CE_EXPORT_WRITE_FAILED"
+
+
+def test_post_write_validation_failure_removes_invalid_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    intake, _, intake_path, source_path = _real_source_pair(tmp_path)
+    payload_path = _write_json(tmp_path / "ce-stage-payload.json", _payload(intake, intake_path))
+    output_path = ROOT / ".tmp-test-output" / "ce-project-gate.json"
+    output_path.unlink(missing_ok=True)
+
+    def reject_post_write(repo_root: Path, bundle: dict) -> None:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_TEST_POST_WRITE_REJECTION",
+                "post_write_validation",
+                "Injected post-write validation failure.",
+            )
+        )
+
+    monkeypatch.setattr(exporter_module, "validate_stage_bundle_schema", reject_post_write)
+    try:
+        result = export_file(
+            repo_root=ROOT,
+            payload_path=payload_path,
+            source_intake_path=intake_path,
+            source_bundle_path=source_path,
+            output_path=output_path,
+            provenance=_provenance(),
+        )
+        assert result.status == "invalid"
+        assert result.output_written is False
+        assert result.diagnostics[0].code == "CE_EXPORT_TEST_POST_WRITE_REJECTION"
+        assert not output_path.exists()
+    finally:
+        if output_path.parent.exists():
+            output_path.parent.rmdir()
