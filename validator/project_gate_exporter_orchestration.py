@@ -22,9 +22,11 @@ from .project_gate_exporter_core import (
 )
 from .project_gate_exporter_build import (
     _build_stage_bundle,
-    _export_identity_hash,
     _handoff_diagnostics,
     _stage_manifest,
+)
+from .project_gate_exporter_validation import (
+    _export_identity_hash,
     validate_stage_bundle_schema,
     verify_export_identity,
 )
@@ -46,17 +48,34 @@ def _safe_output_path(repo_root: Path, output_path: Path, overwrite: bool) -> Pa
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temp_name: str | None = None
     try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(data)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temp_name, path)
-    finally:
-        if os.path.exists(temp_name):
-            os.unlink(temp_name)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+        )
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_name, path)
+            temp_name = None
+        finally:
+            if temp_name is not None and os.path.exists(temp_name):
+                os.unlink(temp_name)
+    except OSError as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_WRITE_FAILED",
+                "atomic_write",
+                f"Failed to write output file atomically: {exc}",
+                str(path),
+                "repository_owner",
+            )
+        ) from exc
 
 
 def build_export(
