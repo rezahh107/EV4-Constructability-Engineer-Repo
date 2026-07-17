@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import json
 import os
+import shutil
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from .project_gate_export import PIPELINE_ID, validate_producer_gate_export
 from .project_gate_exporter_core import (
@@ -187,6 +189,90 @@ def _assert_source_bundle_unchanged(
         )
 
 
+def _write_validation_snapshot(
+    directory: Path,
+    *,
+    prefix: str,
+    data: bytes,
+) -> Path:
+    fd: int | None = None
+    try:
+        fd, name = tempfile.mkstemp(
+            prefix=prefix,
+            suffix=".snapshot.json",
+            dir=directory,
+        )
+        with os.fdopen(fd, "wb") as handle:
+            fd = None
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        return Path(name)
+    except OSError as exc:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_VALIDATION_SNAPSHOT_PREPARATION_FAILED",
+                "validation_snapshot",
+                f"Failed to prepare a private validator snapshot: {exc}",
+                str(directory),
+                "repository_owner",
+            )
+        ) from exc
+
+
+@contextmanager
+def _private_validation_snapshots(
+    source_intake_bytes: bytes,
+    source_bundle_bytes: bytes,
+) -> Iterator[tuple[Path, Path]]:
+    directory: Path | None = None
+    try:
+        try:
+            directory = Path(
+                tempfile.mkdtemp(prefix="ev4-ce-export-validation-")
+            )
+        except OSError as exc:
+            raise ExporterError(
+                ExportDiagnostic(
+                    "CE_EXPORT_VALIDATION_SNAPSHOT_PREPARATION_FAILED",
+                    "validation_snapshot",
+                    f"Failed to create a private validator snapshot directory: {exc}",
+                    "$temporary_validation_snapshot",
+                    "repository_owner",
+                )
+            ) from exc
+        intake_snapshot = _write_validation_snapshot(
+            directory,
+            prefix="source-intake-",
+            data=source_intake_bytes,
+        )
+        bundle_snapshot = _write_validation_snapshot(
+            directory,
+            prefix="source-bundle-",
+            data=source_bundle_bytes,
+        )
+        yield intake_snapshot, bundle_snapshot
+    finally:
+        if directory is not None:
+            try:
+                shutil.rmtree(directory)
+            except OSError as exc:
+                raise ExporterError(
+                    ExportDiagnostic(
+                        "CE_EXPORT_VALIDATION_SNAPSHOT_CLEANUP_FAILED",
+                        "validation_snapshot",
+                        f"Failed to remove private validator snapshots: {exc}",
+                        str(directory),
+                        "repository_owner",
+                    )
+                ) from exc
+
+
 def build_export(
     *,
     repo_root: Path,
@@ -199,11 +285,15 @@ def build_export(
     payload = _load_object(payload_path, "ce_payload_parse")
     intake, source_intake_bytes = load_source_intake_snapshot(source_intake_path)
     source_bundle, source_bundle_bytes = _load_source_bundle_snapshot(source_bundle_path)
-    intake_report = run_official_intake_validation(
-        repo_root,
-        source_intake_path,
-        source_bundle_path,
-    )
+    with _private_validation_snapshots(
+        source_intake_bytes,
+        source_bundle_bytes,
+    ) as (validator_intake_path, validator_bundle_path):
+        intake_report = run_official_intake_validation(
+            repo_root,
+            validator_intake_path,
+            validator_bundle_path,
+        )
     assert_source_intake_unchanged(source_intake_path, source_intake_bytes)
     _assert_source_bundle_unchanged(source_bundle_path, source_bundle_bytes)
     source_hash = verify_source_intake_binding(
