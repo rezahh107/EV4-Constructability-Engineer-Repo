@@ -21,20 +21,38 @@ The repository had adopted the CE Stage Payload, Stage Bundle shape, Producer Ga
 - blocks handoff for synthetic evidence, unresolved evidence, non-executable CE state, absent/ineligible Builder package, or dirty checkout;
 - rejects malformed/tampered/source-mismatched/unsafe-path cases before an allowed artifact is written.
 
-## Bounded fail-closed repair
+## Bounded fail-closed repairs
 
-Reviewed head `bc3e30018e664ab2de19683dc718669567b6b693` contained two confirmed defects. The repair:
+Reviewed heads identified bounded defects. The repairs:
 
-- removes caller-supplied provenance from the public `export_file` API;
-- requires every public/operator execution to call live `inspect_git_provenance`;
-- keeps `build_export(..., provenance=...)` only as an internal composition boundary;
-- parses the source intake from one captured byte snapshot;
-- verifies that the source intake remains byte-identical after official validation;
-- hashes `file_bytes` and `external_artifact` scopes from the captured bytes rather than an uncontrolled reread;
-- converts source-intake read failures into blocking `CE_EXPORT_SOURCE_INTAKE_READ_FAILED` diagnostics;
-- returns structured CLI JSON with exit code `1` and writes no output for read failures or mutation.
+- remove caller-supplied provenance from the public `export_file` API;
+- require every public/operator execution to call live `inspect_git_provenance`;
+- keep `build_export(..., provenance=...)` only as an internal composition boundary;
+- parse the source intake from one captured byte snapshot;
+- verify that the source intake remains byte-identical after official validation;
+- hash `file_bytes` and `external_artifact` scopes from the captured bytes rather than an uncontrolled reread;
+- convert source-intake read failures into blocking `CE_EXPORT_SOURCE_INTAKE_READ_FAILED` diagnostics;
+- return structured CLI JSON with exit code `1` and write no output for source read failures or mutation;
+- report post-write cleanup failure truthfully instead of claiming the invalid artifact is absent;
+- preserve the original post-write validation diagnostic together with `CE_EXPORT_POST_WRITE_CLEANUP_FAILED`;
+- mark cleanup-failed artifacts as invalid, persisted, prohibited from consumption, and never as valid blocked exports;
+- restore the exact historical `builder_authorization_at_intake`, `real_cross_repository_validation`, and `fixture_classification` fields in the `CE_ARCHITECT_STAGE_INTAKE_V1_1` status block.
 
 These repairs require fresh independent PR Inspector review. They do not claim that earlier findings are finally closed.
+
+## Cleanup-failure result contract
+
+```yaml
+status: invalid
+output_written: true
+output_valid: false
+output_cleanup_failed: true
+artifact_state: invalid_artifact_persisted
+artifact_must_not_be_consumed: true
+handoff_allowed: false
+```
+
+When cleanup succeeds, the state is `invalid_artifact_removed` and `output_written=false`. Cleanup failure is not represented as an intentional blocked handoff artifact.
 
 ## Boundaries retained
 
@@ -50,4 +68,4 @@ contract_version_bump: none
 
 ## Validation authority
 
-The existing `validate-fixtures` workflow runs the complete pytest and repository validation sequence. Focused regression coverage now includes public provenance bypass rejection, exact live-inspection identity propagation, dirty-checkout blocking, stable byte-snapshot hashing, `PermissionError`, `FileNotFoundError`, generic `OSError`, source mutation, structured CLI failure, deterministic repeat, and invalid-output absence.
+The existing `validate-fixtures` workflow runs the complete pytest and repository validation sequence. Focused regression coverage includes public provenance bypass rejection, exact live-inspection identity propagation, dirty-checkout blocking, stable byte-snapshot hashing, source-read errors, source mutation, deterministic repeat, successful invalid-output cleanup, schema/identity cleanup failure, structured CLI cleanup-failure output, and exact historical status-block integrity.
