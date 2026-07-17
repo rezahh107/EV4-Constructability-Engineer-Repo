@@ -15,6 +15,7 @@ from .project_gate_exporter_core import (
     GitProvenance,
     _json_hash,
     _load_object,
+    _reject_non_json_constant,
     assert_source_intake_unchanged,
     load_source_intake_snapshot,
     run_official_intake_validation,
@@ -62,6 +63,16 @@ def _safe_output_path(repo_root: Path, output_path: Path, overwrite: bool) -> Pa
                     "repository_owner",
                 )
             ) from exc
+        if resolved.is_dir():
+            raise ExporterError(
+                ExportDiagnostic(
+                    "CE_EXPORT_OUTPUT_IS_DIRECTORY",
+                    "output_safety",
+                    "Output path cannot be a directory.",
+                    str(resolved),
+                    "repository_owner",
+                )
+            )
         if resolved.exists() and not overwrite:
             raise ExporterError(
                 ExportDiagnostic(
@@ -116,10 +127,6 @@ def _atomic_write(path: Path, data: bytes) -> None:
                 "repository_owner",
             )
         ) from exc
-
-
-def _reject_non_json_constant(value: str) -> None:
-    raise ValueError(f"Non-standard JSON numeric constant is forbidden: {value}")
 
 
 def _read_source_bundle_bytes(source_bundle_path: Path) -> bytes:
