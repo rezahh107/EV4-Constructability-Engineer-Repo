@@ -1,6 +1,6 @@
 # CE Project Gate Exporter
 
-Status: `implemented_in_ce_pending_project_gate_integration_and_fresh_independent_rereview`
+Status: `post_merge_audit_repair_in_pr_pending_exact_head_validation_and_review`
 
 ## Purpose
 
@@ -60,8 +60,10 @@ The common Project Gate contracts remain owned by `rezahh107/EV4-Project-Gate`. 
 ```text
 live repository, origin, branch, HEAD, and dirty-state inspection
 → source-intake byte snapshot and JSON parsing
-→ official CE Architect-intake validation
+→ source-bundle byte snapshot and JSON parsing
+→ official CE Architect-intake and source-bundle validation
 → source-intake byte-stability verification
+→ source-bundle byte-stability verification
 → source-bundle identity and hash verification
 → CE Stage Payload schema validation
 → official CE constructability semantic validation
@@ -75,7 +77,7 @@ live repository, origin, branch, HEAD, and dirty-state inspection
 → invalid-output removal or explicit persistence reporting
 ```
 
-Invalid semantic input, source-binding mismatch, source-intake read failure, or source-intake mutation produces no output.
+Invalid semantic input, source-binding mismatch, source read failure, or mutation of either the intake or source bundle produces no output.
 
 A valid but blocked, insufficient-evidence, synthetic, or dirty-checkout run may produce a diagnostic Gate-ready artifact, but `handoff.allowed` remains `false`.
 
@@ -83,11 +85,19 @@ A valid but blocked, insufficient-evidence, synthetic, or dirty-checkout run may
 
 The public/operator `export_file` path always derives repository identity, named Git ref, exact `HEAD`, and dirty state from the live checkout. It has no caller-supplied provenance parameter, environment override, or alternate operator bypass. An unknown repository, wrong `origin`, detached `HEAD`, missing Git metadata, or dirty checkout fails closed or blocks handoff according to the documented policy.
 
-The source intake is parsed from one captured byte snapshot. After the official intake validator runs, the exporter reads the file again and requires exact byte equality with that snapshot. Read failures are returned as structured `CE_EXPORT_SOURCE_INTAKE_READ_FAILED` diagnostics; mutation is returned as `CE_EXPORT_SOURCE_INTAKE_CHANGED_DURING_EXPORT`. Neither condition writes an output artifact.
+The source intake and source bundle are each parsed from one captured byte snapshot. After the official intake validator runs, the exporter reads both files again and requires exact byte equality with their captured snapshots.
+
+Source-intake read failures are returned as `CE_EXPORT_SOURCE_INTAKE_READ_FAILED`; mutation is returned as `CE_EXPORT_SOURCE_INTAKE_CHANGED_DURING_EXPORT`. Source-bundle read failures are returned as `CE_EXPORT_SOURCE_BUNDLE_READ_FAILED`; mutation is returned as `CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT`. These conditions are structured, fail closed, and write no output artifact.
 
 The exporter reuses repository canonical JSON rules: UTF-8, sorted keys, compact separators, and rejection of `NaN`/`Infinity`. Content hashes exclude the final newline. The written file is canonical JSON followed by one newline.
 
 `run_id` remains part of export identity, so independent CE executions are not collapsed merely because their semantic payloads match.
+
+## Output-path safety
+
+The output must remain inside the live CE repository. An existing leaf symbolic link is rejected before path resolution, so the exporter cannot silently replace the symlink target. Output-path inspection failures, including resolution loops and operating-system errors, return structured `CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED` diagnostics instead of a traceback.
+
+A filesystem actor that changes the path after validation but before the atomic replacement remains outside the process-local guarantees of this command. Consumers must still rely on the emitted identity, post-write validation, repository provenance, and normal operating-system access controls.
 
 ## Post-write failure state
 
@@ -165,4 +175,4 @@ CE does not:
 - claim Responsive completion or production readiness;
 - silently repair invalid CE facts or fabricate missing evidence.
 
-A fresh independent PR Inspector review is required after repairs; this document does not claim that prior findings are finally closed.
+The CE-02 post-merge audit repair requires exact-head validation and independent review. This document does not claim that the repair is merged or that Project Gate runtime acceptance, cross-repository E2E, Builder acceptance, Responsive completion, or production readiness is closed.
