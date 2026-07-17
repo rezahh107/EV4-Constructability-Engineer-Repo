@@ -1,6 +1,6 @@
 # CE Project Gate Exporter
 
-Status: `implemented_in_ce_pending_project_gate_integration_and_fresh_independent_rereview`
+Status: `implemented_pending_fresh_independent_rereview`
 
 ## Purpose
 
@@ -58,10 +58,15 @@ The common Project Gate contracts remain owned by `rezahh107/EV4-Project-Gate`. 
 ## Validation order
 
 ```text
-live repository, origin, branch, HEAD, and dirty-state inspection
+protected repository-root and operator-input path resolution
+→ live repository, origin, branch, HEAD, and dirty-state inspection
 → source-intake byte snapshot and JSON parsing
-→ official CE Architect-intake validation
-→ source-intake byte-stability verification
+→ source-bundle byte snapshot and JSON parsing
+→ private temporary files containing the exact captured bytes
+→ official CE Architect-intake and source-bundle validation against those private files
+→ private snapshot cleanup
+→ source-intake byte-stability verification against the original operator path
+→ source-bundle byte-stability verification against the original operator path
 → source-bundle identity and hash verification
 → CE Stage Payload schema validation
 → official CE constructability semantic validation
@@ -75,7 +80,7 @@ live repository, origin, branch, HEAD, and dirty-state inspection
 → invalid-output removal or explicit persistence reporting
 ```
 
-Invalid semantic input, source-binding mismatch, source-intake read failure, or source-intake mutation produces no output.
+Invalid semantic input, source-binding mismatch, source read failure, private-snapshot preparation or cleanup failure, or persistent mutation of either the intake or source bundle produces no output.
 
 A valid but blocked, insufficient-evidence, synthetic, or dirty-checkout run may produce a diagnostic Gate-ready artifact, but `handoff.allowed` remains `false`.
 
@@ -83,11 +88,27 @@ A valid but blocked, insufficient-evidence, synthetic, or dirty-checkout run may
 
 The public/operator `export_file` path always derives repository identity, named Git ref, exact `HEAD`, and dirty state from the live checkout. It has no caller-supplied provenance parameter, environment override, or alternate operator bypass. An unknown repository, wrong `origin`, detached `HEAD`, missing Git metadata, or dirty checkout fails closed or blocks handoff according to the documented policy.
 
-The source intake is parsed from one captured byte snapshot. After the official intake validator runs, the exporter reads the file again and requires exact byte equality with that snapshot. Read failures are returned as structured `CE_EXPORT_SOURCE_INTAKE_READ_FAILED` diagnostics; mutation is returned as `CE_EXPORT_SOURCE_INTAKE_CHANGED_DURING_EXPORT`. Neither condition writes an output artifact.
+The source intake and source bundle are each parsed from one captured byte snapshot. The exporter writes those exact captured bytes to private temporary files and invokes the official intake/source-bundle validator only against the private files. Export construction and hashing continue from the originally captured in-memory objects.
+
+This binds validator consumption to exporter construction even during an `A → B → A` mutation of an operator-supplied shared path: the validator consumes private snapshot `A`, not transient shared-path bytes `B`. The existing second-read equality checks against the original paths remain in place to reject persistent mutation during the export window.
+
+Private validation snapshots use unique temporary paths separate from the requested output path. They are removed before export construction can proceed. Preparation failures return `CE_EXPORT_VALIDATION_SNAPSHOT_PREPARATION_FAILED`; cleanup failures return `CE_EXPORT_VALIDATION_SNAPSHOT_CLEANUP_FAILED`. Both are structured, fail closed, and write no output artifact.
+
+Source-intake read failures are returned as `CE_EXPORT_SOURCE_INTAKE_READ_FAILED`; mutation is returned as `CE_EXPORT_SOURCE_INTAKE_CHANGED_DURING_EXPORT`. Source-bundle read failures are returned as `CE_EXPORT_SOURCE_BUNDLE_READ_FAILED`; mutation is returned as `CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT`. These conditions are structured, fail closed, and write no output artifact.
 
 The exporter reuses repository canonical JSON rules: UTF-8, sorted keys, compact separators, and rejection of `NaN`/`Infinity`. Content hashes exclude the final newline. The written file is canonical JSON followed by one newline.
 
 `run_id` remains part of export identity, so independent CE executions are not collapsed merely because their semantic payloads match.
+
+## Path safety and structured diagnostics
+
+Repository-root resolution occurs inside the exporter boundary. `OSError` or `RuntimeError` while inspecting that path returns `CE_EXPORT_REPOSITORY_PATH_INSPECTION_FAILED` with `repair_owner: repository_owner`.
+
+Payload, source-intake, and source-bundle resolution also occurs inside the exporter boundary. Inspection failures return `CE_EXPORT_INPUT_PATH_INSPECTION_FAILED`, identify the failing path, and write no output. The CLI passes raw `Path` arguments into this protected boundary rather than resolving them beforehand.
+
+The output must remain inside the live CE repository. An existing leaf symbolic link is rejected before path resolution, so the exporter cannot silently replace the symlink target. An existing directory is rejected with `CE_EXPORT_OUTPUT_IS_DIRECTORY`, including when `--overwrite` is supplied. Output-path inspection failures, including resolution loops and operating-system errors, return `CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED` instead of a traceback.
+
+These guards do not overclaim elimination of every filesystem race. A filesystem actor that changes or replaces a validated path after inspection but before the later atomic replacement remains outside the process-local guarantees of this command. Consumers must still rely on emitted identity, post-write validation, repository provenance, and normal operating-system access controls.
 
 ## Post-write failure state
 
@@ -148,7 +169,7 @@ handoff_allowed
 
 ```text
 0  valid export with allowed Builder handoff
-1  invalid input, contract, provenance, path, source read, mutation, or post-write validation; inspect artifact_state before touching the output path
+1  invalid input, contract, provenance, path, source read, mutation, private-snapshot lifecycle, or post-write validation; inspect artifact_state before touching the output path
 2  valid diagnostic export written with handoff blocked or insufficient_evidence
 ```
 
@@ -165,4 +186,4 @@ CE does not:
 - claim Responsive completion or production readiness;
 - silently repair invalid CE facts or fabricate missing evidence.
 
-A fresh independent PR Inspector review is required after repairs; this document does not claim that prior findings are finally closed.
+The bounded repair status is `implemented_pending_fresh_independent_rereview`. This document does not claim that PR Inspector findings are finally closed, that the repair is merged, or that Project Gate runtime acceptance, cross-repository E2E, Builder acceptance, Responsive completion, deployment, or production readiness is complete.

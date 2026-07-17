@@ -53,6 +53,8 @@ jobs:
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_project_gate_exporter.py
       - name: Run focused cleanup-state and status-history tests
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_project_gate_exporter_cleanup_state.py
+      - name: Run focused CE-02 post-merge exporter regressions
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_project_gate_exporter_post_merge_audit.py
       - run: pytest -q --junitxml=pytest-report.xml
       - name: Upload pytest report
         if: always()

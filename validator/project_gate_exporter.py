@@ -38,6 +38,56 @@ def _post_write_failure_diagnostic(exc: Exception, output_path: Path) -> ExportD
     )
 
 
+def _resolve_repository_root(repo_root: Path) -> Path:
+    try:
+        return repo_root.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_REPOSITORY_PATH_INSPECTION_FAILED",
+                "repository_path_inspection",
+                f"Failed to inspect the CE repository path safely: {exc}",
+                str(repo_root),
+                "repository_owner",
+            )
+        ) from exc
+
+
+def _resolve_input_path(path: Path, input_name: str) -> Path:
+    try:
+        return path.resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_INPUT_PATH_INSPECTION_FAILED",
+                "input_path_inspection",
+                f"Failed to inspect the {input_name} path safely: {exc}",
+                str(path),
+                "repository_owner",
+            )
+        ) from exc
+
+
+def _inspect_git_provenance_safely(
+    repo_root: Path,
+    ignored_paths: tuple[Path, ...],
+) -> GitProvenance:
+    try:
+        return inspect_git_provenance(repo_root, ignored_paths=ignored_paths)
+    except ExporterError:
+        raise
+    except (OSError, RuntimeError) as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_REPOSITORY_PATH_INSPECTION_FAILED",
+                "repository_path_inspection",
+                f"Failed to inspect repository paths while deriving Git provenance: {exc}",
+                str(repo_root),
+                "repository_owner",
+            )
+        ) from exc
+
+
 def export_file(
     *,
     repo_root: Path,
@@ -47,18 +97,32 @@ def export_file(
     output_path: Path,
     overwrite: bool = False,
 ) -> ExportResult:
-    root = repo_root.resolve()
     try:
+        root = _resolve_repository_root(repo_root)
+        resolved_payload = _resolve_input_path(payload_path, "CE Stage Payload")
+        resolved_source_intake = _resolve_input_path(
+            source_intake_path,
+            "Architect-to-CE source intake",
+        )
+        resolved_source_bundle = _resolve_input_path(
+            source_bundle_path,
+            "Architect source bundle",
+        )
         safe_output = _safe_output_path(root, output_path, overwrite)
-        observed_provenance = inspect_git_provenance(
+        observed_provenance = _inspect_git_provenance_safely(
             root,
-            ignored_paths=(payload_path, source_intake_path, source_bundle_path, safe_output),
+            (
+                resolved_payload,
+                resolved_source_intake,
+                resolved_source_bundle,
+                safe_output,
+            ),
         )
         export, summary, diagnostics = build_export(
             repo_root=root,
-            payload_path=payload_path,
-            source_intake_path=source_intake_path,
-            source_bundle_path=source_bundle_path,
+            payload_path=resolved_payload,
+            source_intake_path=resolved_source_intake,
+            source_bundle_path=resolved_source_bundle,
             output_path=safe_output,
             provenance=observed_provenance,
         )
@@ -180,9 +244,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     result = export_file(
         repo_root=args.repo_root,
-        payload_path=args.payload.resolve(),
-        source_intake_path=args.source_intake.resolve(),
-        source_bundle_path=args.source_bundle.resolve(),
+        payload_path=args.payload,
+        source_intake_path=args.source_intake,
+        source_bundle_path=args.source_bundle,
         output_path=args.output,
         overwrite=args.overwrite,
     )

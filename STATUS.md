@@ -2,7 +2,7 @@
 
 Version: 0.3.2  
 Status: constructability_system_active  
-Date: 2026-07-16  
+Date: 2026-07-17  
 Authority role: canonical mutable repository status
 
 Conflict rule:
@@ -32,7 +32,8 @@ project_status:
   ce_pipeline_manifest: implemented
   ce_stage_payload: implemented
   ce_project_gate_export: implemented
-  ce_project_gate_exporter_command: repaired_in_pr_pending_fresh_independent_rereview
+  ce_project_gate_exporter_command: post_merge_audit_repair_in_pr_pending_exact_head_validation_and_review
+  ce_project_gate_exporter_post_merge_audit: defects_reproduced_bounded_repair_in_pr
   ce_ci_adoption: implemented_or_exact_failure_reported
   builder_package_emission: evidence_gated
   builder_executable_package_schema: ev4-builder-executable-package@1.0.0_required
@@ -75,6 +76,8 @@ validation_state:
   ce_kernel_decision_receipts: python scripts/validate-ce-kernel-decision-receipts.py
   ce_project_gate_producer_adoption: python scripts/validate-project-gate-producer-adoption.py
   ce_project_gate_exporter: pytest -q tests/test_project_gate_exporter.py
+  ce_project_gate_exporter_cleanup_state: pytest -q tests/test_project_gate_exporter_cleanup_state.py
+  ce_project_gate_exporter_post_merge_audit: pytest -q tests/test_project_gate_exporter_post_merge_audit.py
   decision_escape_routes_schema: pytest -q tests/test_decision_escape_routes_schema.py
   ai_governance: python scripts/validate-ai-governance.py --head-sha <exact_pr_head> --pr-number <pr_number> --ci-context .governance-ci-context.json --emit-dir .governance-evidence
   vendored_project_gate_contract: .github/workflows/verify-project-gate-contract.yml
@@ -304,3 +307,39 @@ CE_01_REAL_PROJECT_GATE_EXPORTER:
 ```
 
 This addendum records the bounded CE-owned exporter repair. It does not claim merge, final closure of PR Inspector findings, Project Gate runtime acceptance, Builder acceptance, cross-repository E2E completion, Responsive completion, or production readiness.
+
+---
+
+## CE-02 Post-Merge Exporter Audit Addendum
+
+```yaml
+CE_02_POST_MERGE_EXPORTER_AUDIT:
+  prompt_id: P-004
+  task_id: CE-02
+  audited_default_branch: main
+  audited_main_commit: ebc73c28a154123b4c76f340ff0913934833789d
+  merged_pull_request: 36
+  merged_head_sha: 1804705c1ad86b4e414b2e5a40294bb8d1a9727a
+  merge_commit_content_delta_from_validated_head: none
+  repair_branch: audit/ce-02-exporter-audit-repair
+  findings:
+    source_bundle_snapshot_stability: defect_reproduced_repair_in_pr
+    output_leaf_symlink_refusal: defect_reproduced_repair_in_pr
+    output_path_inspection_diagnostics: defect_reproduced_repair_in_pr
+  bounded_repairs:
+    source_bundle_byte_snapshot: added
+    source_bundle_second_read_equality: added
+    source_bundle_read_failure_diagnostic: CE_EXPORT_SOURCE_BUNDLE_READ_FAILED
+    source_bundle_mutation_diagnostic: CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT
+    leaf_symlink_pre_resolution_rejection: added
+    output_path_inspection_diagnostic: CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED
+    focused_adversarial_regressions: added
+  exact_head_validation: pending
+  independent_repair_review: pending
+  repair_merged: false
+  project_gate_runtime_acceptance: unverified
+  cross_repository_e2e: unverified
+  builder_acceptance: unverified
+```
+
+This addendum records the CE-02 audit and bounded repair branch without claiming exact-head CI success, independent repair acceptance, merge, downstream runtime acceptance, or production readiness.
