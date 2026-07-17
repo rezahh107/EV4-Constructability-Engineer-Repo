@@ -95,7 +95,7 @@ The exporter reuses repository canonical JSON rules: UTF-8, sorted keys, compact
 
 ## Output-path safety
 
-The output must remain inside the live CE repository. An existing leaf symbolic link is rejected before path resolution, so the exporter cannot silently replace the symlink target. Output-path inspection failures, including resolution loops and operating-system errors, return structured `CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED` diagnostics instead of a traceback.
+The output must remain inside the live CE repository. An existing leaf symbolic link is rejected before path resolution, so the exporter cannot silently replace the symlink target. An existing directory is rejected with `CE_EXPORT_OUTPUT_IS_DIRECTORY`, including when `--overwrite` is supplied. Output-path inspection failures, including resolution loops and operating-system errors, return structured `CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED` diagnostics instead of a traceback.
 
 A filesystem actor that changes the path after validation but before the atomic replacement remains outside the process-local guarantees of this command. Consumers must still rely on the emitted identity, post-write validation, repository provenance, and normal operating-system access controls.
 
