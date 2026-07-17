@@ -13,8 +13,11 @@ merged_pr_head: 1804705c1ad86b4e414b2e5a40294bb8d1a9727a
 merged_pr_base: 5fa3b8aec25a22f576e65c51ffb9dd843ddb727f
 merge_commit: ebc73c28a154123b4c76f340ff0913934833789d
 merge_commit_file_delta_from_validated_head: none
+repair_pull_request: 37
 repair_branch: audit/ce-02-exporter-audit-repair
+remaining_defect_repair_starting_head: 70921a15b0c57f201de0f7c757a2164efde726a1
 repair_merge_performed: false
+status: implemented_pending_fresh_independent_rereview
 ```
 
 ## Mission boundary
@@ -29,25 +32,25 @@ accepted Architect→CE operational input
 → no manual JSON editing
 ```
 
-The audit does not claim Project Gate runtime acceptance, Builder acceptance, cross-repository E2E completion, Responsive completion, deployment, or production readiness.
+The audit and bounded repair do not claim Project Gate runtime acceptance, Builder acceptance, cross-repository E2E completion, Responsive completion, deployment, production readiness, or final closure by PR Inspector.
 
 ## Evidence inspected
 
-- live repository identity and current `main`;
+- live PR #37 identity and exact starting head;
 - merged PR #36 identity and changed paths;
 - `AGENTS.md`, `README.md`, and mutable `STATUS.md`;
 - active Architect intake, CE Stage Payload, Builder package, Stage Bundle, and Producer Gate Export identities;
 - immutable Project Gate contract locks;
 - official CLI registration in `pyproject.toml`;
-- exporter entrypoint, orchestration, validation, construction, hashing, atomic write, cleanup, and output-path code;
-- exporter, cleanup-state, intake, and repository-wide tests;
-- `.github/workflows/validate-fixtures.yml`;
-- exact-head PR workflow runs and artifacts for `1804705c1ad86b4e414b2e5a40294bb8d1a9727a`;
-- `planning/DECISION_ESCAPE_ROUTES.yml` for scope and enforcement interaction.
+- exporter entrypoint, orchestration, core validation, construction, hashing, atomic write, cleanup, and output-path code;
+- all callers of `export_file`, `_safe_output_path`, `run_official_intake_validation`, `load_source_intake_snapshot`, and `_load_source_bundle_snapshot` found in the exporter modules and focused tests;
+- exporter, cleanup-state, post-merge audit, intake, and repository-wide test suites;
+- `.github/workflows/validate-fixtures.yml` and `.github/workflows/verify-project-gate-contract.yml`;
+- exporter documentation and CE-02 status history.
 
 ## Baseline evidence retained
 
-The merged PR head had successful exact-head workflow evidence before merge:
+The merged PR #36 head had successful exact-head workflow evidence before merge:
 
 ```yaml
 validate_fixtures_run: 29556024338
@@ -58,109 +61,142 @@ pytest_errors: 0
 pytest_skipped: 0
 ```
 
-The merge commit is content-equivalent to the validated PR head. No post-merge workflow run was observed on the merge commit itself.
+The merge commit is content-equivalent to the validated PR #36 head. No post-merge workflow run was observed on the merge commit itself.
 
-## Finding CE02-F001 — source-bundle snapshot was not stable
+PR #37 starting head `70921a15b0c57f201de0f7c757a2164efde726a1` had prior exact-head green evidence, but two independently identified residual defects remained. This follow-up repair supersedes the earlier exact-head evidence and requires fresh validation on the resulting head.
 
-```yaml
-severity: high
-status: defect_reproduced_repair_in_pr
-component: validator/project_gate_exporter_orchestration.py
-```
+## Earlier CE-02 findings retained
 
-The exporter captured `source_intake` bytes and required a second-read equality check, but loaded `source_bundle` once as an object, invoked the official validator against the mutable path, and then continued with the earlier in-memory object without proving byte equality.
+The following earlier bounded repairs remain in place:
 
-A source bundle could therefore change between the exporter's initial read and the official subprocess validation. The official validator and the final exported artifact could operate on different source-bundle bytes while the run still appeared successful.
+- source-bundle initial byte snapshot and persistent-mutation second-read check;
+- leaf output symlink rejection before resolution;
+- explicit output-directory rejection;
+- structured output-path inspection failures;
+- reuse of the canonical non-JSON numeric constant rejection helper;
+- post-write invalid-output cleanup reporting.
 
-### Repair
+No earlier public schema, contract identity, hash lock, dependency version, workflow permission, repository setting, or downstream ownership boundary is changed by this follow-up.
 
-- capture the source bundle as one byte snapshot;
-- parse only that snapshot;
-- run the official intake/source-bundle validator;
-- read the source bundle again and require byte equality;
-- return `CE_EXPORT_SOURCE_BUNDLE_READ_FAILED` for read failure;
-- return `CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT` for mutation;
-- write no artifact for either failure.
-
-### Regression
-
-`test_source_bundle_change_after_official_validation_fails_closed`
-
-`test_source_bundle_second_read_failure_is_structured_and_writes_no_output`
-
-## Finding CE02-F002 — leaf output symlink refusal was ineffective
+## Remaining defect 1 — Source Bundle and Source Intake ABA/TOCTOU
 
 ```yaml
 severity: high
-status: defect_reproduced_repair_in_pr
-component: validator/project_gate_exporter_orchestration.py
+status: implemented_pending_fresh_independent_rereview
+components:
+  - validator/project_gate_exporter_orchestration.py
+  - tests/test_project_gate_exporter_post_merge_audit.py
 ```
 
-The prior implementation resolved the output path before checking `is_symlink()`. Resolution dereferenced an existing leaf symlink, so the subsequent check inspected the target rather than the operator-supplied symlink.
+### Root cause
 
-This could allow the command to replace an in-repository symlink target despite the documented symlink refusal.
+At the starting head, the exporter captured source bytes as snapshot `A`, then invoked the official validator against the original mutable operator path, and finally compared the original path with snapshot `A` again.
 
-### Repair
+That sequence rejected persistent `A → B` mutation but did not bind validator consumption to the exporter snapshot. An `A → B → A` sequence could allow the validator to consume `B`, allow the second-read equality check to observe restored `A`, and allow export construction and hashing to continue from in-memory `A`.
 
-- inspect the operator-supplied candidate before resolution;
-- reject an existing leaf symlink with `CE_EXPORT_OUTPUT_SYMLINK_FORBIDDEN`;
-- retain repository-containment validation after resolution;
-- preserve explicit overwrite behavior for ordinary files.
+The same shared-path weakness applied to both Source Bundle and Source Intake because both original paths were passed to the official validator.
 
-### Regression
+### Required invariant
 
-`test_cli_refuses_existing_leaf_symlink_with_structured_json`
+The exact Source Intake and Source Bundle bytes parsed, embedded, and hashed by the exporter must be the same bytes consumed by the official validator. Equality of the shared paths before and after validation is not sufficient evidence of consumed-byte identity.
 
-## Finding CE02-F003 — path-inspection exceptions could escape the CLI contract
+### Precise repair
 
-```yaml
-severity: medium
-status: defect_reproduced_repair_in_pr
-component: validator/project_gate_exporter_orchestration.py
-```
+- capture Source Intake and Source Bundle bytes once;
+- parse and retain the corresponding in-memory objects from those captured bytes;
+- create a unique private temporary directory outside the requested output path;
+- create private files with exclusive temporary-file creation and write exactly the captured bytes;
+- flush and `fsync` each private file before validation;
+- invoke `run_official_intake_validation` only with the two private snapshot paths;
+- remove the private snapshot directory before export construction proceeds;
+- retain second-read equality checks against the original operator paths to reject persistent mutation;
+- continue source binding, construction, and hashing from the original captured in-memory snapshots;
+- map private snapshot preparation failure to `CE_EXPORT_VALIDATION_SNAPSHOT_PREPARATION_FAILED`;
+- map private snapshot cleanup failure to `CE_EXPORT_VALIDATION_SNAPSHOT_CLEANUP_FAILED`;
+- write no output when snapshot preparation, official validation, cleanup, or original-path stability verification fails.
 
-`Path.resolve()`, `is_symlink()`, and related filesystem inspection can raise `OSError` or `RuntimeError`. The previous path helper did not convert these failures to `ExporterError`, while the public CLI catches and serializes only exporter diagnostics.
-
-An operational path-resolution failure could therefore produce a traceback instead of deterministic JSON.
-
-### Repair
-
-- convert `OSError` and `RuntimeError` during output-path inspection to `CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED`;
-- preserve `repository_owner` repair routing;
-- keep exit code `1` through the existing CLI result contract.
-
-### Regression
-
-`test_output_path_resolution_failure_has_stable_diagnostic`
-
-## Review feedback applied
-
-Two non-blocking reviewer suggestions were independently assessed and applied because they were safe, in scope, and testable:
-
-```yaml
-avoid_duplicate_non_json_constant_helper:
-  classification: APPLY
-  action: reuse project_gate_exporter_core._reject_non_json_constant
-output_directory_rejection:
-  classification: APPLY
-  action: reject directories with CE_EXPORT_OUTPUT_IS_DIRECTORY before atomic write
-  regression: test_cli_rejects_output_directory_even_with_overwrite
-```
-
-The directory guard prevents an explicit `--overwrite` request from reaching a generic `IsADirectoryError` path and preserves the structured CLI contract.
-
-## Files changed by the bounded repair
+### Regression coverage
 
 ```text
-.github/workflows/validate-fixtures.yml
-STATUS.md
-docs/CE_PROJECT_GATE_EXPORTER.md
-patch-reports/CE_02_PROJECT_GATE_EXPORTER_POST_MERGE_AUDIT.md
-tests/test_project_gate_exporter_post_merge_audit.py
-validator/project_gate_exporter_orchestration.py
+test_source_bundle_aba_change_during_official_validation_fails_or_uses_private_snapshot
+test_source_intake_aba_change_during_official_validation_uses_private_snapshot
+test_private_validation_snapshots_are_removed_when_validation_fails
+test_private_validation_snapshot_cleanup_failure_is_structured
 ```
 
-No schema, public contract identity, Project Gate pin, Builder semantic contract, repository setting, secret, dependency version, or workflow permission was changed.
+The ABA tests mutate the shared path to `B`, restore it to `A` before the validator wrapper returns, and prove that the validator path is a private snapshot containing `A`. They also prove the private directory is not the output directory and is removed before export completion.
+
+## Remaining defect 2 — Public CLI path resolution escaped the protected boundary
+
+```yaml
+severity: high
+status: implemented_pending_fresh_independent_rereview
+components:
+  - validator/project_gate_exporter.py
+  - validator/project_gate_exporter_orchestration.py
+  - tests/test_project_gate_exporter_post_merge_audit.py
+```
+
+### Root cause
+
+At the starting head, `repo_root.resolve()` executed before the `ExporterError` boundary in `export_file`. The CLI also called `.resolve()` on payload, Source Intake, and Source Bundle arguments before invoking `export_file`.
+
+`Path.resolve()` may raise `OSError` or `RuntimeError`. Those operational filesystem failures could therefore escape as a traceback rather than deterministic JSON with exit code `1`. Output-path failures were already structured inside `_safe_output_path`, but the public CLI did not provide equivalent protection for repository and input paths.
+
+### Required invariant
+
+Every repository-root, operator-input, and output-path resolution failure reachable from the public exporter CLI must return structured invalid JSON, no traceback, exit code `1`, `output_written: false`, `handoff_allowed: false`, a stable diagnostic, and no output artifact.
+
+### Precise repair
+
+- remove all CLI-side `.resolve()` calls;
+- resolve repository root inside `export_file` with a dedicated protected helper;
+- resolve payload, Source Intake, and Source Bundle paths inside `export_file` with a dedicated protected helper;
+- map repository-root and Git-provenance path-inspection failures to `CE_EXPORT_REPOSITORY_PATH_INSPECTION_FAILED`;
+- map payload, Source Intake, and Source Bundle path-inspection failures to `CE_EXPORT_INPUT_PATH_INSPECTION_FAILED`;
+- retain output-path inspection mapping to `CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED`;
+- include the failing path and `repair_owner: repository_owner`;
+- catch only relevant `OSError` and `RuntimeError` around filesystem/path inspection boundaries, without converting unrelated programming exceptions;
+- preserve missing-file, invalid-JSON, outside-repository output, leaf-symlink, directory, and overwrite behavior.
+
+### Regression coverage
+
+```text
+test_cli_path_resolution_failures_are_structured_and_write_no_output[repo_root]
+test_cli_path_resolution_failures_are_structured_and_write_no_output[payload]
+test_cli_path_resolution_failures_are_structured_and_write_no_output[source_intake]
+test_cli_path_resolution_failures_are_structured_and_write_no_output[source_bundle]
+test_cli_path_resolution_failures_are_structured_and_write_no_output[output]
+```
+
+Each case asserts exit code `1`, empty stderr, no traceback, `status: invalid`, `output_written: false`, `handoff_allowed: false`, the exact diagnostic code, the failing path, `repair_owner: repository_owner`, and absence of an output artifact.
+
+## Adjacent-impact result
+
+The repair preserves:
+
+- `export_file` public arguments and return contract;
+- `_safe_output_path` containment, symlink, directory, and overwrite behavior;
+- `run_official_intake_validation` public signature;
+- `load_source_intake_snapshot` and `_load_source_bundle_snapshot` return contracts;
+- source hash semantics and canonical JSON behavior;
+- Stage Bundle and Producer Gate Export identities;
+- Builder package validation and handoff semantics;
+- post-write cleanup-state truthfulness;
+- workflow permissions and immutable action pins;
+- Project Gate and downstream ownership boundaries.
+
+## Files changed by this follow-up
+
+```text
+validator/project_gate_exporter.py
+validator/project_gate_exporter_orchestration.py
+tests/test_project_gate_exporter_post_merge_audit.py
+docs/CE_PROJECT_GATE_EXPORTER.md
+patch-reports/CE_02_PROJECT_GATE_EXPORTER_POST_MERGE_AUDIT.md
+```
+
+The existing PR-level changes to `.github/workflows/validate-fixtures.yml` and `STATUS.md` are inspected and preserved. No schema, public artifact identity, Project Gate pin, Builder semantic contract, repository setting, secret, dependency version, workflow permission, or downstream repository file is modified by this follow-up.
 
 ## Required validation
 
@@ -182,33 +218,30 @@ python scripts/validate-project-gate-producer-adoption.py
 
 The pull-request workflow must additionally prove exact-head checkout identity, immutable action pins, governance evidence generation, and the separate Project Gate contract verification workflow.
 
-## Current evidence state
+## Evidence state at commit time
 
 ```yaml
-bounded_repair_implemented: true
+bounded_remaining_defect_repair_implemented: true
 focused_regressions_added: true
 exact_head_ci: pending
-independent_repair_review: pending
+fresh_independent_rereview: mandatory
 repair_merged: false
 main_remains_unrepaired_until_merge: true
-post_merge_implementation_evidence_closed: false
+pr_inspector_final_closure_claimed: false
+status: implemented_pending_fresh_independent_rereview
 ```
 
 ## Remaining limitations
 
-```yaml
-real_operator_payload: not_available
-real_run_handoff_evidence: not_available
-project_gate_runtime_acceptance: unverified
-cross_repository_e2e: unverified
-builder_acceptance: unverified
-responsive_completion: unverified
-filesystem_race_after_path_validation: not_eliminated_by_process_local_checks
-production_ready: false
-```
+- No real operator payload or real-run handoff evidence is available in this repair.
+- Project Gate runtime acceptance remains unverified and outside this repository's ownership.
+- Cross-repository E2E, Builder acceptance, and Responsive completion remain unverified.
+- A post-validation filesystem actor may still replace a path after inspection but before a later atomic replacement; process-local path checks do not eliminate that external race.
+- Private snapshot cleanup can be blocked by the operating system; that condition now fails closed with a structured diagnostic and no output, but may require repository-owner cleanup of the temporary directory.
+- No deployment or production-readiness claim is made.
 
 ## Audit verdict at commit time
 
 ```text
-REPAIR_IMPLEMENTED_PENDING_EXACT_HEAD_VALIDATION_AND_INDEPENDENT_REVIEW
+IMPLEMENTED_PENDING_FRESH_INDEPENDENT_REREVIEW
 ```
