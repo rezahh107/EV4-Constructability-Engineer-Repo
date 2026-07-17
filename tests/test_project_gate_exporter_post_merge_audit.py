@@ -170,6 +170,43 @@ def test_cli_refuses_existing_leaf_symlink_with_structured_json(
             output_dir.rmdir()
 
 
+def test_cli_rejects_output_directory_even_with_overwrite(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_path = ROOT / ".tmp-test-output" / "directory-output"
+    output_path.mkdir(parents=True, exist_ok=True)
+    try:
+        exit_code = exporter_module.main(
+            [
+                "--repo-root",
+                str(ROOT),
+                "--payload",
+                str(tmp_path / "unused-payload.json"),
+                "--source-intake",
+                str(tmp_path / "unused-intake.json"),
+                "--source-bundle",
+                str(tmp_path / "unused-bundle.json"),
+                "--output",
+                str(output_path),
+                "--overwrite",
+            ]
+        )
+        captured = capsys.readouterr()
+        report = json.loads(captured.out)
+        assert exit_code == 1
+        assert captured.err == ""
+        assert "Traceback" not in captured.out
+        assert report["status"] == "invalid"
+        assert report["output_written"] is False
+        assert report["diagnostics"][0]["code"] == "CE_EXPORT_OUTPUT_IS_DIRECTORY"
+        assert output_path.is_dir()
+    finally:
+        output_path.rmdir()
+        if output_path.parent.exists():
+            output_path.parent.rmdir()
+
+
 def test_output_path_resolution_failure_has_stable_diagnostic(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
