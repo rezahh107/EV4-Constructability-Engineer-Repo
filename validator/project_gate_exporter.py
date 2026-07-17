@@ -26,6 +26,18 @@ from .project_gate_export import canonical_bytes, validate_producer_gate_export
 from .project_gate_exporter_core import _load_object
 
 
+def _post_write_failure_diagnostic(exc: Exception, output_path: Path) -> ExportDiagnostic:
+    if isinstance(exc, ExporterError):
+        return exc.diagnostic
+    return ExportDiagnostic(
+        "CE_EXPORT_POST_WRITE_VALIDATION_FAILED",
+        "post_write_validation",
+        f"Post-write validation failed: {type(exc).__name__}: {exc}",
+        str(output_path),
+        "repository_owner",
+    )
+
+
 def export_file(
     *,
     repo_root: Path,
@@ -77,27 +89,69 @@ def export_file(
                         first.path if first else str(safe_output),
                     )
                 )
-        except Exception:
+        except Exception as validation_exc:
+            original_diagnostic = _post_write_failure_diagnostic(validation_exc, safe_output)
             try:
                 safe_output.unlink(missing_ok=True)
             except OSError as cleanup_exc:
-                raise ExporterError(
-                    ExportDiagnostic(
-                        "CE_EXPORT_POST_WRITE_CLEANUP_FAILED",
-                        "post_write_validation",
-                        f"Invalid output could not be removed: {cleanup_exc}",
-                        str(safe_output),
-                        "repository_owner",
-                    )
-                ) from cleanup_exc
-            raise
+                cleanup_diagnostic = ExportDiagnostic(
+                    "CE_EXPORT_POST_WRITE_CLEANUP_FAILED",
+                    "post_write_validation",
+                    f"Invalid output could not be removed and must not be consumed: {cleanup_exc}",
+                    str(safe_output),
+                    "repository_owner",
+                )
+                try:
+                    persisted = safe_output.exists()
+                except OSError:
+                    persisted = True
+                return ExportResult(
+                    status="invalid",
+                    output_path=str(safe_output),
+                    output_written=True,
+                    handoff_allowed=False,
+                    diagnostics=(original_diagnostic, cleanup_diagnostic),
+                    summary={
+                        "output_valid": False,
+                        "output_cleanup_failed": True,
+                        "artifact_state": (
+                            "invalid_artifact_persisted"
+                            if persisted
+                            else "invalid_artifact_persistence_unconfirmed"
+                        ),
+                        "artifact_must_not_be_consumed": True,
+                    },
+                )
+            return ExportResult(
+                status="invalid",
+                output_path=str(safe_output),
+                output_written=False,
+                handoff_allowed=False,
+                diagnostics=(original_diagnostic,),
+                summary={
+                    "output_valid": False,
+                    "output_cleanup_failed": False,
+                    "artifact_state": "invalid_artifact_removed",
+                    "artifact_must_not_be_consumed": True,
+                },
+            )
         return ExportResult(
             status="successful" if export["handoff"]["allowed"] else export["handoff"]["status"],
             output_path=str(safe_output),
             output_written=True,
             handoff_allowed=bool(export["handoff"]["allowed"]),
             diagnostics=diagnostics,
-            summary=summary,
+            summary={
+                **summary,
+                "output_valid": True,
+                "output_cleanup_failed": False,
+                "artifact_state": (
+                    "valid_authorized_export"
+                    if export["handoff"]["allowed"]
+                    else "valid_blocked_export"
+                ),
+                "artifact_must_not_be_consumed": False,
+            },
         )
     except ExporterError as exc:
         return ExportResult(
@@ -106,7 +160,12 @@ def export_file(
             output_written=False,
             handoff_allowed=False,
             diagnostics=(exc.diagnostic,),
-            summary={},
+            summary={
+                "output_valid": False,
+                "output_cleanup_failed": False,
+                "artifact_state": "not_written_by_this_run",
+                "artifact_must_not_be_consumed": True,
+            },
         )
 
 
