@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -35,18 +36,55 @@ from .project_gate_exporter_validation import (
 
 
 def _safe_output_path(repo_root: Path, output_path: Path, overwrite: bool) -> Path:
-    root = repo_root.resolve()
-    resolved = output_path if output_path.is_absolute() else root / output_path
-    resolved = resolved.resolve(strict=False)
     try:
-        resolved.relative_to(root)
-    except ValueError as exc:
-        raise ExporterError(ExportDiagnostic("CE_EXPORT_OUTPUT_OUTSIDE_REPOSITORY", "output_safety", "Output path must remain inside the CE repository.", str(output_path), "repository_owner")) from exc
-    if resolved.exists() and resolved.is_symlink():
-        raise ExporterError(ExportDiagnostic("CE_EXPORT_OUTPUT_SYMLINK_FORBIDDEN", "output_safety", "Refusing to write through a symbolic link.", str(resolved), "repository_owner"))
-    if resolved.exists() and not overwrite:
-        raise ExporterError(ExportDiagnostic("CE_EXPORT_OUTPUT_EXISTS", "output_safety", "Output already exists; use --overwrite for an explicit replacement.", str(resolved), "repository_owner"))
-    return resolved
+        root = repo_root.resolve(strict=True)
+        candidate = output_path if output_path.is_absolute() else root / output_path
+        if candidate.is_symlink():
+            raise ExporterError(
+                ExportDiagnostic(
+                    "CE_EXPORT_OUTPUT_SYMLINK_FORBIDDEN",
+                    "output_safety",
+                    "Refusing to write through a symbolic link.",
+                    str(candidate),
+                    "repository_owner",
+                )
+            )
+        resolved = candidate.resolve(strict=False)
+        try:
+            resolved.relative_to(root)
+        except ValueError as exc:
+            raise ExporterError(
+                ExportDiagnostic(
+                    "CE_EXPORT_OUTPUT_OUTSIDE_REPOSITORY",
+                    "output_safety",
+                    "Output path must remain inside the CE repository.",
+                    str(output_path),
+                    "repository_owner",
+                )
+            ) from exc
+        if resolved.exists() and not overwrite:
+            raise ExporterError(
+                ExportDiagnostic(
+                    "CE_EXPORT_OUTPUT_EXISTS",
+                    "output_safety",
+                    "Output already exists; use --overwrite for an explicit replacement.",
+                    str(resolved),
+                    "repository_owner",
+                )
+            )
+        return resolved
+    except ExporterError:
+        raise
+    except (OSError, RuntimeError) as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED",
+                "output_safety",
+                f"Failed to inspect the output path safely: {exc}",
+                str(output_path),
+                "repository_owner",
+            )
+        ) from exc
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -80,6 +118,68 @@ def _atomic_write(path: Path, data: bytes) -> None:
         ) from exc
 
 
+def _reject_non_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON numeric constant is forbidden: {value}")
+
+
+def _read_source_bundle_bytes(source_bundle_path: Path) -> bytes:
+    try:
+        return source_bundle_path.read_bytes()
+    except OSError as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_SOURCE_BUNDLE_READ_FAILED",
+                "source_binding",
+                f"Failed to read source Architect bundle: {exc}",
+                str(source_bundle_path),
+                "repository_owner",
+            )
+        ) from exc
+
+
+def _load_source_bundle_snapshot(source_bundle_path: Path) -> tuple[dict[str, Any], bytes]:
+    raw = _read_source_bundle_bytes(source_bundle_path)
+    try:
+        decoded = raw.decode("utf-8")
+        source_bundle = json.loads(decoded, parse_constant=_reject_non_json_constant)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_INPUT_INVALID_JSON",
+                "source_bundle_parse",
+                str(exc),
+                str(source_bundle_path),
+            )
+        ) from exc
+    if not isinstance(source_bundle, dict):
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_INPUT_INVALID_JSON",
+                "source_bundle_parse",
+                f"Expected JSON object in {source_bundle_path}",
+                str(source_bundle_path),
+            )
+        )
+    return source_bundle, raw
+
+
+def _assert_source_bundle_unchanged(
+    source_bundle_path: Path,
+    expected_bytes: bytes,
+) -> None:
+    observed_bytes = _read_source_bundle_bytes(source_bundle_path)
+    if observed_bytes != expected_bytes:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT",
+                "source_binding",
+                "Source Architect bundle changed between parsing and binding validation.",
+                str(source_bundle_path),
+                "repository_owner",
+            )
+        )
+
+
 def build_export(
     *,
     repo_root: Path,
@@ -91,9 +191,14 @@ def build_export(
 ) -> tuple[dict[str, Any], dict[str, Any], tuple[ExportDiagnostic, ...]]:
     payload = _load_object(payload_path, "ce_payload_parse")
     intake, source_intake_bytes = load_source_intake_snapshot(source_intake_path)
-    source_bundle = _load_object(source_bundle_path, "source_bundle_parse")
-    intake_report = run_official_intake_validation(repo_root, source_intake_path, source_bundle_path)
+    source_bundle, source_bundle_bytes = _load_source_bundle_snapshot(source_bundle_path)
+    intake_report = run_official_intake_validation(
+        repo_root,
+        source_intake_path,
+        source_bundle_path,
+    )
     assert_source_intake_unchanged(source_intake_path, source_intake_bytes)
+    _assert_source_bundle_unchanged(source_bundle_path, source_bundle_bytes)
     source_hash = verify_source_intake_binding(
         payload,
         intake,
@@ -111,11 +216,27 @@ def build_export(
         "CE_EXPORT_UNRESOLVED_EVIDENCE",
     }
     handoff_status = "successful" if handoff_allowed else (
-        "insufficient_evidence" if any(item.code in insufficiency_codes for item in handoff_diagnostics) else "blocked"
+        "insufficient_evidence"
+        if any(item.code in insufficiency_codes for item in handoff_diagnostics)
+        else "blocked"
     )
-    bundle, bundle_hash = _build_stage_bundle(payload, intake, source_bundle, provenance, payload_path, source_intake_path, repo_root)
+    bundle, bundle_hash = _build_stage_bundle(
+        payload,
+        intake,
+        source_bundle,
+        provenance,
+        payload_path,
+        source_intake_path,
+        repo_root,
+    )
     validate_stage_bundle_schema(repo_root, bundle)
-    manifest = _stage_manifest(payload, source_intake_path, source_hash, output_path, repo_root)
+    manifest = _stage_manifest(
+        payload,
+        source_intake_path,
+        source_hash,
+        output_path,
+        repo_root,
+    )
     export: dict[str, Any] = {
         "schema_version": PRODUCER_EXPORT_SCHEMA_ID,
         "export_id": "",
@@ -155,9 +276,22 @@ def build_export(
     diagnostics = validate_producer_gate_export(repo_root, export)
     if diagnostics:
         first = diagnostics[0]
-        raise ExporterError(ExportDiagnostic(first.code, "producer_export_validation", first.message, first.path))
+        raise ExporterError(
+            ExportDiagnostic(
+                first.code,
+                "producer_export_validation",
+                first.message,
+                first.path,
+            )
+        )
     if not verify_export_identity(export):
-        raise ExporterError(ExportDiagnostic("CE_EXPORT_IDENTITY_SELF_CHECK_FAILED", "hash_self_verification", "Export identity hash self-check failed."))
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_IDENTITY_SELF_CHECK_FAILED",
+                "hash_self_verification",
+                "Export identity hash self-check failed.",
+            )
+        )
     summary = {
         "export_id": export["export_id"],
         "source_intake_hash": source_hash["value"],
