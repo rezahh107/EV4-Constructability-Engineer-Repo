@@ -72,6 +72,7 @@ live repository, origin, branch, HEAD, and dirty-state inspection
 → deterministic identity self-check
 → atomic write
 → post-write re-read and validation
+→ invalid-output removal or explicit persistence reporting
 ```
 
 Invalid semantic input, source-binding mismatch, source-intake read failure, or source-intake mutation produces no output.
@@ -88,14 +89,48 @@ The exporter reuses repository canonical JSON rules: UTF-8, sorted keys, compact
 
 `run_id` remains part of export identity, so independent CE executions are not collapsed merely because their semantic payloads match.
 
-## Success output
+## Post-write failure state
 
-The command prints JSON containing, when applicable:
+If post-write revalidation rejects the artifact, the exporter first attempts to remove it.
+
+Successful cleanup is reported as:
+
+```yaml
+status: invalid
+output_written: false
+output_valid: false
+output_cleanup_failed: false
+artifact_state: invalid_artifact_removed
+artifact_must_not_be_consumed: true
+handoff_allowed: false
+```
+
+If cleanup fails, the invalid artifact is not treated as an intentional blocked export. The result preserves the original validation diagnostic, adds the blocking `CE_EXPORT_POST_WRITE_CLEANUP_FAILED` diagnostic, returns exit code `1`, and reports:
+
+```yaml
+status: invalid
+output_written: true
+output_valid: false
+output_cleanup_failed: true
+artifact_state: invalid_artifact_persisted
+artifact_must_not_be_consumed: true
+handoff_allowed: false
+```
+
+A cleanup-failed artifact may still contain pre-failure content and must not be consumed, dispatched, or interpreted as authorized handoff evidence.
+
+## Result output
+
+The command prints structured JSON containing, when applicable:
 
 ```text
 status
 output_path
 output_written
+output_valid
+output_cleanup_failed
+artifact_state
+artifact_must_not_be_consumed
 export_id
 source_intake_hash
 source_bundle_hash
@@ -113,7 +148,7 @@ handoff_allowed
 
 ```text
 0  valid export with allowed Builder handoff
-1  invalid input, contract, provenance, path, source read, mutation, or post-write validation; no output
+1  invalid input, contract, provenance, path, source read, mutation, or post-write validation; inspect artifact_state before touching the output path
 2  valid diagnostic export written with handoff blocked or insufficient_evidence
 ```
 
