@@ -340,7 +340,6 @@ CE_02_POST_MERGE_EXPORTER_AUDIT:
   project_gate_runtime_acceptance: unverified
   cross_repository_e2e: unverified
   builder_acceptance: unverified
-  production_ready: false
 ```
 
 This addendum records the CE-02 audit and bounded repair branch without claiming exact-head CI success, independent repair acceptance, merge, downstream runtime acceptance, or production readiness.
