@@ -133,6 +133,22 @@ An operational path-resolution failure could therefore produce a traceback inste
 
 `test_output_path_resolution_failure_has_stable_diagnostic`
 
+## Review feedback applied
+
+Two non-blocking reviewer suggestions were independently assessed and applied because they were safe, in scope, and testable:
+
+```yaml
+avoid_duplicate_non_json_constant_helper:
+  classification: APPLY
+  action: reuse project_gate_exporter_core._reject_non_json_constant
+output_directory_rejection:
+  classification: APPLY
+  action: reject directories with CE_EXPORT_OUTPUT_IS_DIRECTORY before atomic write
+  regression: test_cli_rejects_output_directory_even_with_overwrite
+```
+
+The directory guard prevents an explicit `--overwrite` request from reaching a generic `IsADirectoryError` path and preserves the structured CLI contract.
+
 ## Files changed by the bounded repair
 
 ```text
