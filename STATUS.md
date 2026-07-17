@@ -32,7 +32,7 @@ project_status:
   ce_pipeline_manifest: implemented
   ce_stage_payload: implemented
   ce_project_gate_export: implemented
-  ce_project_gate_exporter_command: repaired_in_pr_pending_exact_head_ci_and_fresh_independent_rereview
+  ce_project_gate_exporter_command: repaired_in_pr_pending_fresh_independent_rereview
   ce_ci_adoption: implemented_or_exact_failure_reported
   builder_package_emission: evidence_gated
   builder_executable_package_schema: ev4-builder-executable-package@1.0.0_required
@@ -260,6 +260,9 @@ CE_ARCHITECT_STAGE_INTAKE_V1_1:
   preserves_v1_0_unchanged: true
   transition_execution_record: required
   ce_review_completed_at_intake: false
+  builder_authorization_at_intake: false
+  real_cross_repository_validation: not_available
+  fixture_classification: synthetic
 ```
 
 ---
@@ -270,7 +273,7 @@ CE_ARCHITECT_STAGE_INTAKE_V1_1:
 CE_01_REAL_PROJECT_GATE_EXPORTER:
   prompt_id: P-002
   task_id: CE-01
-  implementation_state: repaired_in_pr_pending_exact_head_ci_and_fresh_independent_rereview
+  implementation_state: repaired_in_pr_pending_fresh_independent_rereview
   operator_command: ev4-ce-project-gate-export
   script_entrypoint: scripts/export-ce-project-gate.py
   output_artifact: ce-project-gate.json
@@ -284,6 +287,9 @@ CE_01_REAL_PROJECT_GATE_EXPORTER:
   source_intake_read_failure_diagnostic: CE_EXPORT_SOURCE_INTAKE_READ_FAILED
   git_provenance_source: verified_live_checkout_only
   caller_supplied_git_provenance: forbidden
+  post_write_cleanup_failure_diagnostic: CE_EXPORT_POST_WRITE_CLEANUP_FAILED
+  cleanup_failure_artifact_reporting: truthful_invalid_artifact_state
+  cleanup_failed_artifact_handoff_allowed: false
   official_ce_validation: required
   deterministic_atomic_output: implemented
   invalid_input_output_written: false
@@ -297,4 +303,4 @@ CE_01_REAL_PROJECT_GATE_EXPORTER:
   production_ready: false
 ```
 
-This addendum records the bounded CE-owned exporter repair. It does not claim merge, fresh exact-head CI success, final closure of PR Inspector findings, Project Gate runtime acceptance, Builder acceptance, cross-repository E2E completion, Responsive completion, or production readiness.
+This addendum records the bounded CE-owned exporter repair. It does not claim merge, final closure of PR Inspector findings, Project Gate runtime acceptance, Builder acceptance, cross-repository E2E completion, Responsive completion, or production readiness.
