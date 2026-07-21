@@ -35,10 +35,13 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import yaml
-          data = yaml.safe_load(Path('.github/workflows/temporary-repair-policy.yml').read_text(encoding='utf-8'))
-          steps = data['jobs']['repair']['steps']
-          block = next(step['run'] for step in steps if step.get('name') == 'Repair policy governance deterministically')
+          import textwrap
+          raw = Path('.github/workflows/temporary-repair-policy.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = raw.index(marker)
+          end_marker = "\n          PY\n"
+          end = raw.index(end_marker, start) + len(end_marker)
+          block = textwrap.dedent(raw[start:end])
           Path('/tmp/ce-policy-repair.sh').write_text(block, encoding='utf-8')
           PY
           bash /tmp/ce-policy-repair.sh
