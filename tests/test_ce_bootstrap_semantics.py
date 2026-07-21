@@ -227,6 +227,40 @@ def test_upstream_source_producer_mismatch_is_rejected(tmp_path: Path) -> None:
     }
 
 
+def test_project_gate_bundle_payload_data_owner_path_is_accepted(
+    tmp_path: Path,
+) -> None:
+    source_value = source_bundle_wrapper()
+    source_bundle = source_value["source_bundle"]
+    architect_payload = source_bundle["payload"]
+    source_bundle["payload"] = {
+        "schema_id": architect_payload["schema_id"],
+        "data": architect_payload,
+    }
+
+    intake_value = valid_input_value()
+    canonical = json.dumps(
+        source_bundle,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    import hashlib
+
+    intake_value["project_gate_transition"]["source_bundle_hash"]["value"] = (
+        hashlib.sha256(canonical).hexdigest()
+    )
+
+    intake = write_json(tmp_path, "ce-input.json", intake_value)
+    source = write_json(tmp_path, "architect-source-bundle.json", source_value)
+    result = route("شروع", [intake, source])
+
+    assert result["route"] == "architect_intake_validation"
+    assert result["pipeline_execution"] == "first_stage_only"
+    assert result["source_binding_verified"] is True
+    assert result["source_provenance_verification"] == "verified"
+
+
 @pytest.mark.parametrize(
     ("name", "value", "expected_issue"),
     [
