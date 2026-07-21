@@ -105,6 +105,9 @@ jobs:
             --ci-context .governance-ci-context.json \
             --emit-dir .governance-evidence
 
+      - name: Archive exact PR-head repository snapshot
+        run: tar --exclude=.git -czf ce-repo-snapshot.tgz .
+
       - name: Upload CE bootstrap exact-head receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -113,3 +116,11 @@ jobs:
           path: ce-bootstrap-exact-head-receipt.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Upload exact PR-head repository snapshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ce-repo-snapshot-${{ github.event.pull_request.head.sha }}
+          path: ce-repo-snapshot.tgz
+          if-no-files-found: error
+          retention-days: 1
