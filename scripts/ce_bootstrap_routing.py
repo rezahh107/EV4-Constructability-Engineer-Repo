@@ -76,6 +76,16 @@ def _receipt_record(path: Path, value: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _architect_payload_from_source_bundle(source: dict[str, Any]) -> dict[str, Any]:
+    payload = source.get("payload")
+    if not isinstance(payload, dict):
+        return {}
+    data = payload.get("data")
+    if isinstance(data, dict):
+        return data
+    return payload
+
+
 def _source_provenance_diagnostics(intake: dict[str, Any], source: dict[str, Any]) -> list[dict[str, Any]]:
     diagnostics: list[dict[str, Any]] = []
     transition = intake.get("project_gate_transition") if isinstance(intake.get("project_gate_transition"), dict) else {}
@@ -91,7 +101,7 @@ def _source_provenance_diagnostics(intake: dict[str, Any], source: dict[str, Any
     source_ref = intake.get("source_repository_ref") if isinstance(intake.get("source_repository_ref"), dict) else {}
     source_contract = intake.get("source_contract") if isinstance(intake.get("source_contract"), dict) else {}
     produced_by = source.get("produced_by") if isinstance(source.get("produced_by"), dict) else {}
-    payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
+    payload = _architect_payload_from_source_bundle(source)
     expected_repo = source_ref.get("repository")
     if produced_by.get("repository") != expected_repo:
         diagnostics.append({"code": "CE_BOOTSTRAP_SOURCE_PRODUCER_MISMATCH", "expected": expected_repo, "observed": produced_by.get("repository")})
