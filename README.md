@@ -183,3 +183,37 @@ STATUS.md
 ```
 
 This README describes stable mission, contracts, and boundaries. It must not be used as the current mutable status authority. When README wording, `STATUS.md`, and live repository evidence differ, live default-branch evidence wins and `STATUS.md` must be reconciled.
+
+---
+
+## CE Conversation Quick Start
+
+Canonical machine-readable startup contract:
+
+```text
+manifests/ce-conversation-bootstrap.v1.json
+```
+
+<!-- EV4_CE_BOOTSTRAP_QUICK_START_START -->
+```text
+1. Create or open the CE ChatGPT Project and load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md` as the Project Instructions.
+2. Send `شروع`.
+3. Upload the standalone `ce-input.json` produced by `EV4-Project-Gate / architect-to-ce`.
+4. Optionally retain or upload `project-gate-a2c-receipt.json` for diagnostics only.
+5. Never extract nested `result.output` or rebuild CE input manually.
+6. Validation begins at `architect_intake_validation`; bootstrap itself produces no Constructability conclusion.
+```
+<!-- EV4_CE_BOOTSTRAP_QUICK_START_END -->
+
+```text
+شروع
+→ upload standalone ce-input.json
+→ official schema and semantic validation
+→ architect_intake_validation
+```
+
+The normal filename `ce-input.json` is a convention, not proof. Acceptance comes from parsed content matching `ev4-ce-architect-stage-intake@1.1.0` and passing the official CE validator.
+
+`project-gate-a2c-receipt.json` is optional diagnostic evidence and is not CE semantic input. Never extract nested `result.output` or rebuild CE input manually. Use the official `EV4-Project-Gate / architect-to-ce` workflow.
+
+Bootstrap authorizes no Constructability conclusion, hidden-dependency inference, implementation strategy, Builder package, Builder readiness, Responsive completion, deployment, or production readiness.
