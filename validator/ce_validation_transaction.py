@@ -12,6 +12,7 @@ from .project_gate_export import (
     PIPELINE_ID,
     validate_producer_gate_export,
 )
+from .project_gate_synthetic import derive_stage_bundle_synthetic
 from . import project_gate_exporter_orchestration as orchestration_module
 from .project_gate_exporter_build import (
     _build_stage_bundle,
@@ -78,9 +79,8 @@ def capture_json_snapshot(
             )
         ) from exc
     try:
-        decoded = raw.decode("utf-8")
         value = json.loads(
-            decoded,
+            raw.decode("utf-8"),
             parse_constant=_reject_non_json_constant,
             object_pairs_hook=_duplicate_keys_forbidden,
         )
@@ -275,18 +275,35 @@ def _transaction_authorization_diagnostics(
     repo_root: Path,
     export: dict[str, Any],
 ) -> list[ExportDiagnostic]:
-    handoff = export.get("handoff") if isinstance(export.get("handoff"), dict) else {}
-    if handoff.get("allowed") is not True:
-        return []
-
     diagnostics: list[ExportDiagnostic] = []
+    handoff = export.get("handoff") if isinstance(export.get("handoff"), dict) else {}
     bundle = (
         export.get("final_stage_bundle")
         if isinstance(export.get("final_stage_bundle"), dict)
         else {}
     )
-    payload_wrapper = bundle.get("payload") if isinstance(bundle.get("payload"), dict) else {}
-    payload = payload_wrapper.get("data") if isinstance(payload_wrapper.get("data"), dict) else {}
+    declared_synthetic = bundle.get("synthetic")
+    derived_synthetic = derive_stage_bundle_synthetic(bundle)
+    if not isinstance(declared_synthetic, bool) or declared_synthetic != derived_synthetic:
+        diagnostics.append(
+            ExportDiagnostic(
+                "CE_TRX_SYNTHETIC_STATE_MISMATCH",
+                "handoff_recomputation",
+                "Declared synthetic state does not match validator-derived carried evidence.",
+                "$.final_stage_bundle.synthetic",
+            )
+        )
+    if handoff.get("allowed") is not True:
+        return diagnostics
+
+    payload_wrapper = (
+        bundle.get("payload") if isinstance(bundle.get("payload"), dict) else {}
+    )
+    payload = (
+        payload_wrapper.get("data")
+        if isinstance(payload_wrapper.get("data"), dict)
+        else {}
+    )
     review = (
         payload.get("constructability_review")
         if isinstance(payload.get("constructability_review"), dict)
@@ -297,7 +314,6 @@ def _transaction_authorization_diagnostics(
         if isinstance(payload.get("builder_executable_package"), dict)
         else None
     )
-
     if payload.get("payload_status") != "complete":
         diagnostics.append(
             ExportDiagnostic(
@@ -351,16 +367,20 @@ def _transaction_authorization_diagnostics(
                 "$.final_stage_bundle.payload.data.builder_executable_package",
             )
         )
-    if bundle.get("synthetic") is True:
+    if derived_synthetic:
         diagnostics.append(
             ExportDiagnostic(
                 "CE_TRX_SYNTHETIC_EVIDENCE_BLOCKED",
                 "handoff_recomputation",
-                "Synthetic evidence cannot authorize Builder handoff.",
+                "Validator-derived synthetic evidence cannot authorize Builder handoff.",
                 "$.final_stage_bundle.synthetic",
             )
         )
-    stages = export.get("stage_manifest") if isinstance(export.get("stage_manifest"), list) else []
+    stages = (
+        export.get("stage_manifest")
+        if isinstance(export.get("stage_manifest"), list)
+        else []
+    )
     for index, stage in enumerate(stages):
         if not isinstance(stage, dict):
             diagnostics.append(
@@ -381,7 +401,11 @@ def _transaction_authorization_diagnostics(
                     f"$.stage_manifest[{index}].status",
                 )
             )
-    if handoff.get("failure_reasons") or handoff.get("blocking_diagnostics") or handoff.get("unresolved_evidence"):
+    if (
+        handoff.get("failure_reasons")
+        or handoff.get("blocking_diagnostics")
+        or handoff.get("unresolved_evidence")
+    ):
         diagnostics.append(
             ExportDiagnostic(
                 "CE_TRX_HANDOFF_SURFACES_CONTRADICT",
@@ -390,8 +414,11 @@ def _transaction_authorization_diagnostics(
                 "$.handoff",
             )
         )
-
-    semantic = validate_document(payload, repo_root=repo_root, mode="full") if payload else {"passed": False}
+    semantic = (
+        validate_document(payload, repo_root=repo_root, mode="full")
+        if payload
+        else {"passed": False}
+    )
     if not semantic.get("passed"):
         diagnostics.append(
             ExportDiagnostic(
@@ -438,7 +465,6 @@ def secure_build_export(
         read_error_code="CE_EXPORT_SOURCE_BUNDLE_READ_FAILED",
         changed_error_code="CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT",
     )
-
     payload = payload_snapshot.value
     intake = intake_snapshot.value
     source_bundle = bundle_snapshot.value
@@ -461,15 +487,22 @@ def secure_build_export(
     validate_payload_and_ce_semantics(repo_root, payload)
     validate_identity_preservation(payload, intake)
     builder_package_hash = validate_builder_package(payload)
-    handoff_diagnostics = _handoff_diagnostics(payload, intake, source_bundle, provenance)
+    handoff_diagnostics = _handoff_diagnostics(
+        payload,
+        intake,
+        source_bundle,
+        provenance,
+    )
     handoff_allowed = not handoff_diagnostics
     insufficiency_codes = {
         "CE_EXPORT_INTAKE_INSUFFICIENT_EVIDENCE",
         "CE_EXPORT_PAYLOAD_INSUFFICIENT_EVIDENCE",
         "CE_EXPORT_UNRESOLVED_EVIDENCE",
     }
-    handoff_status = "successful" if handoff_allowed else (
-        "insufficient_evidence"
+    handoff_status = (
+        "successful"
+        if handoff_allowed
+        else "insufficient_evidence"
         if any(item.code in insufficiency_codes for item in handoff_diagnostics)
         else "blocked"
     )
@@ -550,7 +583,6 @@ def secure_build_export(
                 "Export identity hash self-check failed.",
             )
         )
-
     for snapshot in (payload_snapshot, intake_snapshot, bundle_snapshot):
         assert_snapshot_unchanged(snapshot)
 
@@ -560,9 +592,15 @@ def secure_build_export(
         "source_intake_hash_scope": source_hash["scope"],
         "source_bundle_hash": _json_hash(source_bundle),
         "ce_payload_hash": _json_hash(payload),
-        "payload_snapshot_sha256": hashlib.sha256(payload_snapshot.raw_bytes).hexdigest(),
-        "source_intake_snapshot_sha256": hashlib.sha256(intake_snapshot.raw_bytes).hexdigest(),
-        "source_bundle_snapshot_sha256": hashlib.sha256(bundle_snapshot.raw_bytes).hexdigest(),
+        "payload_snapshot_sha256": hashlib.sha256(
+            payload_snapshot.raw_bytes
+        ).hexdigest(),
+        "source_intake_snapshot_sha256": hashlib.sha256(
+            intake_snapshot.raw_bytes
+        ).hexdigest(),
+        "source_bundle_snapshot_sha256": hashlib.sha256(
+            bundle_snapshot.raw_bytes
+        ).hexdigest(),
         "builder_executable_package_hash": builder_package_hash,
         "bundle_hash": bundle_hash,
         "export_identity_hash": identity_hash,
