@@ -1,0 +1,5 @@
+repair_status=1
+/tmp/ce-policy-repair.sh: line 321: warning: here-document at line 1 delimited by end-of-file (wanted `PY')
+  File "<stdin>", line 1
+    from pathlib import Path
+IndentationError: unexpected indent
