@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rezahh107/EV4-Constructability-Engineer-Repo/schemas/ce-conversation-bootstrap.v1.schema.json",
+  "title": "EV4 CE Conversation Bootstrap v1",
+  "description": "Structural schema only. Decision-bearing invariants are independently enforced by scripts/check-ce-bootstrap.py.",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "contract_version",
+    "owner_repository",
+    "activation_mode",
+    "routing_request_contract",
+    "trigger_policy",
+    "bootstrap_response",
+    "canonical_input",
+    "receipt",
+    "input_precedence",
+    "routing_cases",
+    "compatibility",
+    "repository_maintenance_exception",
+    "first_stage_routing",
+    "forbidden_pre_validation_operations",
+    "documentation_correspondence",
+    "controlled_routing_text",
+    "controlled_quick_start_text"
+  ],
+  "properties": {
+    "$schema": {"type": "string"},
+    "contract_id": {"type": "string"},
+    "contract_version": {"type": "string"},
+    "owner_repository": {"type": "string"},
+    "activation_mode": {"type": "string"},
+    "routing_request_contract": {
+      "type": "object",
+      "required": ["required_fields", "operating_modes", "integrated_decision_function"]
+    },
+    "trigger_policy": {"type": "object"},
+    "bootstrap_response": {"type": "string", "minLength": 1},
+    "canonical_input": {
+      "type": "object",
+      "required": [
+        "schema_id",
+        "source_transition",
+        "official_schema_path",
+        "official_validator_path",
+        "source_binding_required",
+        "source_bundle_bytes_verified_at_bootstrap",
+        "source_binding_validator",
+        "source_binding_checks"
+      ]
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "semantic_input",
+        "required",
+        "official_validator_available_at_bootstrap",
+        "validation_status_without_official_validator",
+        "role_without_official_validator",
+        "invalid_with_valid_input_policy"
+      ]
+    },
+    "input_precedence": {"type": "object"},
+    "routing_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "input_state",
+          "receipt_state",
+          "route",
+          "pipeline_execution",
+          "automatic_selection",
+          "semantic_input_source",
+          "receipt_required",
+          "receipt_role",
+          "diagnostic_code",
+          "manual_extraction_allowed",
+          "trigger_not_authorization",
+          "ask_only_for_blocking_evidence",
+          "explicit_compatibility_authorization_required"
+        ]
+      }
+    },
+    "compatibility": {"type": "object"},
+    "repository_maintenance_exception": {"type": "object"},
+    "first_stage_routing": {"type": "object"},
+    "forbidden_pre_validation_operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["operation_id", "operation", "description"]
+      }
+    },
+    "documentation_correspondence": {"type": "object"},
+    "controlled_routing_text": {"type": "string", "minLength": 1},
+    "controlled_quick_start_text": {"type": "string", "minLength": 1}
+  }
+}

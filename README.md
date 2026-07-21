@@ -183,3 +183,41 @@ STATUS.md
 ```
 
 This README describes stable mission, contracts, and boundaries. It must not be used as the current mutable status authority. When README wording, `STATUS.md`, and live repository evidence differ, live default-branch evidence wins and `STATUS.md` must be reconciled.
+
+---
+
+## CE Conversation Quick Start
+
+Canonical machine-readable startup contract:
+
+```text
+manifests/ce-conversation-bootstrap.v1.json
+```
+
+<!-- EV4_CE_BOOTSTRAP_QUICK_START_START -->
+```text
+1. Create or open the CE ChatGPT Project and load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md` as the Project Instructions.
+2. Send the exact normalized message `شروع`.
+3. Upload the standalone `ce-input.json` produced by `EV4-Project-Gate / architect-to-ce`.
+4. Upload the exact Architect source bundle whose canonical SHA-256 is declared by that CE input.
+5. Treat any Receipt-like attachment as `diagnostic_untrusted` until official external Receipt validation succeeds.
+6. Never extract nested `result.output`, rebuild CE input manually, or continue on mixed/conflicting attachments.
+7. Only successful integrated authorization + intake validation + source binding may route to `architect_intake_validation`.
+```
+<!-- EV4_CE_BOOTSTRAP_QUICK_START_END -->
+
+```text
+exact normalized شروع + no maintenance intent
+→ authorized CE bootstrap context
+→ standalone ce-input.json + exact source bundle
+→ official intake validation + validate_source_bundle_binding()
+→ architect_intake_validation only
+```
+
+A valid attachment without the exact startup trigger or an already authorized `active_ce_run` does not create a CE run. Repository-maintenance intent always routes to `repository_maintenance`, even when the message contains `شروع`.
+
+The normal filename `ce-input.json` is a convention, not proof. Acceptance requires parsed content matching `ev4-ce-architect-stage-intake@1.1.0`, official CE semantic validation, and successful source-bundle byte binding.
+
+Receipt-like files are not validated audit evidence from `schema_version` alone. Until official external validation succeeds, they remain `receipt_validation_status: unverified` with `receipt_role: diagnostic_untrusted`; they never become CE semantic input. Mixed or conflicting candidates block automatic selection.
+
+Never extract nested `result.output` or rebuild CE input manually. Bootstrap authorizes no Constructability conclusion, hidden-dependency inference, implementation strategy, Builder package, Builder readiness, Responsive completion, deployment, or production readiness.
