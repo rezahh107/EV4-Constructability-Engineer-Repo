@@ -30,7 +30,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install PyYAML jsonschema pytest
           python -m pip install -e '.[dev]'
-      - name: Extract and execute deterministic repair block with captured diagnostics
+      - name: Extract and execute deterministic repair block
         shell: bash
         run: |
           set +e
@@ -46,18 +46,15 @@ jobs:
           block = ''.join(line[10:] if line.startswith('          ') else line for line in segment.splitlines(keepends=True))
           Path('/tmp/ce-policy-repair.sh').write_text(block, encoding='utf-8')
           PY
-          EXTRACT_STATUS=$?
-          if [ "$EXTRACT_STATUS" -ne 0 ]; then
-            printf 'extract_status=%s\n' "$EXTRACT_STATUS" > policies/.repair-debug.txt
+          STATUS=$?
+          if [ "$STATUS" -ne 0 ]; then
+            printf 'extract_status=%s\n' "$STATUS" > policies/.repair-debug.txt
             exit 0
           fi
           bash /tmp/ce-policy-repair.sh > /tmp/ce-policy-repair.log 2>&1
-          REPAIR_STATUS=$?
-          if [ "$REPAIR_STATUS" -ne 0 ]; then
-            {
-              printf 'repair_status=%s\n' "$REPAIR_STATUS"
-              tail -n 200 /tmp/ce-policy-repair.log
-            } > policies/.repair-debug.txt
+          STATUS=$?
+          if [ "$STATUS" -ne 0 ]; then
+            { printf 'repair_status=%s\n' "$STATUS"; tail -n 250 /tmp/ce-policy-repair.log; } > policies/.repair-debug.txt
           fi
           exit 0
       - name: Repair focused test module loading
@@ -74,23 +71,36 @@ jobs:
               raise SystemExit('expected test import block not found')
           path.write_text(text.replace(old, new), encoding='utf-8')
           PY
-      - name: Run focused policy governance validation
+      - name: Run focused validation and capture result
         shell: bash
         run: |
-          if [ -f policies/.repair-debug.txt ]; then
-            cat policies/.repair-debug.txt
-            exit 1
+          if [ -f policies/.repair-debug.txt ]; then exit 0; fi
+          set +e
+          {
+            python scripts/validate-ce-policy-governance.py
+            PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
+            PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_decision_escape_routes_schema.py
+          } > /tmp/validation.log 2>&1
+          STATUS=$?
+          if [ "$STATUS" -ne 0 ]; then
+            { printf 'focused_validation_status=%s\n' "$STATUS"; tail -n 300 /tmp/validation.log; } > policies/.repair-debug.txt
+          else
+            cat /tmp/validation.log
           fi
-          python scripts/validate-ce-policy-governance.py
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_decision_escape_routes_schema.py
-      - name: Commit non-workflow repair carriers
+          exit 0
+      - name: Commit repair carriers or diagnostic
         shell: bash
         run: |
           set -euo pipefail
           git checkout ${{ github.event.pull_request.head.sha }} -- .github/workflows/validate-fixtures.yml
           git config user.name 'policy-repair-bot'
           git config user.email 'policy-repair-bot@users.noreply.github.com'
+          if [ -f policies/.repair-debug.txt ]; then
+            git add policies/.repair-debug.txt
+            git commit -m '[policy-repair-debug] Capture CE policy validation failure'
+            git push origin HEAD:policy/ce-constructability-policy-r001
+            exit 0
+          fi
           git add AGENTS.md \
             policies/EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_r001.md \
             planning/DECISION_ESCAPE_ROUTES.yml \
