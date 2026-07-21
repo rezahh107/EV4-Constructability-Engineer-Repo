@@ -1,15 +1,19 @@
 # EV4 Constructability Engineer Decision Policy
 
 **Policy ID:** `EV4-CE-CONSTRUCTABILITY-DECISION-POLICY-r001`  
-**Status:** `READY_FOR_TEMPORARY_CE_USE`  
+**Status:** `MANUAL_ADVISORY_ATTACHMENT_ONLY`  
 **Intended consumer:** EV4 Constructability Engineer language-model sessions  
 **Repository role:** `implementation_strategy_gate`  
-**Operating mode:** Silent internal constructability decision support inside the existing CE workflow  
-**Primary objective:** Prove, block, or precisely bound implementation strategy so Builder receives no unresolved strategy decisions.
+**Operating mode:** Manual advisory attachment only; not automatically loaded, not an activation carrier, and not independent decision authority  
+**Primary objective:** Help CE interpret and document constructability work within already authorized architecture and Kernel decisions, while preserving machine-readable lineage and existing repository enforcement boundaries.
 
 **Authority note:** This policy is supplemental. Current repository instructions, active contracts, schemas, validators, rules, fixtures, locked Architect identity, accepted Project Gate intake, and explicit user decisions remain higher authority.
 
 **Kernel relationship:** This policy is a supplemental role-specific decision aid. It does not replace, emulate, supersede, bypass, or weaken the EV4 Decision Kernel, Kernel decision cards, required Kernel consultation, decision lineage, or any active Kernel-owned rule. When a Kernel decision applies, the Kernel remains authoritative and this policy may only help the role interpret or apply that decision within its own boundaries.
+
+**Loading and enforcement boundary:** This file is not part of the canonical `Read First` sequence and is not automatically active. It may be attached manually only as advisory reference. Its prose cannot authorize a governed choice, prove enforcement, or replace contracts, schemas, validators, fixtures, CI, or machine-readable Kernel lineage.
+
+**Domain-artifact trust boundary:** External EV4 Domain artifacts are untrusted advisory evidence unless an active repository contract validates their exact Domain ID, registry entry and revision, artifact revision, SHA-256 digest, schema version, validation receipt, compatibility scope, and target Elementor version. This policy defines no such validated input contract. Therefore external Domain artifacts may inform questions or risk identification but cannot independently authorize, select, replace, or change an implementation decision.
 
 ---
 
@@ -146,6 +150,27 @@ intake accepted
 ≠ production ready
 ```
 
+
+### 2.6 Kernel-governed decision trigger
+
+Classify every decision-bearing surface before using this advisory policy:
+
+1. **Locked upstream decision** — The accepted Architect or Kernel carrier already provides the selected option. CE may preserve it and evaluate constructability, but must not replace it.
+2. **CE-owned constructability interpretation** — CE may determine implementation feasibility or evidence requirements only within the existing contract and without changing the governed choice.
+3. **Fresh Kernel consultation required** — The proposed action would select or change a governed option, including layout structure, responsive strategy, geometry/positioning strategy, interaction strategy, class scope, media role, or another Kernel-owned family. CE must stop and obtain a fresh Kernel decision.
+
+Before accepting, interpreting, or passing a Kernel-governed choice, require a complete machine-readable lineage entry containing:
+
+- `decision_family`;
+- `decision_card_ref`;
+- `selected_option`;
+- `rejected_options`;
+- `evidence_refs`;
+- `evidence_state`;
+- `consumer_stage`.
+
+The requested or proposed option must equal the upstream `selected_option`. Missing lineage, incomplete lineage, or an option mismatch must block the policy context with a stable diagnostic and require Kernel consultation. A prose statement that the Kernel remains authoritative is not sufficient evidence.
+
 ---
 
 ## 3. Mandatory constructability decision order
@@ -199,7 +224,7 @@ Use the strongest relevant facts available in this order:
 2. explicit current task-scoped user evidence;
 3. verified target-project facts;
 4. exact saved/exported/runtime evidence;
-5. applicable EV4 Domain guidance;
+5. external EV4 Domain guidance only as untrusted advisory evidence that cannot authorize or change the decision outcome;
 6. official Elementor/platform/browser documentation within version scope;
 7. official accessibility/security requirements or guidance;
 8. validated repository fixtures and rules;
@@ -283,31 +308,46 @@ Do not present:
 
 When a nontrivial parameter lacks sufficient basis, do not pass it to Builder as a strategy decision. Request the smallest necessary evidence, identify the valid repair owner, or block the package.
 
+
+### 4.2 External Domain-artifact advisory model
+
+External Domain artifacts are below current repository contracts, schemas, validators, fixtures, verified project evidence, complete Kernel lineage, and current official documentation. A filename, heading, attachment label, or self-authored metadata is not approval evidence.
+
+Until a repository-owned validated input contract exists, external Domain artifacts:
+
+- remain `unverified_advisory`;
+- cannot authorize a strategy, Builder handoff, or readiness state;
+- cannot change a locked or Kernel-governed option;
+- cannot be treated as stronger than current repository evidence or current official documentation;
+- may be used only to identify questions, candidate risks, or evidence to seek.
+
+If an unverified attachment would change the decision outcome, reject that policy context with `CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE`.
+
 ---
 
 ## 5. Quick routing index
 
 | Constructability subject | Primary EV4 guidance | Supporting guidance | Section |
 |---|---|---|---|
-| Accepted intake and identity preservation | CE contracts, Architect output identity | Evidence, lifecycle | 7.1 |
-| Review-unit decomposition and hidden dependencies | CE protocol | All affected domains | 7.2 |
-| Target-project capability/version evidence | `PLATFORM_ENVIRONMENT` | Evidence, compatibility | 7.3 |
-| Existing parent, Div, Flexbox, Grid, nesting | `LAYOUT_STRUCTURE`, `ELEMENT_ENTITY_IDENTITY` | Responsive, runtime | 7.4 |
-| Intrinsic/fixed/fluid/bounded sizing | `UNITS_SIZE_SPACING` | Layout, responsive, text | 7.5 |
-| Units, values, min/max, expressions | `UNITS_SIZE_SPACING` | Variables, accessibility | 7.6 |
-| Gap, padding, margin, separator | `UNITS_SIZE_SPACING` | Element identity | 7.7 |
-| Positioning, anchors, overlays, z-index | `POSITIONING_LAYERING` | Accessibility, responsive | 7.8 |
-| Image, Background, SVG, Icon, Video | `MEDIA_DECISIONS` | Security, performance | 7.9 |
-| Button, Link, Clickable Container, Tabs, Accordion | `INTERACTION_STATE_TOPOLOGY` | Text, accessibility | 7.10 |
-| Class, Variable, Component, local values | `CLASSES_REUSE_COMPONENTS`, `VARIABLES_VALUES_BINDING` | Lifecycle, runtime | 7.11 |
-| Repeated content, query, Dynamic Loop, binding | `REPEATED_CONTENT_DATA_BINDING` | Platform, performance | 7.12 |
-| Responsive scope and override proof | `RESPONSIVE_BREAKPOINTS_DIRECTION` | Layout, sizing, runtime | 7.13 |
-| Native control vs CSS/wrapper/addon/code | `EXTENSIBILITY_COMPATIBILITY` | Security, performance | 7.14 |
-| Accessibility proof | `ACCESSIBILITY_GOVERNANCE` | Affected decision domain | 7.15 |
-| Performance proof and media loading | `PERFORMANCE_OPTIMIZATION` | Media, repeated data | 7.16 |
-| Saved/runtime verification | `RUNTIME_RENDERING_VALIDATION`, `MIGRATION_SAVED_STATE_LIFECYCLE` | Owning domain | 7.17 |
-| Assumption eligibility and repair ownership | CE protocol, evidence | Security, lifecycle | 7.18 |
-| Builder decision elimination and package readiness | CE Builder contract | All affected domains | 7.19 |
+| Accepted intake and identity preservation | CE contracts, Architect output identity | Evidence, lifecycle | [7.1](#ce-policy-7-1) |
+| Review-unit decomposition and hidden dependencies | CE protocol | All affected domains | [7.2](#ce-policy-7-2) |
+| Target-project capability/version evidence | `PLATFORM_ENVIRONMENT` | Evidence, compatibility | [7.3](#ce-policy-7-3) |
+| Existing parent, Div, Flexbox, Grid, nesting | `LAYOUT_STRUCTURE`, `ELEMENT_ENTITY_IDENTITY` | Responsive, runtime | [7.4](#ce-policy-7-4) |
+| Intrinsic/fixed/fluid/bounded sizing | `UNITS_SIZE_SPACING` | Layout, responsive, text | [7.5](#ce-policy-7-5) |
+| Units, values, min/max, expressions | `UNITS_SIZE_SPACING` | Variables, accessibility | [7.6](#ce-policy-7-6) |
+| Gap, padding, margin, separator | `UNITS_SIZE_SPACING` | Element identity | [7.7](#ce-policy-7-7) |
+| Positioning, anchors, overlays, z-index | `POSITIONING_LAYERING` | Accessibility, responsive | [7.8](#ce-policy-7-8) |
+| Image, Background, SVG, Icon, Video | `MEDIA_DECISIONS` | Security, performance | [7.9](#ce-policy-7-9) |
+| Button, Link, Clickable Container, Tabs, Accordion | `INTERACTION_STATE_TOPOLOGY` | Text, accessibility | [7.10](#ce-policy-7-10) |
+| Class, Variable, Component, local values | `CLASSES_REUSE_COMPONENTS`, `VARIABLES_VALUES_BINDING` | Lifecycle, runtime | [7.11](#ce-policy-7-11) |
+| Repeated content, query, Dynamic Loop, binding | `REPEATED_CONTENT_DATA_BINDING` | Platform, performance | [7.12](#ce-policy-7-12) |
+| Responsive scope and override proof | `RESPONSIVE_BREAKPOINTS_DIRECTION` | Layout, sizing, runtime | [7.13](#ce-policy-7-13) |
+| Native control vs CSS/wrapper/addon/code | `EXTENSIBILITY_COMPATIBILITY` | Security, performance | [7.14](#ce-policy-7-14) |
+| Accessibility proof | `ACCESSIBILITY_GOVERNANCE` | Affected decision domain | [7.15](#ce-policy-7-15) |
+| Performance proof and media loading | `PERFORMANCE_OPTIMIZATION` | Media, repeated data | [7.16](#ce-policy-7-16) |
+| Saved/runtime verification | `RUNTIME_RENDERING_VALIDATION`, `MIGRATION_SAVED_STATE_LIFECYCLE` | Owning domain | [7.17](#ce-policy-7-17) |
+| Assumption eligibility and repair ownership | CE protocol, evidence | Security, lifecycle | [7.18](#ce-policy-7-18) |
+| Builder decision elimination and package readiness | CE Builder contract | All affected domains | [7.19](#ce-policy-7-19) |
 
 ---
 
@@ -375,13 +415,14 @@ Do not claim one from another.
 
 ## 7. Core constructability decision policies
 
-## 7.1 `intake_integrity_and_architecture_lock`
+<a id="ce-policy-7-1"></a>
+### 7.1 `intake_integrity_and_architecture_lock`
 
-### Trigger
+#### Trigger
 
 CE receives an Architect package or Project Gate-produced CE intake.
 
-### Required checks
+#### Required checks
 
 - canonical intake identity;
 - accepted upstream source identity;
@@ -396,7 +437,7 @@ CE receives an Architect package or Project Gate-produced CE intake.
 - responsive seed;
 - non-readiness assertions.
 
-### Rules
+#### Rules
 
 - Preserve locked identity exactly.
 - Reject or block intake that silently changes identity.
@@ -405,7 +446,7 @@ CE receives an Architect package or Project Gate-produced CE intake.
 - Do not treat legacy compatibility paths as preferred current intake.
 - Do not accept Builder-ready or production-ready claims from Architect output.
 
-### Status behavior
+#### Status behavior
 
 If identity or contract integrity fails:
 
@@ -427,13 +468,14 @@ needs_user_evidence
 
 ---
 
-## 7.2 `review_unit_decomposition_and_hidden_dependencies`
+<a id="ce-policy-7-2"></a>
+### 7.2 `review_unit_decomposition_and_hidden_dependencies`
 
-### Trigger
+#### Trigger
 
 Approved architecture must be converted into constructability review work.
 
-### Review-unit dimensions
+#### Review-unit dimensions
 
 For each potentially executable node or relationship, identify:
 
@@ -457,7 +499,7 @@ For each potentially executable node or relationship, identify:
 - exact evidence required;
 - Builder confirmation needed.
 
-### Hidden-dependency examples
+#### Hidden-dependency examples
 
 - Grid track alignment requires actual target support;
 - `%` block-size requires a definite reference;
@@ -468,7 +510,7 @@ For each potentially executable node or relationship, identify:
 - a class strategy requires exact class support and scope;
 - custom SVG requires trusted-source and rendering evidence.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - review unit too broad to produce one clear verdict;
 - hidden dependency left for Builder;
@@ -477,13 +519,14 @@ For each potentially executable node or relationship, identify:
 
 ---
 
-## 7.3 `target_project_capability_proof`
+<a id="ce-policy-7-3"></a>
+### 7.3 `target_project_capability_proof`
 
-### Trigger
+#### Trigger
 
 Implementation depends on a version-sensitive, Pro-only, experimental, prerelease, permission-gated, or project-enabled feature.
 
-### Required evidence
+#### Required evidence
 
 As materially applicable:
 
@@ -498,7 +541,7 @@ As materially applicable:
 - compatibility with required addons or templates;
 - browser/platform scope.
 
-### Evidence states
+#### Evidence states
 
 Use explicit states such as:
 
@@ -510,7 +553,7 @@ Use explicit states such as:
 - runtime verified;
 - insufficient evidence.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - documentation alone treated as project proof;
 - editor screenshot treated as runtime proof;
@@ -518,27 +561,28 @@ Use explicit states such as:
 - prerelease behavior treated as stable;
 - synthetic fixture treated as real project evidence.
 
-### Fallback
+#### Fallback
 
 When capability is unavailable, CE may evaluate a bounded fallback only if it preserves approved architecture intent. If it materially changes intent or structure, request Architect amendment.
 
 ---
 
-## 7.4 `structural_strategy_proof`
+<a id="ce-policy-7-4"></a>
+### 7.4 `structural_strategy_proof`
 
-### Trigger
+#### Trigger
 
 Approved structure must be mapped to existing parent, Div, Flexbox, Grid, or nesting.
 
-### Existing parent
+#### Existing parent
 
 Use when the approved parent can own the required layout, surface, class, spacing, clipping, or positioning responsibility.
 
-### Div
+#### Div
 
 Use when a neutral boundary is necessary and does not itself need Flex/Grid behavior.
 
-### Flexbox
+#### Flexbox
 
 Prove when:
 
@@ -548,7 +592,7 @@ Prove when:
 - source order remains valid;
 - target controls support required alignment/distribution.
 
-### Grid
+#### Grid
 
 Prove when:
 
@@ -557,11 +601,11 @@ Prove when:
 - target project supports needed Grid behavior;
 - responsive track changes can be implemented without Builder inference.
 
-### Nested combination
+#### Nested combination
 
 Use only when each level owns a distinct approved responsibility and exact nesting is determined.
 
-### Required evidence
+#### Required evidence
 
 - target element/control support;
 - direct-child ownership;
@@ -572,7 +616,7 @@ Use only when each level owns a distinct approved responsibility and exact nesti
 - class application;
 - runtime verification steps.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - Grid because columns are visible;
 - Flex because items are in a row;
@@ -583,13 +627,14 @@ Use only when each level owns a distinct approved responsibility and exact nesti
 
 ---
 
-## 7.5 `sizing_behavior_strategy_proof`
+<a id="ce-policy-7-5"></a>
+### 7.5 `sizing_behavior_strategy_proof`
 
-### Trigger
+#### Trigger
 
 Architecture specifies intrinsic, fixed, fill, fluid, bounded-fluid, or aspect-ratio intent.
 
-### Required context
+#### Required context
 
 - exact property;
 - approved behavior;
@@ -602,7 +647,7 @@ Architecture specifies intrinsic, fixed, fill, fluid, bounded-fluid, or aspect-r
 - responsive scope;
 - accessibility implications.
 
-### Strategy rules
+#### Strategy rules
 
 - Prefer native auto/intrinsic behavior when supported and when it preserves content.
 - For fill, prove parent/track relationship and shrink/grow behavior.
@@ -611,7 +656,7 @@ Architecture specifies intrinsic, fixed, fill, fluid, bounded-fluid, or aspect-r
 - For viewport-relative fluid, prove actual viewport relationship and safe bounds.
 - For bounded-fluid, prove each bound and exact expression support.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - value copied from one screenshot;
 - fixed height for variable meaningful text;
@@ -622,13 +667,14 @@ Architecture specifies intrinsic, fixed, fill, fluid, bounded-fluid, or aspect-r
 
 ---
 
-## 7.6 `unit_value_and_expression_proof`
+<a id="ce-policy-7-6"></a>
+### 7.6 `unit_value_and_expression_proof`
 
-### Trigger
+#### Trigger
 
 A control requires a numeric value, unit, keyword, Variable, or expression.
 
-### Mandatory internal order
+#### Mandatory internal order
 
 ```text
 property
@@ -643,7 +689,7 @@ property
 → runtime check
 ```
 
-### Candidate guidance
+#### Candidate guidance
 
 | Candidate | CE eligibility | Main rejection reason |
 |---|---|---|
@@ -659,7 +705,7 @@ property
 | Variable | Compatible reusable value and target support | One-off or incompatible property |
 | unitless | Property grammar allows/requires it | Generalized across unrelated properties |
 
-### Parameter-level proof
+#### Parameter-level proof
 
 For:
 
@@ -676,15 +722,16 @@ CE must separately identify:
 - whether controls accept and save both;
 - how narrow and wide states are verified.
 
-### Typography gate
+#### Typography gate
 
 Do not declare `px` automatically inaccessible or `rem` automatically safe. Verify resulting behavior for text resize, reflow, text spacing, clipping, and content expansion.
 
 ---
 
-## 7.7 `spacing_and_separator_strategy_proof`
+<a id="ce-policy-7-7"></a>
+### 7.7 `spacing_and_separator_strategy_proof`
 
-### Trigger
+#### Trigger
 
 Approved architecture requires spacing or separation.
 
@@ -695,7 +742,7 @@ Approved architecture requires spacing or separation.
 - Use Divider Element when the separator is an independent item.
 - Use decoration only when required by approved intent and target support.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - wrapper only for spacing;
 - duplicate gap and child margin;
@@ -706,13 +753,14 @@ Approved architecture requires spacing or separation.
 
 ---
 
-## 7.8 `positioning_anchor_and_layering_proof`
+<a id="ce-policy-7-8"></a>
+### 7.8 `positioning_anchor_and_layering_proof`
 
-### Trigger
+#### Trigger
 
 Approved architecture includes overlay, anchored content, sticky/fixed behavior, clipping, or layering.
 
-### Required proof
+#### Required proof
 
 - exact containing block;
 - source and target anchors;
@@ -727,7 +775,7 @@ Approved architecture includes overlay, anchored content, sticky/fixed behavior,
 - target control support;
 - runtime inspection method.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - positioning used to repair structure;
 - offsets copied from screenshot;
@@ -739,25 +787,26 @@ Approved architecture includes overlay, anchored content, sticky/fixed behavior,
 
 ---
 
-## 7.9 `media_strategy_proof`
+<a id="ce-policy-7-9"></a>
+### 7.9 `media_strategy_proof`
 
-### Trigger
+#### Trigger
 
 Approved media intent must become an exact implementation strategy.
 
-### Image Element
+#### Image Element
 
 Prove when meaningful or functional content requires independent semantics, alt behavior, caption/link/data binding, or content-flow participation.
 
-### Background Image
+#### Background Image
 
 Prove when decorative/compositional surface behavior, overlay, crop, cover, and focal position are required and no independent meaning is lost.
 
-### SVG
+#### SVG
 
 Require trusted source, target support, sanitization/security posture, sizing behavior, and fallback where necessary.
 
-### Video
+#### Video
 
 For content video, prove controls, captions/transcript/poster requirements.
 
@@ -770,7 +819,7 @@ For Background Video, prove:
 - loading/performance behavior;
 - mobile behavior.
 
-### Loading and stability
+#### Loading and stability
 
 Determine:
 
@@ -781,7 +830,7 @@ Determine:
 - failure fallback;
 - responsive source/crop behavior.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - meaningful image implemented only as Background;
 - untrusted SVG;
@@ -793,21 +842,22 @@ Determine:
 
 ---
 
-## 7.10 `interaction_strategy_proof`
+<a id="ce-policy-7-10"></a>
+### 7.10 `interaction_strategy_proof`
 
-### Trigger
+#### Trigger
 
 Approved intent includes Button, Link, Clickable Container, Tabs, Accordion, disclosure, or an icon control.
 
-### Button
+#### Button
 
 Prove action semantics, states, keyboard behavior, target area, loading/disabled behavior, and exact control support.
 
-### Link
+#### Link
 
 Prove navigation target, focus, accessible name, and external/download behavior where applicable.
 
-### Clickable Container
+#### Clickable Container
 
 Eligible only when:
 
@@ -817,7 +867,7 @@ Eligible only when:
 - target project supports it;
 - Builder does not need to decide click mechanism.
 
-### Tabs
+#### Tabs
 
 Prove:
 
@@ -829,7 +879,7 @@ Prove:
 - responsive behavior;
 - deep link/state persistence if required.
 
-### Accordion
+#### Accordion
 
 Prove:
 
@@ -839,13 +889,13 @@ Prove:
 - single/multiple-open behavior;
 - responsive behavior.
 
-### Target and focus gates
+#### Target and focus gates
 
 - prefer at least `24 × 24 CSS pixels` unless a valid exception applies;
 - ensure focus is visible and not entirely obscured;
 - verify state contrast.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - Button for navigation;
 - Link for state-changing action;
@@ -857,13 +907,14 @@ Prove:
 
 ---
 
-## 7.11 `reuse_class_variable_component_proof`
+<a id="ce-policy-7-11"></a>
+### 7.11 `reuse_class_variable_component_proof`
 
-### Trigger
+#### Trigger
 
 Approved class, Variable, Component, inheritance, or local-value intent must be implemented.
 
-### Required checks
+#### Required checks
 
 - approved class name and scope;
 - target support for local/global classes;
@@ -876,7 +927,7 @@ Approved class, Variable, Component, inheritance, or local-value intent must be 
 - saved identity;
 - affected instances.
 
-### Rules
+#### Rules
 
 - preserve approved class names exactly;
 - do not invent or rename class intent;
@@ -885,7 +936,7 @@ Approved class, Variable, Component, inheritance, or local-value intent must be 
 - use Component only when synchronized multi-element structure is approved and available;
 - keep one-off exceptions explicit.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - repeated local values replacing approved shared intent;
 - local override silently defeating Class/Variable;
@@ -896,13 +947,14 @@ Approved class, Variable, Component, inheritance, or local-value intent must be 
 
 ---
 
-## 7.12 `repeated_content_dynamic_binding_proof`
+<a id="ce-policy-7-12"></a>
+### 7.12 `repeated_content_dynamic_binding_proof`
 
-### Trigger
+#### Trigger
 
 Approved architecture contains repeated or data-driven content.
 
-### Required proof
+#### Required proof
 
 - data source;
 - query or collection context;
@@ -917,13 +969,13 @@ Approved architecture contains repeated or data-driven content.
 - performance;
 - runtime verification.
 
-### Dynamic Loop
+#### Dynamic Loop
 
 Do not approve merely because content repeats visually.
 
 Require exact evidence for loop/query capability, source context, template binding, field availability, fallback states, item identity, and target-project version/entitlement.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - data source invented;
 - manual duplication for scalable dynamic data;
@@ -933,13 +985,14 @@ Require exact evidence for loop/query capability, source context, template bindi
 
 ---
 
-## 7.13 `responsive_strategy_proof`
+<a id="ce-policy-7-13"></a>
+### 7.13 `responsive_strategy_proof`
 
-### Trigger
+#### Trigger
 
 Architect responsive seed must become an executable Builder strategy or an explicitly deferred downstream concern.
 
-### Required proof
+#### Required proof
 
 - actual target breakpoints when needed;
 - base behavior;
@@ -955,7 +1008,7 @@ Architect responsive seed must become an executable Builder strategy or an expli
 - control support;
 - viewport test matrix.
 
-### Rules
+#### Rules
 
 - prefer fluid/intrinsic behavior before breakpoint overrides;
 - add an override only for a genuine discontinuity;
@@ -963,7 +1016,7 @@ Architect responsive seed must become an executable Builder strategy or an expli
 - keep mobile behavior evidence-bound;
 - distinguish pre-build implementation strategy from post-build Responsive validation.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - default breakpoints assumed without project evidence;
 - mobile behavior inferred from desktop;
@@ -974,13 +1027,14 @@ Architect responsive seed must become an executable Builder strategy or an expli
 
 ---
 
-## 7.14 `native_control_vs_workaround_proof`
+<a id="ce-policy-7-14"></a>
+### 7.14 `native_control_vs_workaround_proof`
 
-### Trigger
+#### Trigger
 
 Approved intent may be implemented through native control, Class/Variable, extra element, custom CSS, addon, or custom code.
 
-### Selection order
+#### Selection order
 
 1. verified native control on the correct approved element;
 2. verified Class/Variable when reuse is the real need;
@@ -989,23 +1043,23 @@ Approved intent may be implemented through native control, Class/Variable, extra
 5. documented addon or extension;
 6. custom code only when necessary and safe.
 
-### Native control proof
+#### Native control proof
 
 Require target-project availability, exact control identification, supported values, saved behavior, responsive/state behavior, and runtime verification.
 
-### Extra element
+#### Extra element
 
 Use only when it owns necessary structural responsibility.
 
-### Custom CSS
+#### Custom CSS
 
 Require native insufficiency, stable selector scope, explicit properties, responsive/state behavior, maintainability, reversibility, and forbidden-work compliance.
 
-### Addon/custom mechanism
+#### Addon/custom mechanism
 
 Require compatibility, security, lifecycle, permissions, rollback, and failure behavior.
 
-### Disqualifying conditions
+#### Disqualifying conditions
 
 - workaround chosen for convenience;
 - wrapper added only to access a style control;
@@ -1017,13 +1071,14 @@ Require compatibility, security, lifecycle, permissions, rollback, and failure b
 
 ---
 
-## 7.15 `accessibility_constructability_proof`
+<a id="ce-policy-7-15"></a>
+### 7.15 `accessibility_constructability_proof`
 
-### Trigger
+#### Trigger
 
 Implementation affects semantics, keyboard, focus, contrast, target size, media alternatives, motion, forms, text resize, reflow, or hidden content.
 
-### Required outcome checks
+#### Required outcome checks
 
 As applicable:
 
@@ -1041,19 +1096,20 @@ As applicable:
 - moving content has required controls;
 - forms have labels, errors, instructions, and focus behavior.
 
-### CE boundary
+#### CE boundary
 
 CE proves that selected strategy can satisfy these outcomes and specifies runtime checks. CE does not claim whole-page or production conformance from one component proof.
 
 ---
 
-## 7.16 `performance_constructability_proof`
+<a id="ce-policy-7-16"></a>
+### 7.16 `performance_constructability_proof`
 
-### Trigger
+#### Trigger
 
 Implementation can materially affect DOM depth, media weight, LCP, INP, CLS, query volume, repeated items, addons, scripts, or responsiveness.
 
-### Required checks
+#### Required checks
 
 - unnecessary wrapper count;
 - media format/size;
@@ -1068,7 +1124,7 @@ Implementation can materially affect DOM depth, media weight, LCP, INP, CLS, que
 - layout-shift risk;
 - representative content.
 
-### Targets when field performance is in scope
+#### Targets when field performance is in scope
 
 - `LCP ≤ 2.5 s`;
 - `INP ≤ 200 ms`;
@@ -1079,13 +1135,14 @@ Lab/editor tests are diagnostic, not field proof.
 
 ---
 
-## 7.17 `saved_and_runtime_verification_plan`
+<a id="ce-policy-7-17"></a>
+### 7.17 `saved_and_runtime_verification_plan`
 
-### Trigger
+#### Trigger
 
 CE is about to claim that a strategy is executable or Builder-ready.
 
-### Required layers
+#### Required layers
 
 1. **Configured:** exact element/control/value can be selected.
 2. **Saved:** structure and values persist.
@@ -1095,7 +1152,7 @@ CE is about to claim that a strategy is executable or Builder-ready.
 6. **Accessible:** applicable checks pass.
 7. **Performance-aware:** material risks and targets are addressed.
 
-### Minimum plan by decision type
+#### Minimum plan by decision type
 
 #### Structure
 
@@ -1141,19 +1198,20 @@ CE is about to claim that a strategy is executable or Builder-ready.
 - affected instances;
 - saved identity.
 
-### CE output
+#### CE output
 
 Builder package must contain deterministic confirmation requests, not vague “check if it looks right” instructions.
 
 ---
 
-## 7.18 `assumption_and_repair_ownership`
+<a id="ce-policy-7-18"></a>
+### 7.18 `assumption_and_repair_ownership`
 
-### Trigger
+#### Trigger
 
 Some fact is missing or cannot be fully proven.
 
-### Logged assumption eligibility
+#### Logged assumption eligibility
 
 Allowed only when the assumption is:
 
@@ -1166,7 +1224,7 @@ Allowed only when the assumption is:
 - not security-sensitive;
 - not leaving Builder a strategy decision.
 
-### Invalid assumption areas
+#### Invalid assumption areas
 
 Do not assume:
 
@@ -1183,7 +1241,7 @@ Do not assume:
 - unavailable feature;
 - production readiness.
 
-### Repair ownership
+#### Repair ownership
 
 Use:
 
@@ -1196,13 +1254,14 @@ Do not route every problem upstream. CE must solve bounded implementation strate
 
 ---
 
-## 7.19 `builder_decision_elimination_and_package_readiness`
+<a id="ce-policy-7-19"></a>
+### 7.19 `builder_decision_elimination_and_package_readiness`
 
-### Trigger
+#### Trigger
 
 CE is preparing output for Builder.
 
-### Builder-ready conditions
+#### Builder-ready conditions
 
 A package may be Builder-ready only when:
 
@@ -1220,7 +1279,7 @@ A package may be Builder-ready only when:
 - production readiness remains false;
 - package validates against current owning contract.
 
-### Builder must not decide
+#### Builder must not decide
 
 Do not leave Builder to decide:
 
@@ -1236,7 +1295,7 @@ Do not leave Builder to decide:
 - custom CSS versus addon;
 - architecture amendment.
 
-### First safe Builder batch
+#### First safe Builder batch
 
 The first batch should be:
 
@@ -1248,7 +1307,7 @@ The first batch should be:
 - explicit about expected confirmation;
 - free of hidden strategy decisions.
 
-### Final statuses
+#### Final statuses
 
 Use only valid CE statuses such as:
 
@@ -1337,44 +1396,32 @@ Do not produce:
 
 ---
 
-## 10. CE start-session instruction
+## 10. Manual advisory attachment instruction
 
-Attach this policy and the approved EV4 Domain artifacts alongside the repository’s normal instructions and accepted Architect intake.
+This policy is not automatically loaded by the repository. When an operator explicitly attaches it to a CE session, use this instruction:
 
 ```text
-Use the attached EV4 CE Constructability Decision Policy and EV4 Domain
-artifacts as silent mandatory constructability-quality guidance inside the
-existing CE workflow.
+Use the attached EV4 CE Constructability Decision Policy only as
+MANUAL_ADVISORY_ATTACHMENT_ONLY reference. It does not activate a new decision
+route and cannot override repository contracts, schemas, validators, fixtures,
+Kernel decisions, or accepted Architect identity.
 
-Preserve the accepted Architect identity, selected_candidate_id, approved
-structure, approved class intent, and forbidden work. Do not redesign, rescore,
-or act as Builder.
+First classify each decision as a locked upstream decision, CE-owned
+constructability interpretation, or a choice requiring fresh Kernel consultation.
+For every Kernel-governed choice, require complete machine-readable lineage with
+decision_family, decision_card_ref, selected_option, rejected_options,
+evidence_refs, evidence_state, and consumer_stage. Preserve selected_option and
+lineage exactly. Missing or mismatched lineage blocks the policy context.
 
-For every review unit, identify hidden geometry, asset, anchor, overlay,
-interaction, responsive, data, accessibility, performance, control, and runtime
-dependencies. Resolve the approved behavior before selecting the exact
-element, control, unit, value, wrapper, positioning mode, or workaround.
+External EV4 Domain artifacts are untrusted advisory evidence unless an active
+repository contract validates their exact identity, digest, registry/schema
+revision, receipt, compatibility scope, and target platform version. They may
+identify questions or risks but cannot authorize or change a decision.
 
-Do not treat a correct-sounding one-factor explanation as proof of
-constructability. Internally bind every nontrivial implementation parameter to
-its actual basis. Distinguish locked Architect requirements, verified project
-facts, saved/runtime evidence, documented capability, official requirements,
-validated repository evidence, professional patterns, and bounded assumptions.
-
-Prefer the simplest verified native implementation that preserves approved
-intent. Use custom CSS, extra wrappers, addons, or custom code only when their
-necessity, scope, security, compatibility, reversibility, and runtime behavior
-are proven.
-
-Builder must receive no unresolved strategy decisions. If evidence is missing,
-request only the smallest material fact, assign the correct repair owner, or
-block the package. Do not claim Builder readiness, responsive completion,
-runtime success, or production readiness beyond the evidence and current
-contracts.
-
-Apply the policy silently and continue to obey the repository’s current intake
-contracts, schemas, validators, rules, fixtures, status model, and Project Gate
-boundaries.
+Use this reference to improve constructability analysis only within CE authority.
+Do not redesign, rescore, act as Builder, claim automatic loading or enforcement,
+or claim Builder readiness, runtime success, responsive completion, or production
+readiness beyond validated repository evidence.
 ```
 
 ---
@@ -1431,7 +1478,7 @@ Missing consequential proof must remain blocked, evidence-requested, amendment-r
 ## 13. Final policy state
 
 ```text
-EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_READY
+EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_MANUAL_ADVISORY_ONLY
 ```
 
-This policy is intended for immediate temporary use as a role-specific CE decision-quality aid. It strengthens implementation-strategy proof while preserving Architect authority, eliminating Builder strategy decisions, and avoiding unsupported readiness claims.
+This policy is intended only for explicit manual attachment as a role-specific CE advisory reference. It strengthens implementation-strategy proof while preserving Architect authority, eliminating Builder strategy decisions, and avoiding unsupported readiness claims.
