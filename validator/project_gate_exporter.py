@@ -106,6 +106,39 @@ def _read_prior_owned_output(path: Path) -> bytes | None:
         ) from exc
 
 
+def _prior_state_summary(
+    prior_output_bytes: bytes | None,
+    *,
+    replaced: bool,
+    restored: bool,
+) -> dict[str, bool]:
+    existed = prior_output_bytes is not None
+    return {
+        "prior_artifact_existed": existed,
+        "prior_artifact_replaced": existed and replaced,
+        "prior_artifact_restored": existed and restored,
+        "prior_artifact_preserved": existed and restored,
+    }
+
+
+def _inspect_failed_output_state(
+    safe_output: Path,
+    prior_output_bytes: bytes | None,
+) -> tuple[bool, str, bool]:
+    """Return output_written, artifact_state, and whether the prior bytes are restored."""
+    try:
+        if not safe_output.exists():
+            return False, "invalid_artifact_removed_cleanup_reported_failed", False
+        observed = safe_output.read_bytes()
+    except OSError:
+        return True, "invalid_artifact_persistence_unconfirmed", False
+
+    prior_restored = prior_output_bytes is not None and observed == prior_output_bytes
+    if prior_restored:
+        return False, "prior_valid_artifact_restored_cleanup_reported_failed", True
+    return True, "invalid_artifact_persisted", False
+
+
 def _restore_or_remove_failed_output(
     safe_output: Path,
     prior_output_bytes: bytes | None,
@@ -128,8 +161,14 @@ def _restore_or_remove_failed_output(
                     "artifact_integrity_status": "invalid",
                     "semantic_validation_status": "invalid",
                     "authorization_valid": False,
+                    **_prior_state_summary(
+                        prior_output_bytes,
+                        replaced=False,
+                        restored=False,
+                    ),
                 },
             )
+
         _atomic_write(safe_output, prior_output_bytes)
         if safe_output.read_bytes() != prior_output_bytes:
             raise OSError("restored bytes differ from the captured prior output")
@@ -144,43 +183,52 @@ def _restore_or_remove_failed_output(
                 "output_cleanup_failed": False,
                 "artifact_state": "prior_valid_artifact_restored",
                 "artifact_must_not_be_consumed": True,
-                "prior_artifact_preserved": True,
                 "artifact_integrity_status": "invalid_new_candidate",
                 "semantic_validation_status": "invalid",
                 "authorization_valid": False,
+                **_prior_state_summary(
+                    prior_output_bytes,
+                    replaced=True,
+                    restored=True,
+                ),
             },
         )
-    except OSError as cleanup_exc:
+    except (ExporterError, OSError, RuntimeError) as cleanup_exc:
         cleanup_diagnostic = ExportDiagnostic(
             "CE_EXPORT_POST_WRITE_CLEANUP_FAILED",
             "post_write_validation",
-            f"Invalid output could not be removed or the prior owned output could not be restored; the target must not be consumed: {cleanup_exc}",
+            "Invalid output could not be removed or the prior owned output could not "
+            f"be restored; the target must not be consumed: {cleanup_exc}",
             str(safe_output),
             "repository_owner",
         )
-        try:
-            persisted = safe_output.exists()
-        except OSError:
-            persisted = True
+        output_written, artifact_state, prior_restored = _inspect_failed_output_state(
+            safe_output,
+            prior_output_bytes,
+        )
         return ExportResult(
             status="invalid",
             output_path=str(safe_output),
-            output_written=True,
+            output_written=output_written,
             handoff_allowed=False,
             diagnostics=(original_diagnostic, cleanup_diagnostic),
             summary={
                 "output_valid": False,
                 "output_cleanup_failed": True,
-                "artifact_state": (
-                    "invalid_artifact_persisted"
-                    if persisted
-                    else "invalid_artifact_persistence_unconfirmed"
-                ),
+                "artifact_state": artifact_state,
                 "artifact_must_not_be_consumed": True,
-                "prior_artifact_preserved": False if prior_output_bytes is not None else None,
-                "artifact_integrity_status": "invalid_or_unconfirmed",
+                "artifact_integrity_status": (
+                    "prior_valid_artifact_observed"
+                    if prior_restored
+                    else "invalid_or_unconfirmed"
+                ),
                 "semantic_validation_status": "invalid",
                 "authorization_valid": False,
+                **_prior_state_summary(
+                    prior_output_bytes,
+                    replaced=prior_output_bytes is not None,
+                    restored=prior_restored,
+                ),
             },
         )
 
@@ -269,12 +317,16 @@ def export_file(
                     )
                 )
         except Exception as validation_exc:
-            original_diagnostic = _post_write_failure_diagnostic(validation_exc, safe_output)
+            original_diagnostic = _post_write_failure_diagnostic(
+                validation_exc,
+                safe_output,
+            )
             return _restore_or_remove_failed_output(
                 safe_output,
                 prior_output_bytes,
                 original_diagnostic,
             )
+        prior_existed = prior_output_bytes is not None
         return ExportResult(
             status="successful" if export["handoff"]["allowed"] else export["handoff"]["status"],
             output_path=str(safe_output),
@@ -291,7 +343,11 @@ def export_file(
                     else "valid_blocked_export"
                 ),
                 "artifact_must_not_be_consumed": False,
-                "prior_artifact_preserved": prior_output_bytes is not None,
+                **_prior_state_summary(
+                    prior_output_bytes,
+                    replaced=prior_existed,
+                    restored=False,
+                ),
             },
         )
     except ExporterError as exc:
@@ -309,18 +365,53 @@ def export_file(
                 "artifact_integrity_status": "invalid",
                 "semantic_validation_status": "invalid_or_not_run",
                 "authorization_valid": False,
+                "prior_artifact_existed": False,
+                "prior_artifact_replaced": False,
+                "prior_artifact_restored": False,
+                "prior_artifact_preserved": False,
             },
         )
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Produce the official CE Gate-ready Project Gate export.")
-    parser.add_argument("--payload", required=True, type=Path, help="Validated CE Stage Payload JSON.")
-    parser.add_argument("--source-intake", required=True, type=Path, help="Accepted Architect-to-CE intake JSON.")
-    parser.add_argument("--source-bundle", required=True, type=Path, help="Architect Stage Evidence Bundle used to verify intake source binding.")
-    parser.add_argument("--output", type=Path, default=Path("ce-project-gate.json"), help="Output path inside the CE repository.")
-    parser.add_argument("--repo-root", type=Path, default=Path.cwd(), help="CE repository root.")
-    parser.add_argument("--overwrite", action="store_true", help="Explicitly replace an existing CE-owned output file.")
+    parser = argparse.ArgumentParser(
+        description="Produce the official CE Gate-ready Project Gate export."
+    )
+    parser.add_argument(
+        "--payload",
+        required=True,
+        type=Path,
+        help="Validated CE Stage Payload JSON.",
+    )
+    parser.add_argument(
+        "--source-intake",
+        required=True,
+        type=Path,
+        help="Accepted Architect-to-CE intake JSON.",
+    )
+    parser.add_argument(
+        "--source-bundle",
+        required=True,
+        type=Path,
+        help="Architect Stage Evidence Bundle used to verify intake source binding.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("ce-project-gate.json"),
+        help="Output path inside the CE repository.",
+    )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path.cwd(),
+        help="CE repository root.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Explicitly replace an existing CE-owned output file.",
+    )
     args = parser.parse_args(argv)
     result = export_file(
         repo_root=args.repo_root,
@@ -330,7 +421,15 @@ def main(argv: list[str] | None = None) -> int:
         output_path=args.output,
         overwrite=args.overwrite,
     )
-    print(json.dumps(result.as_dict(), ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False))
+    print(
+        json.dumps(
+            result.as_dict(),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        )
+    )
     if result.status == "invalid":
         return 1
     return 0 if result.handoff_allowed else 2
