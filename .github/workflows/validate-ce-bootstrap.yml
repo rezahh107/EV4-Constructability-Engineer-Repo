@@ -6,6 +6,7 @@ on:
       - 'AGENTS.md'
       - 'README.md'
       - 'STATUS.md'
+      - 'docs/CE_VALIDATION_TRANSACTION_AUDIT.md'
       - 'manifests/ce-conversation-bootstrap.v1.json'
       - 'manifests/ce_pipeline_manifest.v1.json'
       - 'schemas/ce-conversation-bootstrap.v1.schema.json'
@@ -13,12 +14,16 @@ on:
       - 'schemas/ce_architect_stage_intake.v1_1.schema.json'
       - 'scripts/check-ce-bootstrap.py'
       - 'scripts/ce_bootstrap_spec.py'
+      - 'scripts/ce_bootstrap_snapshot.py'
       - 'scripts/ce_bootstrap_validation.py'
       - 'scripts/ce_bootstrap_routing.py'
       - 'scripts/ce_bootstrap_test_support.py'
       - 'scripts/validate-ce-architect-stage-intake.py'
       - 'tests/test_ce_bootstrap_semantics.py'
       - 'tests/test_ce_architect_stage_intake.py'
+      - 'tests/test_ce_validation_transaction.py'
+      - 'validator/ce_validation_transaction.py'
+      - 'validator/project_gate_exporter.py'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/EV4_FIRST_RUN_GUIDE.md'
       - '.github/workflows/validate-ce-bootstrap.yml'
@@ -83,6 +88,12 @@ jobs:
           set -o pipefail
           echo '$ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py' | tee -a ce-bootstrap-validation-results.txt
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py 2>&1 | tee -a ce-bootstrap-validation-results.txt
+
+      - name: Run exact-byte bootstrap transaction mutations
+        run: |
+          set -o pipefail
+          echo '$ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_validation_transaction.py -k bootstrap' | tee -a ce-bootstrap-validation-results.txt
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_validation_transaction.py -k bootstrap 2>&1 | tee -a ce-bootstrap-validation-results.txt
 
       - name: Validate official CE Architect-stage intake fixtures
         run: |
