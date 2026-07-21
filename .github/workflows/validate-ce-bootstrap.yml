@@ -39,6 +39,7 @@ jobs:
           set -euo pipefail
           TESTED_SHA="$(git rev-parse HEAD)"
           test "$TESTED_SHA" = "$REVIEWED_HEAD_SHA"
+          echo "TREE_SHA=$(git rev-parse 'HEAD^{tree}')"
           cat > ce-bootstrap-exact-head-receipt.json <<EOF
           {
             "tested_ref_type": "pull_request_head",
