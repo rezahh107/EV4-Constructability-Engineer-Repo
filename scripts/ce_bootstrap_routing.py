@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any, Iterable
 from ce_bootstrap_spec import *
 from ce_bootstrap_validation import *
+from ce_bootstrap_snapshot import (
+    assert_snapshot_unchanged,
+    strict_load_json_snapshot,
+)
+
 
 def load_official_module(root: Path) -> Any:
     name = "ce_bootstrap_official_intake_validator"
@@ -98,6 +103,20 @@ def _source_provenance_diagnostics(intake: dict[str, Any], source: dict[str, Any
     return diagnostics
 
 
+def _snapshot_changed_result(exc: ValidationError) -> dict[str, Any]:
+    result = _base_route("CE-BOOT-ROUTE-SOURCE-BINDING-INVALID")
+    result["diagnostics"] = [
+        {
+            "code": "CE_BOOTSTRAP_INPUT_CHANGED_DURING_ROUTING",
+            "severity": "error",
+            "message": str(exc),
+            "path": "$attachments",
+        }
+    ]
+    result["source_provenance_verification"] = "failed"
+    return result
+
+
 def _route_authorized_attachments(root: Path, attachments: Iterable[Path]) -> dict[str, Any]:
     root = root.resolve()
     module = load_official_module(root)
@@ -106,20 +125,27 @@ def _route_authorized_attachments(root: Path, attachments: Iterable[Path]) -> di
     for supplied in attachments:
         path = supplied if supplied.is_absolute() else root / supplied
         try:
-            value = strict_load_json(path)
+            snapshot = strict_load_json_snapshot(path)
         except ValidationError as exc:
             buckets["invalid"].append({"path": str(path), "reason": str(exc)})
             continue
+        value = snapshot.value
         kind = attachment_kind(value)
         if kind == "canonical":
-            result = official.validate_value(value)
-            record = {"path": str(path), "value": value, "validation_status": result["status"], "diagnostics": result["diagnostics"]}
-            target = "valid" if result["status"] == "valid" else "insufficient" if result["status"] == "insufficient_evidence" else "invalid"
+            validation = official.validate_value(value)
+            record = {
+                "path": str(path),
+                "value": value,
+                "snapshot": snapshot,
+                "validation_status": validation["status"],
+                "diagnostics": validation["diagnostics"],
+            }
+            target = "valid" if validation["status"] == "valid" else "insufficient" if validation["status"] == "insufficient_evidence" else "invalid"
             buckets[target].append(record)
         elif kind == "receipt_like":
             buckets[kind].append(_receipt_record(path, value))
         elif kind == "source_bundle":
-            buckets[kind].append({"path": str(path), "value": _unwrap_source_bundle(value)})
+            buckets[kind].append({"path": str(path), "value": _unwrap_source_bundle(value), "snapshot": snapshot})
         else:
             buckets[kind].append({"path": str(path), "value": value})
 
@@ -140,8 +166,10 @@ def _route_authorized_attachments(root: Path, attachments: Iterable[Path]) -> di
             result["ce_input_path"] = buckets["valid"][0]["path"]
             result["source_provenance_verification"] = "unavailable_missing_source_bundle_bytes"
             return result
-        intake = buckets["valid"][0]["value"]
-        source = buckets["source_bundle"][0]["value"]
+        intake_record = buckets["valid"][0]
+        source_record = buckets["source_bundle"][0]
+        intake = intake_record["value"]
+        source = source_record["value"]
         official_diags = module.validate_source_bundle_binding(intake, source)
         diagnostics = [diag.to_dict() if hasattr(diag, "to_dict") else dict(diag) for diag in official_diags]
         diagnostics.extend(_source_provenance_diagnostics(intake, source))
@@ -150,12 +178,22 @@ def _route_authorized_attachments(root: Path, attachments: Iterable[Path]) -> di
             result["diagnostics"] = diagnostics
             result["source_provenance_verification"] = "failed"
             return result
+        try:
+            assert_snapshot_unchanged(intake_record["snapshot"])
+            assert_snapshot_unchanged(source_record["snapshot"])
+        except ValidationError as exc:
+            return _snapshot_changed_result(exc)
         result = _base_route("CE-BOOT-ROUTE-VALID-BOUND-INPUT")
         result.update({
-            "ce_input_path": buckets["valid"][0]["path"],
-            "source_bundle_path": buckets["source_bundle"][0]["path"],
+            "ce_input_path": intake_record["path"],
+            "source_bundle_path": source_record["path"],
             "source_binding_verified": True,
             "source_provenance_verification": "verified",
+            "input_snapshot_evidence": {
+                "ce_input_file_sha256": intake_record["snapshot"].sha256,
+                "source_bundle_file_sha256": source_record["snapshot"].sha256,
+                "second_read_equality": True,
+            },
             "source_binding_evidence": {
                 "bundle_id_match": True,
                 "canonical_sha256_match": True,
