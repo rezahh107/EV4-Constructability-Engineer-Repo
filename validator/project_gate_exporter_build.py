@@ -7,10 +7,8 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from .project_gate_export import (
-    CE_REPOSITORY,
-    load_json,
-)
+from .project_gate_export import CE_REPOSITORY, load_json
+from .project_gate_synthetic import contains_synthetic_evidence
 from .project_gate_exporter_core import (
     EXPECTED_PROJECT_GATE_COMMIT,
     EXPECTED_STAGE_BUNDLE_SHA256,
@@ -30,22 +28,58 @@ from .project_gate_exporter_core import (
 )
 
 
-def _map_evidence_item(item: dict[str, Any], index: int, synthetic: bool) -> dict[str, Any]:
-    allowed_kinds = {"document", "schema", "fixture", "validator", "screenshot", "report", "other"}
+def _map_evidence_item(
+    item: dict[str, Any],
+    index: int,
+    synthetic: bool,
+) -> dict[str, Any]:
+    allowed_kinds = {
+        "document",
+        "schema",
+        "fixture",
+        "validator",
+        "screenshot",
+        "report",
+        "other",
+    }
     raw_kind = str(item.get("kind") or "other")
     kind = raw_kind if raw_kind in allowed_kinds else "other"
     raw_state = str(item.get("state") or "unverified")
-    allowed_states = {"observed", "exported", "validated", "resolved", "derived", "proposed", "unverified", "insufficient_evidence"}
-    state = raw_state if raw_state in allowed_states else ("unverified" if synthetic else "observed")
+    allowed_states = {
+        "observed",
+        "exported",
+        "validated",
+        "resolved",
+        "derived",
+        "proposed",
+        "unverified",
+        "insufficient_evidence",
+    }
+    state = (
+        raw_state
+        if raw_state in allowed_states
+        else ("unverified" if synthetic else "observed")
+    )
     source = item.get("source") if isinstance(item.get("source"), dict) else {}
-    reference = str(source.get("reference") or source.get("path") or f"ce_payload.evidence_register[{index}]")
+    reference = str(
+        source.get("reference")
+        or source.get("path")
+        or f"ce_payload.evidence_register[{index}]"
+    )
     raw_type = str(source.get("type") or "")
-    allowed_types = {"repo_path", "workflow", "manual_observation", "synthetic_fixture"}
+    allowed_types = {
+        "repo_path",
+        "workflow",
+        "manual_observation",
+        "synthetic_fixture",
+    }
     if raw_type in allowed_types:
         source_type = raw_type
     elif synthetic:
         source_type = "synthetic_fixture"
-    elif reference.startswith(("fixtures/", "schemas/", "docs/", "contracts/", "validator/", "scripts/")):
+    elif reference.startswith(
+        ("fixtures/", "schemas/", "docs/", "contracts/", "validator/", "scripts/")
+    ):
         source_type = "repo_path"
     else:
         source_type = "manual_observation"
@@ -59,36 +93,25 @@ def _map_evidence_item(item: dict[str, Any], index: int, synthetic: bool) -> dic
     }
 
 
-def _contains_synthetic_evidence(value: Any) -> bool:
-    if isinstance(value, dict):
-        if value.get("synthetic") is True:
-            return True
-        if value.get("classification") == "synthetic":
-            return True
-        if value.get("state") == "synthetic":
-            return True
-        if value.get("fact_class") == "synthetic_fixture":
-            return True
-        if value.get("source_type") == "synthetic_fixture":
-            return True
-        if value.get("type") == "synthetic_fixture":
-            return True
-        return any(_contains_synthetic_evidence(child) for child in value.values())
-    if isinstance(value, list):
-        return any(_contains_synthetic_evidence(child) for child in value)
-    return False
-
-
-def _missing_evidence(payload: dict[str, Any], intake: dict[str, Any]) -> list[dict[str, str]]:
+def _missing_evidence(
+    payload: dict[str, Any],
+    intake: dict[str, Any],
+) -> list[dict[str, str]]:
     result: list[dict[str, str]] = []
     for index, item in enumerate(payload.get("unresolved_evidence") or []):
         if not isinstance(item, dict):
             continue
         result.append(
             {
-                "id": str(item.get("unresolved_id") or item.get("id") or f"ce-unresolved-{index + 1}"),
+                "id": str(
+                    item.get("unresolved_id")
+                    or item.get("id")
+                    or f"ce-unresolved-{index + 1}"
+                ),
                 "owner": str(item.get("owner") or "unresolved"),
-                "reason": str(item.get("reason") or "Required CE evidence is unresolved."),
+                "reason": str(
+                    item.get("reason") or "Required CE evidence is unresolved."
+                ),
             }
         )
     if not result:
@@ -97,9 +120,17 @@ def _missing_evidence(payload: dict[str, Any], intake: dict[str, Any]) -> list[d
                 continue
             result.append(
                 {
-                    "id": str(item.get("missing_id") or f"architect-missing-{index + 1}"),
-                    "owner": str(item.get("current_evidence_owner") or "unresolved"),
-                    "reason": str(item.get("required_source") or "Accepted intake evidence is incomplete."),
+                    "id": str(
+                        item.get("missing_id")
+                        or f"architect-missing-{index + 1}"
+                    ),
+                    "owner": str(
+                        item.get("current_evidence_owner") or "unresolved"
+                    ),
+                    "reason": str(
+                        item.get("required_source")
+                        or "Accepted intake evidence is incomplete."
+                    ),
                 }
             )
     return result
@@ -115,11 +146,21 @@ def _stage_status_for_review(review_status: str | None) -> str:
     return "invalid"
 
 
-def _output(ref: str, value: Any, *, present: bool = True, scope: str = "canonical_json") -> dict[str, Any]:
+def _output(
+    ref: str,
+    value: Any,
+    *,
+    present: bool = True,
+    scope: str = "canonical_json",
+) -> dict[str, Any]:
     if not present:
         return {"present": False}
     digest = _json_hash(value) if scope == "canonical_json" else str(value)
-    return {"present": True, "artifact_ref": ref, "artifact_hash": _hash_record(digest, scope)}
+    return {
+        "present": True,
+        "artifact_ref": ref,
+        "artifact_hash": _hash_record(digest, scope),
+    }
 
 
 def _stage_manifest(
@@ -130,15 +171,36 @@ def _stage_manifest(
     repo_root: Path,
 ) -> list[dict[str, Any]]:
     payload_id = str(payload["payload_identity"]["payload_id"])
-    review = payload.get("constructability_review") if isinstance(payload.get("constructability_review"), dict) else {}
-    reviewed_nodes = review.get("reviewed_nodes") if isinstance(review.get("reviewed_nodes"), list) else []
-    dependencies = review.get("blocking_dependencies") if isinstance(review.get("blocking_dependencies"), list) else []
+    review = (
+        payload.get("constructability_review")
+        if isinstance(payload.get("constructability_review"), dict)
+        else {}
+    )
+    reviewed_nodes = (
+        review.get("reviewed_nodes")
+        if isinstance(review.get("reviewed_nodes"), list)
+        else []
+    )
+    dependencies = (
+        review.get("blocking_dependencies")
+        if isinstance(review.get("blocking_dependencies"), list)
+        else []
+    )
     strategy = payload.get("implementation_strategy_map")
     emitted = payload.get("builder_package_emitted") is True
-    unresolved = payload.get("unresolved_evidence") if isinstance(payload.get("unresolved_evidence"), list) else []
-    review_stage_status = _stage_status_for_review(review.get("constructability_status"))
-    missing_status = "insufficient_evidence" if unresolved or payload.get("payload_status") == "insufficient_evidence" else "blocked"
-
+    unresolved = (
+        payload.get("unresolved_evidence")
+        if isinstance(payload.get("unresolved_evidence"), list)
+        else []
+    )
+    review_stage_status = _stage_status_for_review(
+        review.get("constructability_status")
+    )
+    missing_status = (
+        "insufficient_evidence"
+        if unresolved or payload.get("payload_status") == "insufficient_evidence"
+        else "blocked"
+    )
     return [
         {
             "stage_id": "architect_intake_validation",
@@ -160,7 +222,10 @@ def _stage_manifest(
             "ordinal": 2,
             "mandatory": True,
             "status": "complete",
-            "output": _output(f"ce-payload:{payload_id}#architecture_identity", payload["architecture_identity"]),
+            "output": _output(
+                f"ce-payload:{payload_id}#architecture_identity",
+                payload["architecture_identity"],
+            ),
             "blockers": [],
             "unknowns": [],
         },
@@ -170,9 +235,20 @@ def _stage_manifest(
             "ordinal": 3,
             "mandatory": True,
             "status": "complete" if reviewed_nodes else "insufficient_evidence",
-            "output": _output(f"ce-payload:{payload_id}#constructability_review.reviewed_nodes", reviewed_nodes),
-            "blockers": [] if reviewed_nodes else [{"code": "CE_EXPORT_REVIEWED_NODES_MISSING"}],
-            "unknowns": [] if reviewed_nodes else [{"code": "CE_EXPORT_REVIEWED_NODES_MISSING"}],
+            "output": _output(
+                f"ce-payload:{payload_id}#constructability_review.reviewed_nodes",
+                reviewed_nodes,
+            ),
+            "blockers": (
+                []
+                if reviewed_nodes
+                else [{"code": "CE_EXPORT_REVIEWED_NODES_MISSING"}]
+            ),
+            "unknowns": (
+                []
+                if reviewed_nodes
+                else [{"code": "CE_EXPORT_REVIEWED_NODES_MISSING"}]
+            ),
         },
         {
             "stage_id": "hidden_dependency_classification",
@@ -180,7 +256,10 @@ def _stage_manifest(
             "ordinal": 4,
             "mandatory": True,
             "status": "complete",
-            "output": _output(f"ce-payload:{payload_id}#constructability_review.blocking_dependencies", dependencies),
+            "output": _output(
+                f"ce-payload:{payload_id}#constructability_review.blocking_dependencies",
+                dependencies,
+            ),
             "blockers": [],
             "unknowns": [],
         },
@@ -190,9 +269,20 @@ def _stage_manifest(
             "ordinal": 5,
             "mandatory": True,
             "status": review_stage_status,
-            "output": _output(f"ce-payload:{payload_id}#constructability_review", review),
-            "blockers": [{"code": str(value)} for value in dependencies] if review_stage_status == "blocked" else [],
-            "unknowns": list(unresolved) if review_stage_status == "insufficient_evidence" else [],
+            "output": _output(
+                f"ce-payload:{payload_id}#constructability_review",
+                review,
+            ),
+            "blockers": (
+                [{"code": str(value)} for value in dependencies]
+                if review_stage_status == "blocked"
+                else []
+            ),
+            "unknowns": (
+                list(unresolved)
+                if review_stage_status == "insufficient_evidence"
+                else []
+            ),
         },
         {
             "stage_id": "implementation_strategy_determination",
@@ -200,8 +290,21 @@ def _stage_manifest(
             "ordinal": 6,
             "mandatory": True,
             "status": "complete" if isinstance(strategy, dict) else missing_status,
-            "output": _output(f"ce-payload:{payload_id}#implementation_strategy_map", strategy if strategy is not None else {"absence_reason": payload.get("builder_package_not_emitted_reason")}),
-            "blockers": [] if isinstance(strategy, dict) else [{"code": "CE_EXPORT_STRATEGY_NOT_AVAILABLE"}],
+            "output": _output(
+                f"ce-payload:{payload_id}#implementation_strategy_map",
+                strategy
+                if strategy is not None
+                else {
+                    "absence_reason": payload.get(
+                        "builder_package_not_emitted_reason"
+                    )
+                },
+            ),
+            "blockers": (
+                []
+                if isinstance(strategy, dict)
+                else [{"code": "CE_EXPORT_STRATEGY_NOT_AVAILABLE"}]
+            ),
             "unknowns": list(unresolved) if not isinstance(strategy, dict) else [],
         },
         {
@@ -212,9 +315,19 @@ def _stage_manifest(
             "status": "complete" if emitted else missing_status,
             "output": _output(
                 f"ce-payload:{payload_id}#builder_executable_package",
-                payload.get("builder_executable_package") if emitted else {"not_emitted_reason": payload.get("builder_package_not_emitted_reason")},
+                payload.get("builder_executable_package")
+                if emitted
+                else {
+                    "not_emitted_reason": payload.get(
+                        "builder_package_not_emitted_reason"
+                    )
+                },
             ),
-            "blockers": [] if emitted else [{"code": "CE_EXPORT_BUILDER_PACKAGE_NOT_EMITTED"}],
+            "blockers": (
+                []
+                if emitted
+                else [{"code": "CE_EXPORT_BUILDER_PACKAGE_NOT_EMITTED"}]
+            ),
             "unknowns": list(unresolved) if not emitted else [],
         },
         {
@@ -241,27 +354,82 @@ def _handoff_diagnostics(
     provenance: GitProvenance,
 ) -> list[ExportDiagnostic]:
     diagnostics: list[ExportDiagnostic] = []
-    review = payload.get("constructability_review") if isinstance(payload.get("constructability_review"), dict) else {}
+    review = (
+        payload.get("constructability_review")
+        if isinstance(payload.get("constructability_review"), dict)
+        else {}
+    )
     status = review.get("constructability_status")
     if intake.get("intake_status") == "insufficient_evidence":
-        diagnostics.append(ExportDiagnostic("CE_EXPORT_INTAKE_INSUFFICIENT_EVIDENCE", "handoff_gate", "Accepted Architect intake remains insufficient_evidence.", "$.intake_status", "architect_or_project_gate"))
+        diagnostics.append(
+            ExportDiagnostic(
+                "CE_EXPORT_INTAKE_INSUFFICIENT_EVIDENCE",
+                "handoff_gate",
+                "Accepted Architect intake remains insufficient_evidence.",
+                "$.intake_status",
+                "architect_or_project_gate",
+            )
+        )
     if payload.get("payload_status") == "insufficient_evidence":
-        diagnostics.append(ExportDiagnostic("CE_EXPORT_PAYLOAD_INSUFFICIENT_EVIDENCE", "handoff_gate", "CE Stage Payload remains insufficient_evidence.", "$.payload_status"))
+        diagnostics.append(
+            ExportDiagnostic(
+                "CE_EXPORT_PAYLOAD_INSUFFICIENT_EVIDENCE",
+                "handoff_gate",
+                "CE Stage Payload remains insufficient_evidence.",
+                "$.payload_status",
+            )
+        )
     if payload.get("unresolved_evidence"):
-        diagnostics.append(ExportDiagnostic("CE_EXPORT_UNRESOLVED_EVIDENCE", "handoff_gate", "CE Stage Payload contains unresolved evidence.", "$.unresolved_evidence"))
+        diagnostics.append(
+            ExportDiagnostic(
+                "CE_EXPORT_UNRESOLVED_EVIDENCE",
+                "handoff_gate",
+                "CE Stage Payload contains unresolved evidence.",
+                "$.unresolved_evidence",
+            )
+        )
     if status not in {"executable_ready", "executable_with_logged_assumption"}:
-        diagnostics.append(ExportDiagnostic("CE_EXPORT_CONSTRUCTABILITY_NOT_EXECUTABLE", "handoff_gate", f"Constructability status {status!r} is not eligible for Builder handoff.", "$.constructability_review.constructability_status"))
+        diagnostics.append(
+            ExportDiagnostic(
+                "CE_EXPORT_CONSTRUCTABILITY_NOT_EXECUTABLE",
+                "handoff_gate",
+                f"Constructability status {status!r} is not eligible for Builder handoff.",
+                "$.constructability_review.constructability_status",
+            )
+        )
     if payload.get("builder_package_emitted") is not True:
-        diagnostics.append(ExportDiagnostic("CE_EXPORT_BUILDER_PACKAGE_NOT_EMITTED", "handoff_gate", "CE did not emit an eligible Builder Executable Package.", "$.builder_package_emitted"))
+        diagnostics.append(
+            ExportDiagnostic(
+                "CE_EXPORT_BUILDER_PACKAGE_NOT_EMITTED",
+                "handoff_gate",
+                "CE did not emit an eligible Builder Executable Package.",
+                "$.builder_package_emitted",
+            )
+        )
     source_is_synthetic = (
-        _contains_synthetic_evidence(payload)
-        or _contains_synthetic_evidence(intake)
-        or _contains_synthetic_evidence(source_bundle)
+        contains_synthetic_evidence(payload)
+        or contains_synthetic_evidence(intake)
+        or contains_synthetic_evidence(source_bundle)
     )
     if source_is_synthetic:
-        diagnostics.append(ExportDiagnostic("CE_EXPORT_SYNTHETIC_EVIDENCE_BLOCKED", "handoff_gate", "Synthetic evidence cannot authorize Builder handoff.", "$.final_stage_bundle.synthetic"))
+        diagnostics.append(
+            ExportDiagnostic(
+                "CE_EXPORT_SYNTHETIC_EVIDENCE_BLOCKED",
+                "handoff_gate",
+                "Synthetic evidence cannot authorize Builder handoff.",
+                "$.final_stage_bundle.synthetic",
+            )
+        )
     if provenance.dirty:
-        diagnostics.append(ExportDiagnostic("CE_EXPORT_DIRTY_WORKTREE_BLOCKS_HANDOFF", "git_provenance", "Dirty repository state blocks an allowed handoff.", "$.producer.commit_sha", "repository_owner"))
+        diagnostics.append(
+            ExportDiagnostic(
+                "CE_EXPORT_DIRTY_WORKTREE_BLOCKS_HANDOFF",
+                "git_provenance",
+                "Dirty repository state blocks an allowed handoff.",
+                "$.producer.commit_sha",
+                "repository_owner",
+            )
+        )
     return diagnostics
 
 
@@ -274,11 +442,11 @@ def _build_stage_bundle(
     source_intake_path: Path,
     repo_root: Path,
 ) -> tuple[dict[str, Any], str]:
-    synthetic = (
-        _contains_synthetic_evidence(payload)
-        or _contains_synthetic_evidence(intake)
-        or _contains_synthetic_evidence(source_bundle)
-    )
+    payload_synthetic = contains_synthetic_evidence(payload)
+    upstream_synthetic = contains_synthetic_evidence(
+        intake
+    ) or contains_synthetic_evidence(source_bundle)
+    synthetic = payload_synthetic or upstream_synthetic
     evidence = [
         {
             "id": f"ce-payload:{payload['payload_identity']['payload_id']}",
@@ -287,18 +455,33 @@ def _build_stage_bundle(
             "description": "Official CE Stage Payload validated for Producer Gate Export.",
             "artifact_hash": _hash_record(_json_hash(payload)),
             "source": {
-                "type": "repo_path" if _relative_if_inside(payload_path, repo_root) else "manual_observation",
+                "type": (
+                    "synthetic_fixture"
+                    if payload_synthetic
+                    else "repo_path"
+                    if _relative_if_inside(payload_path, repo_root)
+                    else "manual_observation"
+                ),
                 "reference": _artifact_ref(payload_path, repo_root),
             },
         },
         {
-            "id": f"ce-source-intake:{intake.get('source_repository_ref', {}).get('bundle_id', 'unknown')}",
+            "id": (
+                "ce-source-intake:"
+                f"{intake.get('source_repository_ref', {}).get('bundle_id', 'unknown')}"
+            ),
             "kind": "document",
             "state": "validated",
             "description": "Accepted Architect-to-CE intake validated with source bundle binding.",
             "artifact_hash": _hash_record(_json_hash(intake)),
             "source": {
-                "type": "repo_path" if _relative_if_inside(source_intake_path, repo_root) else "manual_observation",
+                "type": (
+                    "synthetic_fixture"
+                    if upstream_synthetic
+                    else "repo_path"
+                    if _relative_if_inside(source_intake_path, repo_root)
+                    else "manual_observation"
+                ),
                 "reference": _artifact_ref(source_intake_path, repo_root),
             },
         },
@@ -321,8 +504,15 @@ def _build_stage_bundle(
             "ref": provenance.ref,
             "commit_sha": provenance.commit_sha,
         },
-        "evidence_status": "insufficient_evidence" if missing or payload.get("payload_status") == "insufficient_evidence" else "complete",
-        "payload": {"schema_id": "ev4-ce-stage-payload@1.0.0", "data": payload},
+        "evidence_status": (
+            "insufficient_evidence"
+            if missing or payload.get("payload_status") == "insufficient_evidence"
+            else "complete"
+        ),
+        "payload": {
+            "schema_id": "ev4-ce-stage-payload@1.0.0",
+            "data": payload,
+        },
         "evidence": evidence,
         "provenance": {
             "source": "operator_supplied_ce_stage_payload",
@@ -331,7 +521,13 @@ def _build_stage_bundle(
         "synthetic": synthetic,
     }
     if bundle["evidence_status"] == "insufficient_evidence":
-        bundle["missing_evidence"] = missing or [{"id": "ce-missing-evidence", "owner": "unresolved", "reason": "CE payload is insufficient_evidence."}]
+        bundle["missing_evidence"] = missing or [
+            {
+                "id": "ce-missing-evidence",
+                "owner": "unresolved",
+                "reason": "CE payload is insufficient_evidence.",
+            }
+        ]
     seed_hash = _json_hash(bundle)
     bundle["bundle_id"] = f"ce-stage-bundle-{seed_hash}"
     return bundle, _json_hash(bundle)
@@ -344,7 +540,11 @@ def validate_stage_bundle_lock(repo_root: Path) -> None:
     observed_hash = hashlib.sha256(schema_path.read_bytes()).hexdigest()
     canonical = lock.get("canonical") if isinstance(lock.get("canonical"), dict) else {}
     vendored = lock.get("vendored") if isinstance(lock.get("vendored"), dict) else {}
-    verification = lock.get("verification") if isinstance(lock.get("verification"), dict) else {}
+    verification = (
+        lock.get("verification")
+        if isinstance(lock.get("verification"), dict)
+        else {}
+    )
     expected = {
         "lock_schema": "project-gate-common-contract-lock.v1",
         "contract_owner": "rezahh107/EV4-Project-Gate",
@@ -381,14 +581,32 @@ def validate_stage_bundle_lock(repo_root: Path) -> None:
         )
 
 
-def validate_stage_bundle_schema(repo_root: Path, bundle: dict[str, Any]) -> None:
+def validate_stage_bundle_schema(
+    repo_root: Path,
+    bundle: dict[str, Any],
+) -> None:
     validate_stage_bundle_lock(repo_root)
-    schema = load_json(repo_root / "contracts/project-gate/stage-bundle.v1.schema.json")
-    errors = sorted(Draft202012Validator(schema).iter_errors(bundle), key=lambda error: tuple(str(part) for part in error.absolute_path))
+    schema = load_json(
+        repo_root / "contracts/project-gate/stage-bundle.v1.schema.json"
+    )
+    errors = sorted(
+        Draft202012Validator(schema).iter_errors(bundle),
+        key=lambda error: tuple(str(part) for part in error.absolute_path),
+    )
     if errors:
         error = errors[0]
-        path = "$" + "".join(f"[{part}]" if isinstance(part, int) else f".{part}" for part in error.absolute_path)
-        raise ExporterError(ExportDiagnostic("CE_EXPORT_STAGE_BUNDLE_SCHEMA_INVALID", "stage_bundle_validation", error.message, path))
+        path = "$" + "".join(
+            f"[{part}]" if isinstance(part, int) else f".{part}"
+            for part in error.absolute_path
+        )
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_STAGE_BUNDLE_SCHEMA_INVALID",
+                "stage_bundle_validation",
+                error.message,
+                path,
+            )
+        )
 
 
 def _export_identity_hash(export: dict[str, Any]) -> str:
@@ -402,6 +620,9 @@ def verify_export_identity(export: dict[str, Any]) -> bool:
     identity_hash = _export_identity_hash(export)
     return (
         export.get("export_id") == f"ce-project-gate-export-{identity_hash}"
-        and export.get("stage_manifest", [])[-1].get("output", {}).get("artifact_hash", {}).get("value") == identity_hash
+        and export.get("stage_manifest", [])[-1]
+        .get("output", {})
+        .get("artifact_hash", {})
+        .get("value")
+        == identity_hash
     )
-
