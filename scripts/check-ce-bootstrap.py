@@ -454,8 +454,10 @@ def validate_repository(root: Path) -> dict[str, Any]:
 
 
 def load_official_validator(root: Path) -> Any:
-    path = root / INTAKE_VALIDATOR_REL
     name = "ce_bootstrap_official_intake_validator"
+    if name in sys.modules:
+        return sys.modules[name].CEArchitectStageIntakeValidator(root)
+    path = root / INTAKE_VALIDATOR_REL
     spec = importlib.util.spec_from_file_location(name, path)
     require(spec is not None and spec.loader is not None, "official validator load failed")
     module = importlib.util.module_from_spec(spec)
@@ -487,7 +489,7 @@ def route_attachments(root: Path, attachments: Iterable[Path]) -> dict[str, Any]
         for key in ("valid", "insufficient", "invalid", "receipt", "legacy", "wrong")
     }
     for supplied in attachments:
-        path = supplied if supplied.is_absolute() else Path.cwd() / supplied
+        path = supplied if supplied.is_absolute() else root / supplied
         try:
             value = strict_load_json(path)
         except ValidationError as exc:
