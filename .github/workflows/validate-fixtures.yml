@@ -30,9 +30,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install PyYAML jsonschema pytest
           python -m pip install -e '.[dev]'
-      - name: Extract and execute deterministic repair block
+      - name: Extract and execute deterministic repair block with captured diagnostics
         shell: bash
         run: |
+          set +e
           python - <<'PY'
           from pathlib import Path
           import textwrap
@@ -44,16 +45,37 @@ jobs:
           block = textwrap.dedent(raw[start:end])
           Path('/tmp/ce-policy-repair.sh').write_text(block, encoding='utf-8')
           PY
-          bash /tmp/ce-policy-repair.sh
-      - name: Run focused policy governance validation
+          EXTRACT_STATUS=$?
+          if [ "$EXTRACT_STATUS" -ne 0 ]; then
+            printf 'extract_status=%s\n' "$EXTRACT_STATUS" > policies/.repair-debug.txt
+            exit 0
+          fi
+          bash /tmp/ce-policy-repair.sh > /tmp/ce-policy-repair.log 2>&1
+          REPAIR_STATUS=$?
+          if [ "$REPAIR_STATUS" -ne 0 ]; then
+            {
+              printf 'repair_status=%s\n' "$REPAIR_STATUS"
+              tail -n 200 /tmp/ce-policy-repair.log
+            } > policies/.repair-debug.txt
+          fi
+          exit 0
+      - name: Run focused policy governance validation when repair succeeded
         shell: bash
         run: |
+          if [ -f policies/.repair-debug.txt ]; then
+            echo 'Repair failed; focused validation deferred.'
+            exit 0
+          fi
           python scripts/validate-ce-policy-governance.py
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_decision_escape_routes_schema.py
-      - name: Restore canonical workflow with focused policy checks
+      - name: Restore canonical workflow when repair succeeded
         shell: bash
         run: |
+          if [ -f policies/.repair-debug.txt ]; then
+            echo 'Repair failed; canonical workflow restoration deferred.'
+            exit 0
+          fi
           git show 6650c31304e5a0472b276c36018c1df8f42ac983:.github/workflows/validate-fixtures.yml > /tmp/validate-fixtures.base.yml
           python - <<'PY'
           from pathlib import Path
@@ -64,15 +86,21 @@ jobs:
               source = source.replace(needle, needle + addition)
           Path('.github/workflows/validate-fixtures.yml').write_text(source, encoding='utf-8')
           PY
-      - name: Commit repaired policy and governance carriers
+      - name: Commit repair result or captured diagnostic
         shell: bash
         run: |
           set -euo pipefail
+          git config user.name 'policy-repair-bot'
+          git config user.email 'policy-repair-bot@users.noreply.github.com'
+          if [ -f policies/.repair-debug.txt ]; then
+            git add policies/.repair-debug.txt
+            git commit -m '[policy-repair-debug] Capture CE repair failure'
+            git push origin HEAD:policy/ce-constructability-policy-r001
+            exit 0
+          fi
           rm -f .github/workflows/temporary-repair-policy.yml
           rm -f .github/workflows/temporary-repair-bootstrap.yml
           rm -f policies/.repair-trigger
-          git config user.name 'policy-repair-bot'
-          git config user.email 'policy-repair-bot@users.noreply.github.com'
           git add -A
           git commit -m '[policy-repair-bot] Repair CE policy governance findings'
           git push origin HEAD:policy/ce-constructability-policy-r001
