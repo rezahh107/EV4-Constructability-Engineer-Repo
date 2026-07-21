@@ -1,8 +1,11 @@
 # CE Validation Transaction Audit
 
 Status: `implemented_pending_fresh_independent_review`  
-Live base audited: `2a483b1a78651b3a23f334cf8ec2f877fd930a6a`  
+Final live base audited: `9b80da790426912d662b7e55cef4e51edbf8d495`  
+Starting observed main: `2a483b1a78651b3a23f334cf8ec2f877fd930a6a`  
 Scope: CE startup through Project Gate export and Builder handoff gating.
+
+The base advanced through merged PR #41 during the audit. Its canonical `payload.data` owner-path repair was integrated before final validation.
 
 This document is an audit record. Enforcement exists only where the table names executable code, tests, or CI. Documentation text is not authorization.
 
