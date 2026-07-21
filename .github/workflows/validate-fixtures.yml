@@ -104,6 +104,7 @@ jobs:
             echo 'Repair or focused validation failed; canonical workflow restoration deferred.'
             exit 0
           fi
+          git fetch --no-tags --depth=1 origin 6650c31304e5a0472b276c36018c1df8f42ac983
           git show 6650c31304e5a0472b276c36018c1df8f42ac983:.github/workflows/validate-fixtures.yml > /tmp/validate-fixtures.base.yml
           python - <<'PY'
           from pathlib import Path
