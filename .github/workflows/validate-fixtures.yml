@@ -60,21 +60,48 @@ jobs:
             } > policies/.repair-debug.txt
           fi
           exit 0
-      - name: Run focused policy governance validation when repair succeeded
+      - name: Repair focused test module loading
+        shell: bash
+        run: |
+          if [ -f policies/.repair-debug.txt ]; then exit 0; fi
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_ce_policy_governance.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''import importlib.util\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[1]\nMODULE_PATH = ROOT / "scripts" / "validate-ce-policy-governance.py"\nspec = importlib.util.spec_from_file_location("ce_policy_governance", MODULE_PATH)\nmodule = importlib.util.module_from_spec(spec)\nassert spec and spec.loader\nspec.loader.exec_module(module)\n'''
+          new = '''import importlib.util\nimport sys\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[1]\nMODULE_PATH = ROOT / "scripts" / "validate-ce-policy-governance.py"\nspec = importlib.util.spec_from_file_location("ce_policy_governance", MODULE_PATH)\nassert spec and spec.loader\nmodule = importlib.util.module_from_spec(spec)\nsys.modules[spec.name] = module\nspec.loader.exec_module(module)\n'''
+          if old not in text:
+              raise SystemExit('expected test import block not found')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+      - name: Run focused policy governance validation with captured diagnostics
         shell: bash
         run: |
           if [ -f policies/.repair-debug.txt ]; then
             echo 'Repair failed; focused validation deferred.'
             exit 0
           fi
-          python scripts/validate-ce-policy-governance.py
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_decision_escape_routes_schema.py
+          set +e
+          {
+            python scripts/validate-ce-policy-governance.py
+            PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
+            PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_decision_escape_routes_schema.py
+          } > /tmp/ce-policy-validation.log 2>&1
+          STATUS=$?
+          if [ "$STATUS" -ne 0 ]; then
+            {
+              printf 'focused_validation_status=%s\n' "$STATUS"
+              tail -n 250 /tmp/ce-policy-validation.log
+            } > policies/.repair-debug.txt
+          else
+            cat /tmp/ce-policy-validation.log
+          fi
+          exit 0
       - name: Restore canonical workflow when repair succeeded
         shell: bash
         run: |
           if [ -f policies/.repair-debug.txt ]; then
-            echo 'Repair failed; canonical workflow restoration deferred.'
+            echo 'Repair or focused validation failed; canonical workflow restoration deferred.'
             exit 0
           fi
           git show 6650c31304e5a0472b276c36018c1df8f42ac983:.github/workflows/validate-fixtures.yml > /tmp/validate-fixtures.base.yml
@@ -95,13 +122,14 @@ jobs:
           git config user.email 'policy-repair-bot@users.noreply.github.com'
           if [ -f policies/.repair-debug.txt ]; then
             git add policies/.repair-debug.txt
-            git commit -m '[policy-repair-debug] Capture CE repair failure'
+            git commit -m '[policy-repair-debug] Capture CE focused validation failure'
             git push origin HEAD:policy/ce-constructability-policy-r001
             exit 0
           fi
           rm -f .github/workflows/temporary-repair-policy.yml
           rm -f .github/workflows/temporary-repair-bootstrap.yml
           rm -f policies/.repair-trigger
+          rm -f policies/.repair-debug.txt
           git add -A
           git commit -m '[policy-repair-bot] Repair CE policy governance findings'
           git push origin HEAD:policy/ce-constructability-policy-r001
