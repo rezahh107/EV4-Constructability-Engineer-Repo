@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ev4.local/schemas/ce_policy_decision_context.v1.schema.json",
+  "title": "CE Policy Decision Context v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_id",
+    "loading_mode",
+    "decision_scope",
+    "decision_family",
+    "requested_option",
+    "upstream_decision_lineage",
+    "external_domain_artifacts",
+    "expected"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "policy_id": {
+      "const": "EV4-CE-CONSTRUCTABILITY-DECISION-POLICY-r001"
+    },
+    "loading_mode": {
+      "const": "manual_advisory_attachment_only"
+    },
+    "decision_scope": {
+      "enum": [
+        "locked_upstream_decision",
+        "ce_constructability_interpretation",
+        "kernel_governed_choice"
+      ]
+    },
+    "decision_family": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requested_option": {
+      "type": "string",
+      "minLength": 1
+    },
+    "upstream_decision_lineage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decision_family",
+          "decision_card_ref",
+          "selected_option",
+          "rejected_options",
+          "evidence_refs",
+          "evidence_state",
+          "consumer_stage"
+        ],
+        "properties": {
+          "decision_family": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decision_card_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "selected_option": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rejected_options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "evidence_state": {
+            "enum": [
+              "observed",
+              "validated",
+              "resolved",
+              "derived",
+              "proposed",
+              "unverified",
+              "insufficient_evidence"
+            ]
+          },
+          "consumer_stage": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "external_domain_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "domain_id",
+          "artifact_ref",
+          "trust_class",
+          "changed_decision_outcome"
+        ],
+        "properties": {
+          "domain_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifact_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "trust_class": {
+            "enum": [
+              "unverified_advisory",
+              "validated_contract_input"
+            ]
+          },
+          "changed_decision_outcome": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_pass"
+      ],
+      "properties": {
+        "validation_pass": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
