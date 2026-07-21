@@ -8,9 +8,9 @@ authority_provenance:
   source_state: live_default_branch
   evidence_scope: authority reconciliation source state before CE-GOV-001 implementation
 last_updated:
-  date: '2026-07-13'
-  pr: null
-  commit: d58e98f487d5c6f3b9930de11f603e99c31f6600
+  date: '2026-07-21'
+  pr: 39
+  commit: null
 brc_reference:
   document: Behavioral_Rule_Coverage_v0.4.1
   profile: EV4_CONSUMER_DECISION_TRIGGER_ARCHITECTURE_v0.4.1
@@ -94,3 +94,76 @@ records:
   notes: The validator is executed by pull-request CI and exact PR head 0ab54f4fb1e953408d50896190c9464bb6e22215
     had successful validate-fixtures evidence. This does not claim sequence, runtime,
     downstream, or production enforcement.
+- escape_route_id: CE-POLICY-KERNEL-GATE-001
+  rule_id: CE-POLICY-KERNEL-LINEAGE-001
+  concept: Reject a policy context that selects or changes a Kernel-governed option
+    without complete matching lineage.
+  risk: Critical
+  session_scope: per_artifact
+  recovery_action: block
+  consumer_repo: EV4-Constructability-Engineer-Repo
+  consumer_stage: manual_ce_policy_context
+  surface_type: artifact_validator
+  file_path: scripts/validate-ce-policy-governance.py
+  trigger_type: pull_request_ci
+  detected_problem: Manual policy prose could carry a Kernel-governed choice without
+    complete machine-readable lineage.
+  mapping_status: mapped
+  decision_family: layout_structure
+  required_decision_card_ref_pattern: ^DK-CARD-[A-Za-z0-9._:-]+$
+  not_applicable_reason: null
+  rule_shape:
+    trigger: Validate a manually supplied CE policy decision context.
+    predicate: Kernel-governed requested option has complete matching lineage and
+      equals upstream selected_option.
+    enforcement: Reject with CE_POLICY_KERNEL_LINEAGE_REQUIRED or CE_POLICY_KERNEL_SELECTED_OPTION_MISMATCH.
+  status:
+    enforcement_status: ci_enforced
+    evidence_state: validated
+  carriers:
+    schema_carrier: schemas/ce_policy_decision_context.v1.schema.json
+    CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-policy-governance.py
+    test_command: python scripts/validate-ce-policy-governance.py
+    positive_fixture: fixtures/ce-policy-governance/valid/complete-kernel-lineage.json
+    negative_fixture: fixtures/ce-policy-governance/invalid/missing-kernel-lineage.json
+    validator_rule: scripts/validate-ce-policy-governance.py::validate_context
+    validator_diagnostic: CE_POLICY_KERNEL_LINEAGE_REQUIRED
+  notes: Per-artifact CI enforcement for the focused manual policy context. This does
+    not claim cross-turn, runtime, downstream, or production enforcement.
+- escape_route_id: CE-POLICY-DOMAIN-ADVISORY-001
+  rule_id: CE-POLICY-DOMAIN-TRUST-001
+  concept: Prevent an unverified external Domain artifact from authorizing or changing
+    a CE decision outcome.
+  risk: High
+  session_scope: per_artifact
+  recovery_action: block
+  consumer_repo: EV4-Constructability-Engineer-Repo
+  consumer_stage: manual_ce_policy_context
+  surface_type: artifact_validator
+  file_path: scripts/validate-ce-policy-governance.py
+  trigger_type: pull_request_ci
+  detected_problem: A self-described or stale Domain attachment could be treated as
+    authority for an implementation strategy.
+  mapping_status: mapped
+  decision_family: layout_structure
+  required_decision_card_ref_pattern: ^DK-CARD-[A-Za-z0-9._:-]+$
+  not_applicable_reason: null
+  rule_shape:
+    trigger: Validate external Domain-artifact use in a manually supplied CE policy
+      context.
+    predicate: An unverified advisory Domain artifact does not change the decision
+      outcome.
+    enforcement: Reject with CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE.
+  status:
+    enforcement_status: ci_enforced
+    evidence_state: validated
+  carriers:
+    schema_carrier: schemas/ce_policy_decision_context.v1.schema.json
+    CI_step: .github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-policy-governance.py
+    test_command: python scripts/validate-ce-policy-governance.py
+    positive_fixture: fixtures/ce-policy-governance/valid/complete-kernel-lineage.json
+    negative_fixture: fixtures/ce-policy-governance/invalid/unverified-domain-changes-outcome.json
+    validator_rule: scripts/validate-ce-policy-governance.py::validate_context
+    validator_diagnostic: CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE
+  notes: External Domain artifacts remain advisory under this policy. This does not
+    establish a validated Domain input contract or runtime enforcement.

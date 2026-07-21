@@ -70,6 +70,10 @@ jobs:
       - run: python scripts/validate-ce-architect-stage-intake.py
       - run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py
       - run: python scripts/validate-ce-decision-lineage-sequence.py
+      - name: Validate manual CE policy governance fixtures
+        run: python scripts/validate-ce-policy-governance.py
+      - name: Run focused CE policy governance tests
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
       - run: python scripts/validate-ce-kernel-decision-receipts.py
       - run: python scripts/validate-project-gate-producer-adoption.py
       - name: Record completed AI governance validation sequence

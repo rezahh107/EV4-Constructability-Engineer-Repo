@@ -28,6 +28,25 @@ For Project Gate-produced Architect-to-CE transitions, its canonical Architect-f
 
 Follow the current owning contract and validated fixtures over proposals or historical notes.
 
+## Manual Advisory Policy Attachment
+
+`policies/EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_r001.md` is not part of the canonical `Read First` sequence and is not automatically loaded. An operator may attach it manually as advisory reference only.
+
+When attached:
+
+- current contracts, schemas, validators, fixtures, accepted Architect identity, and machine-readable Kernel lineage remain higher authority;
+- the policy must not create or replace a Kernel-governed decision;
+- a governed option requires complete lineage fields and must match upstream `selected_option`;
+- external EV4 Domain artifacts remain untrusted advisory evidence unless an active repository contract validates their exact provenance and compatibility;
+- prose-only guidance must not be reported as schema, validator, CI, runtime, or downstream enforcement.
+
+Focused policy-governance validation:
+
+```bash
+python scripts/validate-ce-policy-governance.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
+```
+
 ## Project Gate Position
 
 ```text

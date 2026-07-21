@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "policy_id": "EV4-CE-CONSTRUCTABILITY-DECISION-POLICY-r001",
+  "loading_mode": "manual_advisory_attachment_only",
+  "decision_scope": "kernel_governed_choice",
+  "decision_family": "layout_structure",
+  "requested_option": "flex_wrap",
+  "upstream_decision_lineage": [
+    {
+      "decision_family": "layout_structure",
+      "decision_card_ref": "DK-CARD-layout-structure-001",
+      "selected_option": "grid_tracks",
+      "rejected_options": [
+        "flex_wrap"
+      ],
+      "evidence_refs": [
+        "EVD-001"
+      ],
+      "evidence_state": "validated",
+      "consumer_stage": "constructability_engineer"
+    }
+  ],
+  "external_domain_artifacts": [],
+  "expected": {
+    "validation_pass": false
+  }
+}
