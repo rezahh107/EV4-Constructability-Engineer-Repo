@@ -1,0 +1,361 @@
+name: temporary-repair-policy
+
+on:
+  push:
+    branches:
+      - policy/ce-constructability-policy-r001
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, '[policy-repair-bot]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: policy/ce-constructability-policy-r001
+          persist-credentials: true
+      - name: Repair policy governance deterministically
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import yaml
+
+          policy_path = Path('policies/EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_r001.md')
+          text = policy_path.read_text(encoding='utf-8')
+
+          text = text.replace('**Status:** `READY_FOR_TEMPORARY_CE_USE`', '**Status:** `MANUAL_ADVISORY_ATTACHMENT_ONLY`')
+          text = text.replace('**Operating mode:** Silent internal constructability decision support inside the existing CE workflow', '**Operating mode:** Manual advisory attachment only; not automatically loaded, not an activation carrier, and not independent decision authority')
+          text = text.replace('**Primary objective:** Prove, block, or precisely bound implementation strategy so Builder receives no unresolved strategy decisions.', '**Primary objective:** Help CE interpret and document constructability work within already authorized architecture and Kernel decisions, while preserving machine-readable lineage and existing repository enforcement boundaries.')
+
+          kernel = '**Kernel relationship:** This policy is a supplemental role-specific decision aid. It does not replace, emulate, supersede, bypass, or weaken the EV4 Decision Kernel, Kernel decision cards, required Kernel consultation, decision lineage, or any active Kernel-owned rule. When a Kernel decision applies, the Kernel remains authoritative and this policy may only help the role interpret or apply that decision within its own boundaries.\n'
+          extra = '''\n**Loading and enforcement boundary:** This file is not part of the canonical `Read First` sequence and is not automatically active. It may be attached manually only as advisory reference. Its prose cannot authorize a governed choice, prove enforcement, or replace contracts, schemas, validators, fixtures, CI, or machine-readable Kernel lineage.\n\n**Domain-artifact trust boundary:** External EV4 Domain artifacts are untrusted advisory evidence unless an active repository contract validates their exact Domain ID, registry entry and revision, artifact revision, SHA-256 digest, schema version, validation receipt, compatibility scope, and target Elementor version. This policy defines no such validated input contract. Therefore external Domain artifacts may inform questions or risk identification but cannot independently authorize, select, replace, or change an implementation decision.\n'''
+          if extra.strip() not in text:
+              text = text.replace(kernel, kernel + extra)
+
+          trigger_marker = '\n---\n\n## 3. Mandatory constructability decision order'
+          trigger = '''\n### 2.6 Kernel-governed decision trigger\n\nClassify every decision-bearing surface before using this advisory policy:\n\n1. **Locked upstream decision** — The accepted Architect or Kernel carrier already provides the selected option. CE may preserve it and evaluate constructability, but must not replace it.\n2. **CE-owned constructability interpretation** — CE may determine implementation feasibility or evidence requirements only within the existing contract and without changing the governed choice.\n3. **Fresh Kernel consultation required** — The proposed action would select or change a governed option, including layout structure, responsive strategy, geometry/positioning strategy, interaction strategy, class scope, media role, or another Kernel-owned family. CE must stop and obtain a fresh Kernel decision.\n\nBefore accepting, interpreting, or passing a Kernel-governed choice, require a complete machine-readable lineage entry containing:\n\n- `decision_family`;\n- `decision_card_ref`;\n- `selected_option`;\n- `rejected_options`;\n- `evidence_refs`;\n- `evidence_state`;\n- `consumer_stage`.\n\nThe requested or proposed option must equal the upstream `selected_option`. Missing lineage, incomplete lineage, or an option mismatch must block the policy context with a stable diagnostic and require Kernel consultation. A prose statement that the Kernel remains authoritative is not sufficient evidence.\n\n'''
+          if '### 2.6 Kernel-governed decision trigger' not in text:
+              text = text.replace(trigger_marker, '\n' + trigger + '---\n\n## 3. Mandatory constructability decision order')
+
+          text = text.replace('5. applicable EV4 Domain guidance;', '5. external EV4 Domain guidance only as untrusted advisory evidence that cannot authorize or change the decision outcome;')
+
+          evidence_marker = '\n---\n\n## 5. Quick routing index'
+          domain_section = '''\n### 4.2 External Domain-artifact advisory model\n\nExternal Domain artifacts are below current repository contracts, schemas, validators, fixtures, verified project evidence, complete Kernel lineage, and current official documentation. A filename, heading, attachment label, or self-authored metadata is not approval evidence.\n\nUntil a repository-owned validated input contract exists, external Domain artifacts:\n\n- remain `unverified_advisory`;\n- cannot authorize a strategy, Builder handoff, or readiness state;\n- cannot change a locked or Kernel-governed option;\n- cannot be treated as stronger than current repository evidence or current official documentation;\n- may be used only to identify questions, candidate risks, or evidence to seek.\n\nIf an unverified attachment would change the decision outcome, reject that policy context with `CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE`.\n\n'''
+          if '### 4.2 External Domain-artifact advisory model' not in text:
+              text = text.replace(evidence_marker, '\n' + domain_section + '---\n\n## 5. Quick routing index')
+
+          # Correct section 7 hierarchy and add explicit stable anchors.
+          lines = text.splitlines()
+          out = []
+          in_seven = False
+          for line in lines:
+              top = re.match(r'^## (\d+)\. ', line)
+              if top:
+                  in_seven = int(top.group(1)) == 7
+                  out.append(line)
+                  continue
+              m = re.match(r'^## 7\.(\d+) `([^`]+)`', line)
+              if in_seven and m:
+                  n = m.group(1)
+                  out.append(f'<a id="ce-policy-7-{n}"></a>')
+                  out.append('###' + line[2:])
+                  continue
+              if in_seven and line.startswith('### '):
+                  out.append('#' + line)
+                  continue
+              out.append(line)
+          text = '\n'.join(out) + '\n'
+
+          # Convert section references in Quick Routing Index to stable links.
+          for n in range(1, 20):
+              text = re.sub(rf'\| 7\.{n} \|', f'| [7.{n}](#ce-policy-7-{n}) |', text)
+
+          # Rewrite start-session section as truthful manual advisory loading.
+          start = text.index('## 10. CE start-session instruction')
+          end = text.index('\n---\n\n## 11.', start)
+          section10 = '''## 10. Manual advisory attachment instruction\n\nThis policy is not automatically loaded by the repository. When an operator explicitly attaches it to a CE session, use this instruction:\n\n```text\nUse the attached EV4 CE Constructability Decision Policy only as\nMANUAL_ADVISORY_ATTACHMENT_ONLY reference. It does not activate a new decision\nroute and cannot override repository contracts, schemas, validators, fixtures,\nKernel decisions, or accepted Architect identity.\n\nFirst classify each decision as a locked upstream decision, CE-owned\nconstructability interpretation, or a choice requiring fresh Kernel consultation.\nFor every Kernel-governed choice, require complete machine-readable lineage with\ndecision_family, decision_card_ref, selected_option, rejected_options,\nevidence_refs, evidence_state, and consumer_stage. Preserve selected_option and\nlineage exactly. Missing or mismatched lineage blocks the policy context.\n\nExternal EV4 Domain artifacts are untrusted advisory evidence unless an active\nrepository contract validates their exact identity, digest, registry/schema\nrevision, receipt, compatibility scope, and target platform version. They may\nidentify questions or risks but cannot authorize or change a decision.\n\nUse this reference to improve constructability analysis only within CE authority.\nDo not redesign, rescore, act as Builder, claim automatic loading or enforcement,\nor claim Builder readiness, runtime success, responsive completion, or production\nreadiness beyond validated repository evidence.\n```\n'''
+          text = text[:start] + section10 + text[end:]
+
+          text = text.replace('EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_READY', 'EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_MANUAL_ADVISORY_ONLY')
+          text = text.replace('This policy is intended for immediate temporary use as a role-specific CE decision-quality aid.', 'This policy is intended only for explicit manual attachment as a role-specific CE advisory reference.')
+
+          assert '**Status:** `MANUAL_ADVISORY_ATTACHMENT_ONLY`' in text
+          assert '### 2.6 Kernel-governed decision trigger' in text
+          assert '### 4.2 External Domain-artifact advisory model' in text
+          assert 'CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE' in text
+          assert not re.search(r'^## 7\.\d+ ', text, re.M)
+          assert re.search(r'^### 7\.1 ', text, re.M)
+          assert '<a id="ce-policy-7-19"></a>' in text
+          assert '[7.19](#ce-policy-7-19)' in text
+          assert 'silent mandatory' not in text.lower()
+          assert 'immediate temporary use' not in text.lower()
+          policy_path.write_text(text, encoding='utf-8')
+
+          # Add discoverable manual-loading rules without placing policy in Read First.
+          agents_path = Path('AGENTS.md')
+          agents = agents_path.read_text(encoding='utf-8')
+          anchor = 'Follow the current owning contract and validated fixtures over proposals or historical notes.\n'
+          manual = '''\n## Manual Advisory Policy Attachment\n\n`policies/EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_r001.md` is not part of the canonical `Read First` sequence and is not automatically loaded. An operator may attach it manually as advisory reference only.\n\nWhen attached:\n\n- current contracts, schemas, validators, fixtures, accepted Architect identity, and machine-readable Kernel lineage remain higher authority;\n- the policy must not create or replace a Kernel-governed decision;\n- a governed option requires complete lineage fields and must match upstream `selected_option`;\n- external EV4 Domain artifacts remain untrusted advisory evidence unless an active repository contract validates their exact provenance and compatibility;\n- prose-only guidance must not be reported as schema, validator, CI, runtime, or downstream enforcement.\n\nFocused policy-governance validation:\n\n```bash\npython scripts/validate-ce-policy-governance.py\nPYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py\n```\n'''
+          if '## Manual Advisory Policy Attachment' not in agents:
+              agents = agents.replace(anchor, anchor + manual)
+          agents_path.write_text(agents, encoding='utf-8')
+
+          # Focused machine-readable policy context schema.
+          schema = {
+              '$schema': 'https://json-schema.org/draft/2020-12/schema',
+              '$id': 'https://ev4.local/schemas/ce_policy_decision_context.v1.schema.json',
+              'title': 'CE Policy Decision Context v1',
+              'type': 'object',
+              'additionalProperties': False,
+              'required': ['schema_version','policy_id','loading_mode','decision_scope','decision_family','requested_option','upstream_decision_lineage','external_domain_artifacts','expected'],
+              'properties': {
+                  'schema_version': {'const': 1},
+                  'policy_id': {'const': 'EV4-CE-CONSTRUCTABILITY-DECISION-POLICY-r001'},
+                  'loading_mode': {'const': 'manual_advisory_attachment_only'},
+                  'decision_scope': {'enum': ['locked_upstream_decision','ce_constructability_interpretation','kernel_governed_choice']},
+                  'decision_family': {'type':'string','minLength':1},
+                  'requested_option': {'type':'string','minLength':1},
+                  'upstream_decision_lineage': {
+                      'type':'array',
+                      'items': {
+                          'type':'object','additionalProperties':False,
+                          'required':['decision_family','decision_card_ref','selected_option','rejected_options','evidence_refs','evidence_state','consumer_stage'],
+                          'properties': {
+                              'decision_family': {'type':'string','minLength':1},
+                              'decision_card_ref': {'type':'string','minLength':1},
+                              'selected_option': {'type':'string','minLength':1},
+                              'rejected_options': {'type':'array','items':{'type':'string'}},
+                              'evidence_refs': {'type':'array','minItems':1,'items':{'type':'string','minLength':1}},
+                              'evidence_state': {'enum':['observed','validated','resolved','derived','proposed','unverified','insufficient_evidence']},
+                              'consumer_stage': {'type':'string','minLength':1}
+                          }
+                      }
+                  },
+                  'external_domain_artifacts': {
+                      'type':'array',
+                      'items': {
+                          'type':'object','additionalProperties':False,
+                          'required':['domain_id','artifact_ref','trust_class','changed_decision_outcome'],
+                          'properties': {
+                              'domain_id': {'type':'string','minLength':1},
+                              'artifact_ref': {'type':'string','minLength':1},
+                              'trust_class': {'enum':['unverified_advisory','validated_contract_input']},
+                              'changed_decision_outcome': {'type':'boolean'}
+                          }
+                      }
+                  },
+                  'expected': {
+                      'type':'object','additionalProperties':False,
+                      'required':['validation_pass'],
+                      'properties': {'validation_pass': {'type':'boolean'}}
+                  }
+              }
+          }
+          schema_path = Path('schemas/ce_policy_decision_context.v1.schema.json')
+          schema_path.write_text(json.dumps(schema, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+          validator = r'''#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from jsonschema import Draft202012Validator
+
+ROOT = Path(__file__).resolve().parents[1]
+SCHEMA_PATH = ROOT / "schemas" / "ce_policy_decision_context.v1.schema.json"
+FIXTURE_ROOT = ROOT / "fixtures" / "ce-policy-governance"
+
+DIAG_SCHEMA = "CE_POLICY_CONTEXT_SCHEMA_INVALID"
+DIAG_LINEAGE = "CE_POLICY_KERNEL_LINEAGE_REQUIRED"
+DIAG_OPTION = "CE_POLICY_KERNEL_SELECTED_OPTION_MISMATCH"
+DIAG_DOMAIN = "CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE"
+
+@dataclass(frozen=True)
+class Diagnostic:
+    code: str
+    path: str
+    message: str
+
+    def as_dict(self) -> dict[str, str]:
+        return {"code": self.code, "path": self.path, "message": self.message}
+
+def load_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+def validate_context(value: Any) -> list[Diagnostic]:
+    schema = load_json(SCHEMA_PATH)
+    errors = sorted(Draft202012Validator(schema).iter_errors(value), key=lambda e: list(e.absolute_path))
+    if errors:
+        return [Diagnostic(DIAG_SCHEMA, "$" + "".join(f"[{p!r}]" for p in e.absolute_path), e.message) for e in errors]
+    diagnostics: list[Diagnostic] = []
+    if value["decision_scope"] == "kernel_governed_choice":
+        matching = [x for x in value["upstream_decision_lineage"] if x["decision_family"] == value["decision_family"]]
+        if not matching:
+            diagnostics.append(Diagnostic(DIAG_LINEAGE, "$.upstream_decision_lineage", "Kernel-governed choices require complete matching machine-readable decision lineage."))
+        elif all(x["selected_option"] != value["requested_option"] for x in matching):
+            diagnostics.append(Diagnostic(DIAG_OPTION, "$.requested_option", "Requested option must equal the upstream Kernel selected_option."))
+    for i, artifact in enumerate(value["external_domain_artifacts"]):
+        if artifact["trust_class"] == "unverified_advisory" and artifact["changed_decision_outcome"]:
+            diagnostics.append(Diagnostic(DIAG_DOMAIN, f"$.external_domain_artifacts[{i}]", "An unverified advisory Domain artifact cannot authorize or change a decision outcome."))
+    return diagnostics
+
+def fixture_paths(paths: list[Path]) -> list[Path]:
+    out: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            out.extend(sorted(path.rglob("*.json")))
+        else:
+            out.append(path)
+    return out
+
+def validate_file(path: Path) -> dict[str, Any]:
+    value = load_json(path)
+    diagnostics = validate_context(value)
+    passed = not diagnostics
+    expected = value.get("expected", {}).get("validation_pass")
+    return {"path": str(path), "passed": passed, "expected_pass": expected, "matches_expected": expected is None or passed is expected, "diagnostics": [d.as_dict() for d in diagnostics]}
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("paths", nargs="*", type=Path, default=[FIXTURE_ROOT])
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args(argv)
+    results = [validate_file(path) for path in fixture_paths(args.paths)]
+    failed = [r for r in results if not r["matches_expected"]]
+    if args.json:
+        print(json.dumps({"passed": not failed, "results": results}, indent=2, ensure_ascii=False))
+    else:
+        print("PASS" if not failed else "FAIL-CLOSED")
+        for result in results:
+            print(f"{result['path']}: passed={result['passed']} expected={result['expected_pass']} matches={result['matches_expected']}")
+            for diagnostic in result["diagnostics"]:
+                print(f"  - {diagnostic['code']} at {diagnostic['path']}: {diagnostic['message']}")
+    return 0 if not failed else 1
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+'''
+          validator_path = Path('scripts/validate-ce-policy-governance.py')
+          validator_path.write_text(validator, encoding='utf-8')
+
+          valid = {
+              'schema_version':1,'policy_id':'EV4-CE-CONSTRUCTABILITY-DECISION-POLICY-r001','loading_mode':'manual_advisory_attachment_only','decision_scope':'kernel_governed_choice','decision_family':'layout_structure','requested_option':'grid_tracks','upstream_decision_lineage':[{'decision_family':'layout_structure','decision_card_ref':'DK-CARD-layout-structure-001','selected_option':'grid_tracks','rejected_options':['flex_wrap'],'evidence_refs':['EVD-001'],'evidence_state':'validated','consumer_stage':'constructability_engineer'}],'external_domain_artifacts':[{'domain_id':'LAYOUT_STRUCTURE','artifact_ref':'external-unverified-example','trust_class':'unverified_advisory','changed_decision_outcome':False}],'expected':{'validation_pass':True}
+          }
+          missing = {
+              'schema_version':1,'policy_id':'EV4-CE-CONSTRUCTABILITY-DECISION-POLICY-r001','loading_mode':'manual_advisory_attachment_only','decision_scope':'kernel_governed_choice','decision_family':'layout_structure','requested_option':'grid_tracks','upstream_decision_lineage':[],'external_domain_artifacts':[],'expected':{'validation_pass':False}
+          }
+          mismatch = {
+              'schema_version':1,'policy_id':'EV4-CE-CONSTRUCTABILITY-DECISION-POLICY-r001','loading_mode':'manual_advisory_attachment_only','decision_scope':'kernel_governed_choice','decision_family':'layout_structure','requested_option':'flex_wrap','upstream_decision_lineage':[{'decision_family':'layout_structure','decision_card_ref':'DK-CARD-layout-structure-001','selected_option':'grid_tracks','rejected_options':['flex_wrap'],'evidence_refs':['EVD-001'],'evidence_state':'validated','consumer_stage':'constructability_engineer'}],'external_domain_artifacts':[],'expected':{'validation_pass':False}
+          }
+          domain_invalid = {
+              'schema_version':1,'policy_id':'EV4-CE-CONSTRUCTABILITY-DECISION-POLICY-r001','loading_mode':'manual_advisory_attachment_only','decision_scope':'ce_constructability_interpretation','decision_family':'layout_structure','requested_option':'grid_tracks','upstream_decision_lineage':[],'external_domain_artifacts':[{'domain_id':'LAYOUT_STRUCTURE','artifact_ref':'self-described-approved.json','trust_class':'unverified_advisory','changed_decision_outcome':True}],'expected':{'validation_pass':False}
+          }
+          fixtures = {
+              'fixtures/ce-policy-governance/valid/complete-kernel-lineage.json': valid,
+              'fixtures/ce-policy-governance/invalid/missing-kernel-lineage.json': missing,
+              'fixtures/ce-policy-governance/invalid/kernel-option-mismatch.json': mismatch,
+              'fixtures/ce-policy-governance/invalid/unverified-domain-changes-outcome.json': domain_invalid,
+          }
+          for filename, payload in fixtures.items():
+              p = Path(filename); p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+          tests = r'''from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+MODULE_PATH = ROOT / "scripts" / "validate-ce-policy-governance.py"
+spec = importlib.util.spec_from_file_location("ce_policy_governance", MODULE_PATH)
+module = importlib.util.module_from_spec(spec)
+assert spec and spec.loader
+spec.loader.exec_module(module)
+
+def result(relative: str):
+    return module.validate_file(ROOT / relative)
+
+def test_complete_kernel_lineage_is_accepted():
+    value = result("fixtures/ce-policy-governance/valid/complete-kernel-lineage.json")
+    assert value["passed"] is True
+    assert value["matches_expected"] is True
+
+def test_missing_kernel_lineage_fails_closed():
+    value = result("fixtures/ce-policy-governance/invalid/missing-kernel-lineage.json")
+    assert value["passed"] is False
+    assert any(d["code"] == "CE_POLICY_KERNEL_LINEAGE_REQUIRED" for d in value["diagnostics"])
+
+def test_kernel_option_mismatch_fails_closed():
+    value = result("fixtures/ce-policy-governance/invalid/kernel-option-mismatch.json")
+    assert value["passed"] is False
+    assert any(d["code"] == "CE_POLICY_KERNEL_SELECTED_OPTION_MISMATCH" for d in value["diagnostics"])
+
+def test_unverified_domain_cannot_change_outcome():
+    value = result("fixtures/ce-policy-governance/invalid/unverified-domain-changes-outcome.json")
+    assert value["passed"] is False
+    assert any(d["code"] == "CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE" for d in value["diagnostics"])
+
+def test_policy_loading_mode_and_outline_are_truthful():
+    text = (ROOT / "policies" / "EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_r001.md").read_text(encoding="utf-8")
+    assert "MANUAL_ADVISORY_ATTACHMENT_ONLY" in text
+    assert "silent mandatory" not in text.lower()
+    assert not __import__("re").search(r"^## 7\\.\\d+ ", text, __import__("re").M)
+    for n in range(1, 20):
+        assert f'<a id="ce-policy-7-{n}"></a>' in text
+        assert f'[7.{n}](#ce-policy-7-{n})' in text
+'''
+          Path('tests/test_ce_policy_governance.py').write_text(tests, encoding='utf-8')
+
+          # Register two policy escape routes using existing schema vocabulary.
+          routes_path = Path('planning/DECISION_ESCAPE_ROUTES.yml')
+          routes = yaml.safe_load(routes_path.read_text(encoding='utf-8'))
+          routes['last_updated'] = {'date':'2026-07-21','pr':39,'commit':None}
+          records = routes['records']
+          ids = {r['escape_route_id'] for r in records}
+          if 'CE-POLICY-KERNEL-GATE-001' not in ids:
+              records.append({
+                  'escape_route_id':'CE-POLICY-KERNEL-GATE-001','rule_id':'CE-POLICY-KERNEL-LINEAGE-001','concept':'Reject a policy context that selects or changes a Kernel-governed option without complete matching lineage.','risk':'Critical','session_scope':'per_artifact','recovery_action':'block','consumer_repo':'EV4-Constructability-Engineer-Repo','consumer_stage':'manual_ce_policy_context','surface_type':'artifact_validator','file_path':'scripts/validate-ce-policy-governance.py','trigger_type':'pull_request_ci','detected_problem':'Manual policy prose could carry a Kernel-governed choice without complete machine-readable lineage.','mapping_status':'mapped','decision_family':'layout_structure','required_decision_card_ref_pattern':'^DK-CARD-[A-Za-z0-9._:-]+$','not_applicable_reason':None,'rule_shape':{'trigger':'Validate a manually supplied CE policy decision context.','predicate':'Kernel-governed requested option has complete matching lineage and equals upstream selected_option.','enforcement':'Reject with CE_POLICY_KERNEL_LINEAGE_REQUIRED or CE_POLICY_KERNEL_SELECTED_OPTION_MISMATCH.'},'status':{'enforcement_status':'ci_enforced','evidence_state':'validated'},'carriers':{'schema_carrier':'schemas/ce_policy_decision_context.v1.schema.json','CI_step':'.github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-policy-governance.py','test_command':'python scripts/validate-ce-policy-governance.py','positive_fixture':'fixtures/ce-policy-governance/valid/complete-kernel-lineage.json','negative_fixture':'fixtures/ce-policy-governance/invalid/missing-kernel-lineage.json','validator_rule':'scripts/validate-ce-policy-governance.py::validate_context','validator_diagnostic':'CE_POLICY_KERNEL_LINEAGE_REQUIRED'},'notes':'Per-artifact CI enforcement for the focused manual policy context. This does not claim cross-turn, runtime, downstream, or production enforcement.'
+              })
+          if 'CE-POLICY-DOMAIN-ADVISORY-001' not in ids:
+              records.append({
+                  'escape_route_id':'CE-POLICY-DOMAIN-ADVISORY-001','rule_id':'CE-POLICY-DOMAIN-TRUST-001','concept':'Prevent an unverified external Domain artifact from authorizing or changing a CE decision outcome.','risk':'High','session_scope':'per_artifact','recovery_action':'block','consumer_repo':'EV4-Constructability-Engineer-Repo','consumer_stage':'manual_ce_policy_context','surface_type':'artifact_validator','file_path':'scripts/validate-ce-policy-governance.py','trigger_type':'pull_request_ci','detected_problem':'A self-described or stale Domain attachment could be treated as authority for an implementation strategy.','mapping_status':'mapped','decision_family':'layout_structure','required_decision_card_ref_pattern':'^DK-CARD-[A-Za-z0-9._:-]+$','not_applicable_reason':None,'rule_shape':{'trigger':'Validate external Domain-artifact use in a manually supplied CE policy context.','predicate':'An unverified advisory Domain artifact does not change the decision outcome.','enforcement':'Reject with CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE.'},'status':{'enforcement_status':'ci_enforced','evidence_state':'validated'},'carriers':{'schema_carrier':'schemas/ce_policy_decision_context.v1.schema.json','CI_step':'.github/workflows/validate-fixtures.yml / test / python scripts/validate-ce-policy-governance.py','test_command':'python scripts/validate-ce-policy-governance.py','positive_fixture':'fixtures/ce-policy-governance/valid/complete-kernel-lineage.json','negative_fixture':'fixtures/ce-policy-governance/invalid/unverified-domain-changes-outcome.json','validator_rule':'scripts/validate-ce-policy-governance.py::validate_context','validator_diagnostic':'CE_POLICY_DOMAIN_ADVISORY_CANNOT_AUTHORIZE'},'notes':'External Domain artifacts remain advisory under this policy. This does not establish a validated Domain input contract or runtime enforcement.'
+              })
+          routes_path.write_text(yaml.safe_dump(routes, sort_keys=False, allow_unicode=True), encoding='utf-8')
+
+          # Wire focused checks into existing exact-head CI.
+          workflow_path = Path('.github/workflows/validate-fixtures.yml')
+          workflow = workflow_path.read_text(encoding='utf-8')
+          needle = '      - run: python scripts/validate-ce-decision-lineage-sequence.py\n'
+          addition = '''      - name: Validate manual CE policy governance fixtures\n        run: python scripts/validate-ce-policy-governance.py\n      - name: Run focused CE policy governance tests\n        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py\n'''
+          if 'Validate manual CE policy governance fixtures' not in workflow:
+              workflow = workflow.replace(needle, needle + addition)
+          workflow_path.write_text(workflow, encoding='utf-8')
+          PY
+      - name: Run focused policy governance validation
+        shell: bash
+        run: |
+          python -m pip install -e '.[dev]'
+          python scripts/validate-ce-policy-governance.py
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_decision_escape_routes_schema.py
+      - name: Commit repaired policy and governance carriers
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/temporary-repair-policy.yml
+          git config user.name 'policy-repair-bot'
+          git config user.email 'policy-repair-bot@users.noreply.github.com'
+          git add AGENTS.md policies/EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_r001.md planning/DECISION_ESCAPE_ROUTES.yml schemas/ce_policy_decision_context.v1.schema.json scripts/validate-ce-policy-governance.py fixtures/ce-policy-governance tests/test_ce_policy_governance.py .github/workflows/validate-fixtures.yml .github/workflows/temporary-repair-policy.yml
+          git commit -m '[policy-repair-bot] Repair CE policy governance findings'
+          git push origin HEAD:policy/ce-constructability-policy-r001
