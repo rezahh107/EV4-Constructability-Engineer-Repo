@@ -34,15 +34,16 @@ jobs:
         shell: bash
         run: |
           set +e
+          rm -f policies/.repair-debug.txt
           python - <<'PY'
           from pathlib import Path
-          import textwrap
           raw = Path('.github/workflows/temporary-repair-policy.yml').read_text(encoding='utf-8')
           marker = "          python - <<'PY'\n"
           start = raw.index(marker)
           end_marker = "\n          PY\n"
           end = raw.index(end_marker, start) + len(end_marker)
-          block = textwrap.dedent(raw[start:end])
+          segment = raw[start:end]
+          block = ''.join(line[10:] if line.startswith('          ') else line for line in segment.splitlines(keepends=True))
           Path('/tmp/ce-policy-repair.sh').write_text(block, encoding='utf-8')
           PY
           EXTRACT_STATUS=$?
