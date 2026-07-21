@@ -4,6 +4,11 @@ import argparse
 import json
 from pathlib import Path
 
+from .ce_validation_transaction import (
+    safe_output_path as _safe_output_path,
+    secure_build_export as build_export,
+    validate_transaction_artifact,
+)
 from .project_gate_exporter_core import (
     EXPECTED_STAGE_BUNDLE_SHA256,
     ExportDiagnostic,
@@ -17,11 +22,7 @@ from .project_gate_exporter_validation import (
     validate_stage_bundle_schema,
     verify_export_identity,
 )
-from .project_gate_exporter_orchestration import (
-    _atomic_write,
-    _safe_output_path,
-    build_export,
-)
+from .project_gate_exporter_orchestration import _atomic_write
 from .project_gate_export import canonical_bytes, validate_producer_gate_export
 from .project_gate_exporter_core import _load_object
 
@@ -88,6 +89,102 @@ def _inspect_git_provenance_safely(
         ) from exc
 
 
+def _read_prior_owned_output(path: Path) -> bytes | None:
+    if not path.exists():
+        return None
+    try:
+        return path.read_bytes()
+    except OSError as exc:
+        raise ExporterError(
+            ExportDiagnostic(
+                "CE_EXPORT_EXISTING_OUTPUT_READ_FAILED",
+                "output_safety",
+                f"Failed to capture the existing owned output before replacement: {exc}",
+                str(path),
+                "repository_owner",
+            )
+        ) from exc
+
+
+def _restore_or_remove_failed_output(
+    safe_output: Path,
+    prior_output_bytes: bytes | None,
+    original_diagnostic: ExportDiagnostic,
+) -> ExportResult:
+    try:
+        if prior_output_bytes is None:
+            safe_output.unlink(missing_ok=True)
+            return ExportResult(
+                status="invalid",
+                output_path=str(safe_output),
+                output_written=False,
+                handoff_allowed=False,
+                diagnostics=(original_diagnostic,),
+                summary={
+                    "output_valid": False,
+                    "output_cleanup_failed": False,
+                    "artifact_state": "invalid_artifact_removed",
+                    "artifact_must_not_be_consumed": True,
+                    "artifact_integrity_status": "invalid",
+                    "semantic_validation_status": "invalid",
+                    "authorization_valid": False,
+                },
+            )
+        _atomic_write(safe_output, prior_output_bytes)
+        if safe_output.read_bytes() != prior_output_bytes:
+            raise OSError("restored bytes differ from the captured prior output")
+        return ExportResult(
+            status="invalid",
+            output_path=str(safe_output),
+            output_written=False,
+            handoff_allowed=False,
+            diagnostics=(original_diagnostic,),
+            summary={
+                "output_valid": False,
+                "output_cleanup_failed": False,
+                "artifact_state": "prior_valid_artifact_restored",
+                "artifact_must_not_be_consumed": True,
+                "prior_artifact_preserved": True,
+                "artifact_integrity_status": "invalid_new_candidate",
+                "semantic_validation_status": "invalid",
+                "authorization_valid": False,
+            },
+        )
+    except OSError as cleanup_exc:
+        cleanup_diagnostic = ExportDiagnostic(
+            "CE_EXPORT_POST_WRITE_CLEANUP_FAILED",
+            "post_write_validation",
+            f"Invalid output could not be removed or the prior owned output could not be restored; the target must not be consumed: {cleanup_exc}",
+            str(safe_output),
+            "repository_owner",
+        )
+        try:
+            persisted = safe_output.exists()
+        except OSError:
+            persisted = True
+        return ExportResult(
+            status="invalid",
+            output_path=str(safe_output),
+            output_written=True,
+            handoff_allowed=False,
+            diagnostics=(original_diagnostic, cleanup_diagnostic),
+            summary={
+                "output_valid": False,
+                "output_cleanup_failed": True,
+                "artifact_state": (
+                    "invalid_artifact_persisted"
+                    if persisted
+                    else "invalid_artifact_persistence_unconfirmed"
+                ),
+                "artifact_must_not_be_consumed": True,
+                "prior_artifact_preserved": False if prior_output_bytes is not None else None,
+                "artifact_integrity_status": "invalid_or_unconfirmed",
+                "semantic_validation_status": "invalid",
+                "authorization_valid": False,
+            },
+        )
+
+
 def export_file(
     *,
     repo_root: Path,
@@ -108,7 +205,17 @@ def export_file(
             source_bundle_path,
             "Architect source bundle",
         )
-        safe_output = _safe_output_path(root, output_path, overwrite)
+        safe_output = _safe_output_path(
+            root,
+            output_path,
+            overwrite,
+            protected_inputs=(
+                resolved_payload,
+                resolved_source_intake,
+                resolved_source_bundle,
+            ),
+        )
+        prior_output_bytes = _read_prior_owned_output(safe_output)
         observed_provenance = _inspect_git_provenance_safely(
             root,
             (
@@ -129,20 +236,28 @@ def export_file(
         data = canonical_bytes(export) + b"\n"
         _atomic_write(safe_output, data)
         try:
-            reread = _load_object(safe_output, "post_write_validation")
-            if canonical_bytes(reread) != canonical_bytes(export):
+            reread_bytes = safe_output.read_bytes()
+            if reread_bytes != data:
                 raise ExporterError(
                     ExportDiagnostic(
-                        "CE_EXPORT_POST_WRITE_MISMATCH",
+                        "CE_EXPORT_POST_WRITE_BYTE_MISMATCH",
                         "post_write_validation",
-                        "Re-read output differs from the validated in-memory artifact.",
+                        "Re-read output bytes differ from the validated publication bytes.",
                         str(safe_output),
                     )
                 )
+            reread = _load_object(safe_output, "post_write_validation")
             validate_stage_bundle_schema(root, reread["final_stage_bundle"])
             post_diagnostics = validate_producer_gate_export(root, reread)
-            if post_diagnostics or not verify_export_identity(reread):
-                first = post_diagnostics[0] if post_diagnostics else None
+            transaction_diagnostics = validate_transaction_artifact(root, reread)
+            if post_diagnostics or transaction_diagnostics or not verify_export_identity(reread):
+                first = (
+                    post_diagnostics[0]
+                    if post_diagnostics
+                    else transaction_diagnostics[0]
+                    if transaction_diagnostics
+                    else None
+                )
                 raise ExporterError(
                     ExportDiagnostic(
                         first.code if first else "CE_EXPORT_POST_WRITE_IDENTITY_INVALID",
@@ -155,49 +270,10 @@ def export_file(
                 )
         except Exception as validation_exc:
             original_diagnostic = _post_write_failure_diagnostic(validation_exc, safe_output)
-            try:
-                safe_output.unlink(missing_ok=True)
-            except OSError as cleanup_exc:
-                cleanup_diagnostic = ExportDiagnostic(
-                    "CE_EXPORT_POST_WRITE_CLEANUP_FAILED",
-                    "post_write_validation",
-                    f"Invalid output could not be removed and must not be consumed: {cleanup_exc}",
-                    str(safe_output),
-                    "repository_owner",
-                )
-                try:
-                    persisted = safe_output.exists()
-                except OSError:
-                    persisted = True
-                return ExportResult(
-                    status="invalid",
-                    output_path=str(safe_output),
-                    output_written=True,
-                    handoff_allowed=False,
-                    diagnostics=(original_diagnostic, cleanup_diagnostic),
-                    summary={
-                        "output_valid": False,
-                        "output_cleanup_failed": True,
-                        "artifact_state": (
-                            "invalid_artifact_persisted"
-                            if persisted
-                            else "invalid_artifact_persistence_unconfirmed"
-                        ),
-                        "artifact_must_not_be_consumed": True,
-                    },
-                )
-            return ExportResult(
-                status="invalid",
-                output_path=str(safe_output),
-                output_written=False,
-                handoff_allowed=False,
-                diagnostics=(original_diagnostic,),
-                summary={
-                    "output_valid": False,
-                    "output_cleanup_failed": False,
-                    "artifact_state": "invalid_artifact_removed",
-                    "artifact_must_not_be_consumed": True,
-                },
+            return _restore_or_remove_failed_output(
+                safe_output,
+                prior_output_bytes,
+                original_diagnostic,
             )
         return ExportResult(
             status="successful" if export["handoff"]["allowed"] else export["handoff"]["status"],
@@ -215,6 +291,7 @@ def export_file(
                     else "valid_blocked_export"
                 ),
                 "artifact_must_not_be_consumed": False,
+                "prior_artifact_preserved": prior_output_bytes is not None,
             },
         )
     except ExporterError as exc:
@@ -229,6 +306,9 @@ def export_file(
                 "output_cleanup_failed": False,
                 "artifact_state": "not_written_by_this_run",
                 "artifact_must_not_be_consumed": True,
+                "artifact_integrity_status": "invalid",
+                "semantic_validation_status": "invalid_or_not_run",
+                "authorization_valid": False,
             },
         )
 
@@ -240,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-bundle", required=True, type=Path, help="Architect Stage Evidence Bundle used to verify intake source binding.")
     parser.add_argument("--output", type=Path, default=Path("ce-project-gate.json"), help="Output path inside the CE repository.")
     parser.add_argument("--repo-root", type=Path, default=Path.cwd(), help="CE repository root.")
-    parser.add_argument("--overwrite", action="store_true", help="Explicitly replace an existing output file.")
+    parser.add_argument("--overwrite", action="store_true", help="Explicitly replace an existing CE-owned output file.")
     args = parser.parse_args(argv)
     result = export_file(
         repo_root=args.repo_root,
