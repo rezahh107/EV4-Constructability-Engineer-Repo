@@ -106,7 +106,7 @@ jobs:
             --emit-dir .governance-evidence
 
       - name: Archive exact PR-head repository snapshot
-        run: tar --exclude=.git -czf ce-repo-snapshot.tgz .
+        run: tar --exclude=.git -czf /tmp/ce-repo-snapshot.tgz .
 
       - name: Upload CE bootstrap exact-head receipt
         if: always()
@@ -121,6 +121,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ce-repo-snapshot-${{ github.event.pull_request.head.sha }}
-          path: ce-repo-snapshot.tgz
+          path: /tmp/ce-repo-snapshot.tgz
           if-no-files-found: error
           retention-days: 1
