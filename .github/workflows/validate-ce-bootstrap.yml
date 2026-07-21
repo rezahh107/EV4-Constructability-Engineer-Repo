@@ -12,6 +12,10 @@ on:
       - 'schemas/ce_architect_stage_intake.v1.schema.json'
       - 'schemas/ce_architect_stage_intake.v1_1.schema.json'
       - 'scripts/check-ce-bootstrap.py'
+      - 'scripts/ce_bootstrap_spec.py'
+      - 'scripts/ce_bootstrap_validation.py'
+      - 'scripts/ce_bootstrap_routing.py'
+      - 'scripts/ce_bootstrap_test_support.py'
       - 'scripts/validate-ce-architect-stage-intake.py'
       - 'tests/test_ce_bootstrap_semantics.py'
       - 'tests/test_ce_architect_stage_intake.py'
@@ -39,15 +43,12 @@ jobs:
           set -euo pipefail
           TESTED_SHA="$(git rev-parse HEAD)"
           test "$TESTED_SHA" = "$REVIEWED_HEAD_SHA"
-          TREE_SHA="$(git rev-parse 'HEAD^{tree}')"
-          echo "TREE_SHA=$TREE_SHA"
           cat > ce-bootstrap-exact-head-receipt.json <<EOF
           {
             "tested_ref_type": "pull_request_head",
             "tested_sha": "$TESTED_SHA",
             "reviewed_head_sha": "$REVIEWED_HEAD_SHA",
             "exact_head_match": true,
-            "tree_sha": "$TREE_SHA",
             "synthetic_merge": false,
             "workflow": "validate-ce-bootstrap",
             "run_id": "${GITHUB_RUN_ID}",
@@ -64,25 +65,54 @@ jobs:
         run: python -m pip install -e '.[dev]'
 
       - name: Validate CE bootstrap semantics
-        run: python scripts/check-ce-bootstrap.py
+        run: |
+          set -o pipefail
+          echo '$ python scripts/check-ce-bootstrap.py' | tee -a ce-bootstrap-validation-results.txt
+          python scripts/check-ce-bootstrap.py 2>&1 | tee -a ce-bootstrap-validation-results.txt
 
-      - name: Run CE bootstrap mutation tests
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py
+      - name: Demonstrate integrated fail-closed routing
+        run: |
+          set -o pipefail
+          echo '$ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py -k integrated_fail_closed_cases' | tee -a ce-bootstrap-validation-results.txt
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py \
+            -k 'start_with_one_valid_input_and_bound_source_routes_first_stage or valid_input_without_startup_context_is_not_authorized or repository_maintenance_containing_start_never_enters_ce_pipeline or coordinated_manifest_and_schema_weakening_is_rejected_semantically or receipt_like_objects_remain_unverified_and_untrusted' \
+            2>&1 | tee -a ce-bootstrap-validation-results.txt
+
+      - name: Run CE bootstrap integrated routing and mutation tests
+        run: |
+          set -o pipefail
+          echo '$ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py' | tee -a ce-bootstrap-validation-results.txt
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py 2>&1 | tee -a ce-bootstrap-validation-results.txt
 
       - name: Validate official CE Architect-stage intake fixtures
-        run: python scripts/validate-ce-architect-stage-intake.py
+        run: |
+          set -o pipefail
+          echo '$ python scripts/validate-ce-architect-stage-intake.py' | tee -a ce-bootstrap-validation-results.txt
+          python scripts/validate-ce-architect-stage-intake.py 2>&1 | tee -a ce-bootstrap-validation-results.txt
 
       - name: Run focused official CE intake tests
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py
+        run: |
+          set -o pipefail
+          echo '$ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py' | tee -a ce-bootstrap-validation-results.txt
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py 2>&1 | tee -a ce-bootstrap-validation-results.txt
 
       - name: Validate behavioral rule coverage
-        run: python scripts/validate-behavioral-rule-coverage.py
+        run: |
+          set -o pipefail
+          echo '$ python scripts/validate-behavioral-rule-coverage.py' | tee -a ce-bootstrap-validation-results.txt
+          python scripts/validate-behavioral-rule-coverage.py 2>&1 | tee -a ce-bootstrap-validation-results.txt
 
       - name: Validate role-alignment fixtures
-        run: python scripts/validate-role-alignment-fixtures.py
+        run: |
+          set -o pipefail
+          echo '$ python scripts/validate-role-alignment-fixtures.py' | tee -a ce-bootstrap-validation-results.txt
+          python scripts/validate-role-alignment-fixtures.py 2>&1 | tee -a ce-bootstrap-validation-results.txt
 
       - name: Validate Project Gate producer adoption
-        run: python scripts/validate-project-gate-producer-adoption.py
+        run: |
+          set -o pipefail
+          echo '$ python scripts/validate-project-gate-producer-adoption.py' | tee -a ce-bootstrap-validation-results.txt
+          python scripts/validate-project-gate-producer-adoption.py 2>&1 | tee -a ce-bootstrap-validation-results.txt
 
       - name: Record completed AI governance validation sequence
         env:
@@ -105,22 +135,13 @@ jobs:
             --ci-context .governance-ci-context.json \
             --emit-dir .governance-evidence
 
-      - name: Archive exact PR-head repository snapshot
-        run: tar --exclude=.git -czf /tmp/ce-repo-snapshot.tgz .
-
       - name: Upload CE bootstrap exact-head receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ce-bootstrap-exact-head-receipt-${{ github.event.pull_request.head.sha }}
-          path: ce-bootstrap-exact-head-receipt.json
+          path: |
+            ce-bootstrap-exact-head-receipt.json
+            ce-bootstrap-validation-results.txt
           if-no-files-found: error
           retention-days: 30
-
-      - name: Upload exact PR-head repository snapshot
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: ce-repo-snapshot-${{ github.event.pull_request.head.sha }}
-          path: /tmp/ce-repo-snapshot.tgz
-          if-no-files-found: error
-          retention-days: 1
