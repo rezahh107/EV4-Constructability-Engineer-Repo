@@ -74,63 +74,29 @@ jobs:
               raise SystemExit('expected test import block not found')
           path.write_text(text.replace(old, new), encoding='utf-8')
           PY
-      - name: Run focused policy governance validation with captured diagnostics
+      - name: Run focused policy governance validation
         shell: bash
         run: |
           if [ -f policies/.repair-debug.txt ]; then
-            echo 'Repair failed; focused validation deferred.'
-            exit 0
+            cat policies/.repair-debug.txt
+            exit 1
           fi
-          set +e
-          {
-            python scripts/validate-ce-policy-governance.py
-            PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
-            PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_decision_escape_routes_schema.py
-          } > /tmp/ce-policy-validation.log 2>&1
-          STATUS=$?
-          if [ "$STATUS" -ne 0 ]; then
-            {
-              printf 'focused_validation_status=%s\n' "$STATUS"
-              tail -n 250 /tmp/ce-policy-validation.log
-            } > policies/.repair-debug.txt
-          else
-            cat /tmp/ce-policy-validation.log
-          fi
-          exit 0
-      - name: Restore canonical workflow when repair succeeded
-        shell: bash
-        run: |
-          if [ -f policies/.repair-debug.txt ]; then
-            echo 'Repair or focused validation failed; canonical workflow restoration deferred.'
-            exit 0
-          fi
-          git fetch --no-tags --depth=1 origin 6650c31304e5a0472b276c36018c1df8f42ac983
-          git show 6650c31304e5a0472b276c36018c1df8f42ac983:.github/workflows/validate-fixtures.yml > /tmp/validate-fixtures.base.yml
-          python - <<'PY'
-          from pathlib import Path
-          source = Path('/tmp/validate-fixtures.base.yml').read_text(encoding='utf-8')
-          needle = '      - run: python scripts/validate-ce-decision-lineage-sequence.py\n'
-          addition = '''      - name: Validate manual CE policy governance fixtures\n        run: python scripts/validate-ce-policy-governance.py\n      - name: Run focused CE policy governance tests\n        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py\n'''
-          if addition not in source:
-              source = source.replace(needle, needle + addition)
-          Path('.github/workflows/validate-fixtures.yml').write_text(source, encoding='utf-8')
-          PY
-      - name: Commit repair result or captured diagnostic
+          python scripts/validate-ce-policy-governance.py
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_policy_governance.py
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_decision_escape_routes_schema.py
+      - name: Commit non-workflow repair carriers
         shell: bash
         run: |
           set -euo pipefail
+          git checkout ${{ github.event.pull_request.head.sha }} -- .github/workflows/validate-fixtures.yml
           git config user.name 'policy-repair-bot'
           git config user.email 'policy-repair-bot@users.noreply.github.com'
-          if [ -f policies/.repair-debug.txt ]; then
-            git add policies/.repair-debug.txt
-            git commit -m '[policy-repair-debug] Capture CE focused validation failure'
-            git push origin HEAD:policy/ce-constructability-policy-r001
-            exit 0
-          fi
-          rm -f .github/workflows/temporary-repair-policy.yml
-          rm -f .github/workflows/temporary-repair-bootstrap.yml
-          rm -f policies/.repair-trigger
-          rm -f policies/.repair-debug.txt
-          git add -A
+          git add AGENTS.md \
+            policies/EV4_CE_CONSTRUCTABILITY_DECISION_POLICY_r001.md \
+            planning/DECISION_ESCAPE_ROUTES.yml \
+            schemas/ce_policy_decision_context.v1.schema.json \
+            scripts/validate-ce-policy-governance.py \
+            fixtures/ce-policy-governance \
+            tests/test_ce_policy_governance.py
           git commit -m '[policy-repair-bot] Repair CE policy governance findings'
           git push origin HEAD:policy/ce-constructability-policy-r001
