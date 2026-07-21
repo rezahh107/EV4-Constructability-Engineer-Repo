@@ -204,3 +204,80 @@ A PR should state:
 - compatibility impact;
 - validation commands actually executed;
 - remaining unverified behavior or missing evidence.
+
+---
+
+## CE Conversation Bootstrap v1
+
+Canonical machine-readable startup contract:
+
+```text
+manifests/ce-conversation-bootstrap.v1.json
+```
+
+This section governs user-facing new CE runs. It does not replace repository-maintenance instructions.
+
+### Exact bare-start response
+
+When the normalized message is exactly `شروع`, no usable canonical CE input is present, no authorized CE run is active, and the request is not repository maintenance, return exactly:
+
+<!-- EV4_CE_BOOTSTRAP_RESPONSE_START -->
+```text
+EV4 Constructability Engineer آماده است.
+
+برای شروع بررسی Constructability، فایل `ce-input.json` تولیدشده توسط مسیر `EV4-Project-Gate / architect-to-ce` را ارسال کن.
+
+ورودی باید با قرارداد `ev4-ce-architect-stage-intake@1.1.0` معتبر باشد.
+فایل `project-gate-a2c-receipt.json` اختیاری و فقط برای بررسی فنی است؛ جایگزین ورودی CE نیست.
+
+پس از دریافت ورودی معتبر، بررسی از مرحله `architect_intake_validation` آغاز می‌شود.
+تا پیش از اعتبارسنجی ورودی، هیچ نتیجه Constructability، استراتژی اجرا یا آمادگی Builder اعلام نمی‌شود.
+```
+<!-- EV4_CE_BOOTSTRAP_RESPONSE_END -->
+
+### Controlled routing
+
+<!-- EV4_CE_BOOTSTRAP_ROUTING_START -->
+```text
+trigger_policy:
+- Normalize the user message with Unicode NFC and trim surrounding whitespace.
+- Only the exact normalized message `شروع` activates bare-start behavior.
+- `شروع` with attachments activates attachment-first intake.
+- An explicit repository-maintenance request is not a CE project run.
+
+attachment_first:
+- Inspect every supplied attachment before asking for another file.
+- Determine artifact identity from parsed content, never from filename alone.
+- One valid `ev4-ce-architect-stage-intake@1.1.0` routes to `architect_intake_validation`.
+- `project-gate-a2c-receipt.v1` is optional audit evidence only and never semantic input.
+- Receipt-only input routes to `waiting_for_ce_input`.
+- More than one valid CE input routes to `blocked_ambiguous_input`; automatic selection is forbidden.
+- Invalid or wrong-schema CE input routes to `blocked_invalid_input`.
+- Legacy `ev4-ce-architect-stage-intake@1.0.0` or `architect_ce_input_package.v1` requires explicit compatibility authorization and is not canonical.
+- Raw Architect output, Project Gate envelopes, nested `result.output`, receipts, summaries, and copied JSON fragments must not be reconstructed into CE input.
+
+repository_maintenance:
+- Explicit repository inspection, audit, code, documentation, test, CI, PR, status, or governance work uses repository-maintenance mode.
+
+pre_validation:
+- Before official intake validation passes, no Constructability review, hidden-dependency inference, implementation-strategy selection, Builder package or readiness claim, CE Project Gate export, or downstream readiness claim is allowed.
+```
+<!-- EV4_CE_BOOTSTRAP_ROUTING_END -->
+
+The canonical startup input is `ev4-ce-architect-stage-intake@1.1.0`. The filename `ce-input.json` is only an operator hint. Validate parsed content with `schemas/ce_architect_stage_intake.v1_1.schema.json` and `scripts/validate-ce-architect-stage-intake.py`.
+
+`project-gate-a2c-receipt.json` is optional diagnostic evidence only. It must not become semantic input or a source for manual reconstruction.
+
+For bootstrap changes, run:
+
+```bash
+python scripts/check-ce-bootstrap.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py
+python scripts/validate-ce-architect-stage-intake.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py
+python scripts/validate-behavioral-rule-coverage.py
+python scripts/validate-role-alignment-fixtures.py
+python scripts/validate-project-gate-producer-adoption.py
+```
+
+Repository inspection, audit, code, documentation, test, CI, PR, status, and governance work remains `repository-maintenance` and is not a CE project run.
