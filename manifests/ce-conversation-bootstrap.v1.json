@@ -1,0 +1,273 @@
+{
+  "$schema": "../schemas/ce-conversation-bootstrap.v1.schema.json",
+  "contract_id": "ev4-ce-conversation-bootstrap",
+  "contract_version": "1.0.0",
+  "owner_repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+  "activation_mode": "user_facing_new_ce_run",
+  "trigger_policy": {
+    "policy_id": "ce-bootstrap-trigger-policy-v1",
+    "canonical_trigger": "شروع",
+    "trigger_type": "exact_message_after_normalization",
+    "normalization_policy": {
+      "policy_id": "ce-bootstrap-normalization-policy-v1",
+      "unicode_normalization": "NFC",
+      "trim_surrounding_whitespace": true,
+      "case_folding": false,
+      "aliases": []
+    },
+    "bare_message_only": true,
+    "trigger_with_attachments": "attachment_first_intake",
+    "repository_maintenance_excluded": true
+  },
+  "bootstrap_response": "EV4 Constructability Engineer آماده است.\n\nبرای شروع بررسی Constructability، فایل `ce-input.json` تولیدشده توسط مسیر `EV4-Project-Gate / architect-to-ce` را ارسال کن.\n\nورودی باید با قرارداد `ev4-ce-architect-stage-intake@1.1.0` معتبر باشد.\nفایل `project-gate-a2c-receipt.json` اختیاری و فقط برای بررسی فنی است؛ جایگزین ورودی CE نیست.\n\nپس از دریافت ورودی معتبر، بررسی از مرحله `architect_intake_validation` آغاز می‌شود.\nتا پیش از اعتبارسنجی ورودی، هیچ نتیجه Constructability، استراتژی اجرا یا آمادگی Builder اعلام نمی‌شود.",
+  "canonical_input": {
+    "schema_id": "ev4-ce-architect-stage-intake@1.1.0",
+    "filename_hint": "ce-input.json",
+    "filename_is_authority": false,
+    "source_transition": "ev4-architect-to-ce-transition@1.0.0",
+    "official_schema_path": "schemas/ce_architect_stage_intake.v1_1.schema.json",
+    "official_validator_path": "scripts/validate-ce-architect-stage-intake.py",
+    "content_validation_required": true,
+    "source_binding_required": true
+  },
+  "receipt": {
+    "filename_hint": "project-gate-a2c-receipt.json",
+    "content_identity_field": "schema_version",
+    "content_identity_value": "project-gate-a2c-receipt.v1",
+    "role": "optional_audit_evidence_only",
+    "semantic_input": false,
+    "required": false,
+    "promotion_forbidden": true,
+    "merge_into_input_forbidden": true,
+    "reconstruction_source_forbidden": true
+  },
+  "input_precedence": {
+    "policy_id": "ce-bootstrap-input-precedence-v1",
+    "inspect_attachments_before_questions": true,
+    "semantic_input_source": "validated_ce_input_only",
+    "filename_hint_only": true,
+    "multiple_candidate_policy": "blocked_ambiguous_input",
+    "automatic_selection": false
+  },
+  "routing_cases": [
+    {
+      "case_id": "CE-BOOT-ROUTE-BARE-START",
+      "input_state": "no_usable_ce_input",
+      "receipt_state": "absent_or_present",
+      "route": "waiting_for_ce_input",
+      "pipeline_execution": "forbidden",
+      "response_id": "bare_start_response",
+      "automatic_selection": false,
+      "diagnostic_code": "CE_BOOTSTRAP_INPUT_REQUIRED"
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-VALID-CE-INPUT",
+      "input_state": "one_valid_canonical_ce_input",
+      "receipt_state": "absent",
+      "route": "architect_intake_validation",
+      "pipeline_execution": "first_stage_only",
+      "semantic_input_source": "ce_input_only",
+      "receipt_required": false,
+      "automatic_selection": false
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-VALID-CE-INPUT-WITH-RECEIPT",
+      "input_state": "one_valid_canonical_ce_input",
+      "receipt_state": "present",
+      "route": "architect_intake_validation",
+      "pipeline_execution": "first_stage_only",
+      "semantic_input_source": "ce_input_only",
+      "receipt_role": "optional_audit_evidence",
+      "receipt_required": false,
+      "automatic_selection": false
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-RECEIPT-ONLY",
+      "input_state": "no_usable_ce_input",
+      "receipt_state": "present",
+      "route": "waiting_for_ce_input",
+      "pipeline_execution": "forbidden",
+      "receipt_must_not_be_promoted": true,
+      "automatic_selection": false,
+      "diagnostic_code": "CE_BOOTSTRAP_RECEIPT_NOT_SEMANTIC_INPUT"
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-INVALID-INPUT",
+      "input_state": "invalid_or_wrong_schema_input",
+      "receipt_state": "any",
+      "route": "blocked_invalid_input",
+      "pipeline_execution": "forbidden",
+      "automatic_selection": false,
+      "diagnostic_code": "CE_BOOTSTRAP_INVALID_INPUT"
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-INSUFFICIENT-EVIDENCE",
+      "input_state": "canonical_ce_input_insufficient_evidence",
+      "receipt_state": "any",
+      "route": "blocked_invalid_input",
+      "pipeline_execution": "forbidden",
+      "diagnostic_code": "CE_BOOTSTRAP_INTAKE_INSUFFICIENT_EVIDENCE",
+      "ask_only_for_blocking_evidence": true,
+      "automatic_selection": false
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-AMBIGUOUS-INPUT",
+      "input_state": "multiple_valid_canonical_ce_inputs",
+      "receipt_state": "any",
+      "route": "blocked_ambiguous_input",
+      "pipeline_execution": "forbidden",
+      "automatic_selection": false,
+      "diagnostic_code": "CE_BOOTSTRAP_AMBIGUOUS_INPUT"
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-LEGACY-INPUT",
+      "input_state": "legacy_compatibility_input",
+      "receipt_state": "any",
+      "route": "blocked_require_canonical_v1_1",
+      "pipeline_execution": "forbidden",
+      "explicit_compatibility_authorization_required": true,
+      "automatic_selection": false,
+      "diagnostic_code": "CE_BOOTSTRAP_LEGACY_INPUT_NOT_CANONICAL"
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-WRONG-ARTIFACT",
+      "input_state": "raw_architect_or_transition_envelope",
+      "receipt_state": "any",
+      "route": "blocked_require_official_project_gate_output",
+      "pipeline_execution": "forbidden",
+      "manual_extraction_allowed": false,
+      "automatic_selection": false,
+      "diagnostic_code": "CE_BOOTSTRAP_OFFICIAL_CE_INPUT_REQUIRED"
+    },
+    {
+      "case_id": "CE-BOOT-ROUTE-REPOSITORY-MAINTENANCE",
+      "input_state": "explicit_repository_maintenance_request",
+      "receipt_state": "not_applicable",
+      "route": "repository_maintenance",
+      "pipeline_execution": "not_a_ce_project_run",
+      "trigger_not_authorization": true,
+      "automatic_selection": false
+    }
+  ],
+  "compatibility": {
+    "policy_id": "ce-bootstrap-compatibility-policy-v1",
+    "canonical_input_schema": "ev4-ce-architect-stage-intake@1.1.0",
+    "legacy_schema_ids": [
+      "ev4-ce-architect-stage-intake@1.0.0",
+      "architect_ce_input_package.v1"
+    ],
+    "default_legacy_route": "blocked_require_canonical_v1_1",
+    "explicit_compatibility_mode_required": true,
+    "silent_promotion_forbidden": true
+  },
+  "repository_maintenance_exception": {
+    "policy_id": "ce-bootstrap-repository-maintenance-exception-v1",
+    "explicit_intents": [
+      "repository_inspection",
+      "audit",
+      "code_modification",
+      "documentation_work",
+      "test_repair",
+      "ci_repair",
+      "pull_request_work",
+      "status_reconciliation",
+      "governance_maintenance"
+    ],
+    "route": "repository_maintenance",
+    "canonical_trigger_not_authorization": true
+  },
+  "first_stage_routing": {
+    "policy_id": "ce-bootstrap-first-stage-routing-v1",
+    "stage_id": "architect_intake_validation",
+    "pipeline_manifest_path": "manifests/ce_pipeline_manifest.v1.json",
+    "ordinal": 1,
+    "mandatory": true,
+    "required_input": "ev4-ce-architect-stage-intake@1.1.0"
+  },
+  "forbidden_pre_validation_operations": [
+    {
+      "operation_id": "CE-BOOT-PRE-001",
+      "operation": "run_constructability_review",
+      "description": "Do not run Constructability review before canonical CE intake validation succeeds."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-002",
+      "operation": "generate_ce_review_units",
+      "description": "Do not generate CE review units before canonical CE intake validation succeeds."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-003",
+      "operation": "infer_hidden_dependencies",
+      "description": "Do not infer hidden execution dependencies before canonical CE intake validation succeeds."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-004",
+      "operation": "select_implementation_strategy",
+      "description": "Do not select implementation strategy before canonical CE intake validation succeeds."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-005",
+      "operation": "emit_builder_executable_package",
+      "description": "Do not emit a Builder Executable Package before canonical CE intake validation succeeds."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-006",
+      "operation": "claim_builder_readiness",
+      "description": "Do not claim Builder readiness from bootstrap or unvalidated intake."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-007",
+      "operation": "emit_ce_project_gate_export",
+      "description": "Do not emit CE Project Gate Export before canonical CE intake validation succeeds."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-008",
+      "operation": "invent_missing_architecture_or_evidence",
+      "description": "Do not invent missing architecture, transition provenance, or evidence."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-009",
+      "operation": "treat_receipt_as_semantic_input",
+      "description": "Do not treat the Project Gate receipt as CE semantic input."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-010",
+      "operation": "claim_project_gate_acceptance",
+      "description": "Do not claim Project Gate acceptance from bootstrap state."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-011",
+      "operation": "claim_real_elementor_validation",
+      "description": "Do not claim real Elementor validation without separate evidence."
+    },
+    {
+      "operation_id": "CE-BOOT-PRE-012",
+      "operation": "claim_responsive_or_production_readiness",
+      "description": "Do not claim Responsive completion or production readiness from bootstrap state."
+    }
+  ],
+  "documentation_correspondence": {
+    "policy_id": "ce-bootstrap-documentation-correspondence-v1",
+    "response_markers": {
+      "start": "<!-- EV4_CE_BOOTSTRAP_RESPONSE_START -->",
+      "end": "<!-- EV4_CE_BOOTSTRAP_RESPONSE_END -->"
+    },
+    "routing_markers": {
+      "start": "<!-- EV4_CE_BOOTSTRAP_ROUTING_START -->",
+      "end": "<!-- EV4_CE_BOOTSTRAP_ROUTING_END -->"
+    },
+    "quick_start_markers": {
+      "start": "<!-- EV4_CE_BOOTSTRAP_QUICK_START_START -->",
+      "end": "<!-- EV4_CE_BOOTSTRAP_QUICK_START_END -->"
+    },
+    "controlled_carriers": [
+      "AGENTS.md",
+      "README.md",
+      "release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md",
+      "release/EV4_CE_PROJECT_RELEASE_PACK_v1/EV4_FIRST_RUN_GUIDE.md"
+    ],
+    "knowledge_only_dependency": false
+  },
+  "controlled_routing_text": "trigger_policy:\n- Normalize the user message with Unicode NFC and trim surrounding whitespace.\n- Only the exact normalized message `شروع` activates bare-start behavior.\n- `شروع` with attachments activates attachment-first intake.\n- An explicit repository-maintenance request is not a CE project run.\n\nattachment_first:\n- Inspect every supplied attachment before asking for another file.\n- Determine artifact identity from parsed content, never from filename alone.\n- One valid `ev4-ce-architect-stage-intake@1.1.0` routes to `architect_intake_validation`.\n- `project-gate-a2c-receipt.v1` is optional audit evidence only and never semantic input.\n- Receipt-only input routes to `waiting_for_ce_input`.\n- More than one valid CE input routes to `blocked_ambiguous_input`; automatic selection is forbidden.\n- Invalid or wrong-schema CE input routes to `blocked_invalid_input`.\n- Legacy `ev4-ce-architect-stage-intake@1.0.0` or `architect_ce_input_package.v1` requires explicit compatibility authorization and is not canonical.\n- Raw Architect output, Project Gate envelopes, nested `result.output`, receipts, summaries, and copied JSON fragments must not be reconstructed into CE input.\n\nrepository_maintenance:\n- Explicit repository inspection, audit, code, documentation, test, CI, PR, status, or governance work uses repository-maintenance mode.\n\npre_validation:\n- Before official intake validation passes, no Constructability review, hidden-dependency inference, implementation-strategy selection, Builder package or readiness claim, CE Project Gate export, or downstream readiness claim is allowed.",
+  "controlled_quick_start_text": "1. Create or open the CE ChatGPT Project and load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md` as the Project Instructions.\n2. Send `شروع`.\n3. Upload the standalone `ce-input.json` produced by `EV4-Project-Gate / architect-to-ce`.\n4. Optionally retain or upload `project-gate-a2c-receipt.json` for diagnostics only.\n5. Never extract nested `result.output` or rebuild CE input manually.\n6. Validation begins at `architect_intake_validation`; bootstrap itself produces no Constructability conclusion."
+}
