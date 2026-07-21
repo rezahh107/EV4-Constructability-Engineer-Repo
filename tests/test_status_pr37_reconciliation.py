@@ -7,9 +7,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _yaml_block(text: str, key: str) -> str:
-    start = text.index(key)
-    end = text.index("```", start)
-    return text[start:end]
+    fence = "```yaml"
+    for candidate in text.split(fence)[1:]:
+        content, separator, _ = candidate.partition("```")
+        if separator and key in content:
+            return content[content.index(key) :]
+    raise ValueError(f"YAML block containing key {key!r} not found")
 
 
 def test_pr37_status_reconciliation_preserves_history_and_records_live_state() -> None:
