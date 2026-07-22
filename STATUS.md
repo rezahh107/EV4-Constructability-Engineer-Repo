@@ -1,7 +1,7 @@
 # STATUS — EV4 Constructability Engineer Repo
 
-Version: 0.4.0  
-Status: lean_personal_runtime_consolidated  
+Version: 0.4.1  
+Status: lean_personal_runtime_merged  
 Date: 2026-07-22  
 Authority role: canonical mutable repository status
 
@@ -25,6 +25,15 @@ project_status:
   canonical_architect_intake: ev4-ce-architect-stage-intake@1.1.0
   runtime_contract: ev4-ce-conversation-bootstrap@1.1.0
   runtime_mode: content_driven_ce_runtime
+  ce_lean_runtime_pull_request: 43
+  ce_lean_runtime_validated_head_sha: e93e534f9876d8e6132ba88c672594c8a0c77e68
+  ce_lean_runtime_merge_commit_sha: 3c5957dd860c6ae681559f7840a30aaf1708de8f
+  ce_lean_runtime_implementation_merged: true
+  ce_lean_runtime_post_merge_content_verification: confirmed_content_equivalent
+  ce_lean_runtime_exact_pr_head_validation: confirmed
+  ce_lean_runtime_exact_merged_main_ci: not_observed
+  ce_lean_runtime_fresh_independent_review: not_observed
+  ce_lean_runtime_findings_closed: false
   repository_maintenance_separated: true
   builder_readiness_guards: preserved
   deterministic_export_guards: preserved
@@ -143,7 +152,46 @@ Detailed pre-consolidation governance, PR Inspector, exact-head, and post-merge 
 
 ## Preserved Historical Status Evidence
 
-The following blocks are retained verbatim as historical facts. They do not override the current lean runtime contract above.
+The following blocks are retained as historical facts. They do not override the current lean runtime contract above.
+
+### CE Lean Runtime PR #43 Post-Merge Reconciliation
+
+```yaml
+CE_LEAN_RUNTIME_PR_43_POST_MERGE_RECONCILIATION:
+  task: PR_43_POST_MERGE_RECONCILIATION
+  reconciliation_date: 2026-07-22
+  pull_request: 43
+  pull_request_state: merged
+  merged_at: 2026-07-22T19:11:35Z
+  validated_pr_base_sha: a711787ed12b4501f8af66389be7270a961b8d04
+  validated_head_sha: e93e534f9876d8e6132ba88c672594c8a0c77e68
+  merge_commit_sha: 3c5957dd860c6ae681559f7840a30aaf1708de8f
+  current_main_sha_at_reconciliation: 3c5957dd860c6ae681559f7840a30aaf1708de8f
+  current_main_relationship_to_merge_commit: identical
+  merge_commit_file_delta_from_validated_head: none
+  exact_pr_head_validation:
+    validate_ce_runtime:
+      run_id: 29949322496
+      conclusion: success
+    validate_fixtures:
+      run_id: 29949322417
+      conclusion: success
+    verify_project_gate_contract:
+      run_id: 29949322799
+      conclusion: success
+  exact_merged_main_ci: not_observed
+  implementation_merged: true
+  post_merge_content_verification: confirmed_content_equivalent
+  status_memory_synchronized: true
+  fresh_independent_review_on_repaired_head: not_observed
+  findings_closed: false
+  project_gate_runtime_acceptance: unverified
+  real_elementor_execution: unverified
+  responsive_completion: unverified
+  deployment: unverified
+  production_ready: false
+  reconciliation_result: implementation_merged_exact_head_validated_review_not_observed
+```
 
 ### CE Architect Stage Intake v1
 
@@ -244,4 +292,3 @@ CE_02_POST_MERGE_STATUS_RECONCILIATION:
   deployment: unverified
   reconciliation_result: implementation_merged_content_equivalent_review_gap_retained
 ```
-
