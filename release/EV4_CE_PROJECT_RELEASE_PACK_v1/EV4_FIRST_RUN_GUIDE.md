@@ -1,45 +1,61 @@
-# EV4 CE First Run Guide
+# EV4 CE First Run Guide — Lean Runtime
 
-Canonical startup authority:
+## هدف
+
+اجرای CE باید با کمترین اصطکاک و بدون حذف کنترل‌های correctness انجام شود.
+
+## شروع
+
+فایل CE input معتبر را مستقیماً ارسال کن:
 
 ```text
-manifests/ce-conversation-bootstrap.v1.json
+ev4-ce-architect-stage-intake@1.1.0
 ```
 
-## Fast Start
+ارسال `شروع` قبل از فایل اختیاری است. این عبارت مجوز امنیتی نیست.
 
-<!-- EV4_CE_BOOTSTRAP_QUICK_START_START -->
+## فایل‌های اضافی
+
+- Receipt، فایل‌های قدیمی، فایل‌های نامرتبط و JSONهای اضافی در کنار یک CE input معتبر فقط warning هستند.
+- تنها وجود چند CE input معتبر، انتخاب خودکار را متوقف می‌کند.
+- فایل source bundle فقط وقتی لازم است که CE یک ابهام مشخص درباره هویت، تصمیم یا جزئیات اجرا گزارش کند.
+- اگر source bundle برای تصمیم استفاده شود، bytes، hash، identity، transition و provenance آن بررسی می‌شود.
+
+## جریان اجرا
+
 ```text
-1. Create or open the CE ChatGPT Project and load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md` as the Project Instructions.
-2. Send the exact normalized message `شروع`.
-3. Upload the standalone `ce-input.json` produced by `EV4-Project-Gate / architect-to-ce`.
-4. Upload the exact Architect source bundle whose canonical SHA-256 is declared by that CE input.
-5. Treat any Receipt-like attachment as `diagnostic_untrusted` until official external Receipt validation succeeds.
-6. Never extract nested `result.output`, rebuild CE input manually, or continue on mixed/conflicting attachments.
-7. Only successful integrated authorization + intake validation + source binding may route to `architect_intake_validation`.
+INTAKE_VALIDATING
+→ REVIEW_ACTIVE
+→ STRATEGY_READY
+→ EXPORT_VALIDATING
+→ COMPLETED
 ```
-<!-- EV4_CE_BOOTSTRAP_QUICK_START_END -->
 
-## Expected bare-start response
+وقتی مدرک لازم کم باشد:
 
-<!-- EV4_CE_BOOTSTRAP_RESPONSE_START -->
 ```text
-EV4 Constructability Engineer آماده است.
-
-برای شروع بررسی Constructability، فایل `ce-input.json` و source bundle دقیق آن را که توسط مسیر `EV4-Project-Gate / architect-to-ce` استفاده شده است ارسال کن.
-
-ورودی باید با قرارداد `ev4-ce-architect-stage-intake@1.1.0` معتبر باشد و binding آن با bytes واقعی source bundle تأیید شود.
-فایل `project-gate-a2c-receipt.json` تا اعتبارسنجی رسمی فقط evidence تشخیصیِ غیرقابل‌اعتماد است و جایگزین ورودی CE نیست.
-
-پس از اعتبارسنجی ورودی و source binding، بررسی فقط از مرحله `architect_intake_validation` آغاز می‌شود.
-تا پیش از آن، هیچ نتیجه Constructability، استراتژی اجرا یا آمادگی Builder اعلام نمی‌شود.
+EVIDENCE_REQUIRED
 ```
-<!-- EV4_CE_BOOTSTRAP_RESPONSE_END -->
 
-## Required files
+CE باید دقیقاً بگوید چه evidenceای لازم است و چرا.
 
-Upload the standalone `ce-input.json` and the exact Architect source bundle whose canonical SHA-256 is declared in `project_gate_transition.source_bundle_hash`. A Receipt-like file remains `diagnostic_untrusted` until official validation and cannot replace either required artifact.
+## Builder-ready
 
-## What happens next
+CE تا وقتی blocking dependencies، تصمیم راهبردی حل‌نشده، implementation strategy ناقص، فیلد اجباری مفقود یا خطای schema وجود دارد، خروجی را Builder-ready اعلام نمی‌کند.
 
-Only integrated authorization, official intake validation, and successful source binding authorize `architect_intake_validation`. All mixed, ambiguous, missing-binding, invalid-binding, legacy, wrong-stage, or Receipt-only states remain fail-closed.
+## Export
+
+خروجی باید deterministic، schema-valid و atomic باشد. artifact نامعتبر منتشر نمی‌شود.
+
+## Repository Maintenance
+
+درخواست‌های code، test، CI، schema، PR و documentation وارد `repository_maintenance` می‌شوند و CE runtime را شروع نمی‌کنند.
+
+## Controlled Quick Start
+
+1. Load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md`.
+2. Send the valid `ce-input.json`; sending `شروع` first is optional.
+3. Add a source bundle only when CE reports a concrete evidence requirement.
+4. Extra unrelated files are warnings, not runtime blockers.
+5. CE blocks only invalid/insufficient CE input, multiple valid CE inputs, or relevant evidence that contradicts the selected input.
+6. Builder-ready remains impossible while dependencies, strategy decisions, required fields, or validation errors remain.
