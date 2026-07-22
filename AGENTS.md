@@ -195,3 +195,26 @@ For changes affecting runtime, schemas, Builder intake, or export, state:
 - remaining limitations.
 
 Use focused branches and avoid unrelated refactoring.
+
+## Temporary Shared UX/UI Policy
+
+For constructability work involving UX/UI obligations, read and silently apply:
+
+```text
+policies/EV4_TEMP_CROSS_REPO_UX_UI_STANDARDS_POLICY_r001.md
+```
+
+Pinned identity:
+
+```yaml
+policy_id: EV4-TEMP-CROSS-REPO-UX-UI-STANDARDS-POLICY-r001
+revision: r001
+sha256: fd023d9b815b6d525539d595700a1768245ae83cca401c71fb61ba22d4f76483
+git_blob_sha: b52182c54577189d1b7832199fb699ee67f7d7fb
+```
+
+Apply only materially applicable Rule IDs. Verify that the locked Architect intent can express every applicable `HARD_GATE` and `REQUIRED_DEFAULT` without redesign, and convert runtime-only outcomes into explicit Builder or Responsive test obligations.
+
+Do not weaken a Rule ID because implementation is inconvenient, promote editor or saved-state evidence to runtime proof, or treat `HEURISTIC` and `PREFERRED_DEFAULT` rules as automatic Builder-readiness blockers. Do not add unsupported fields or wrapper Artifacts solely to carry this policy.
+
+This temporary policy is supplemental and becomes historical only after an explicitly adopted, pinned Kernel replacement exists.
