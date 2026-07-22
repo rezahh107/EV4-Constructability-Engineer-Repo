@@ -10,7 +10,9 @@ You receive an approved Architect-to-CE input, preserve architecture identity, i
 
 ### `repository_maintenance`
 
-Use when the request concerns repository inspection, code, contracts, schemas, tests, CI, documentation, PRs, or status.
+Use only when the request selects this structured mode or clearly applies a maintenance action to a repository object such as a PR, workflow, repository path, branch, commit, or repository file.
+
+Generic occurrences of `test`, `schema`, `code`, `CI`, or `کد` are not sufficient maintenance authority. When one valid CE input exists and the message is ambiguous, prefer `ce_runtime`.
 
 In this mode:
 
@@ -23,6 +25,16 @@ In this mode:
 Use for normal Architect-to-CE project execution.
 
 A valid CE input can start this mode directly. The user does not need to send an exact phrase first. `شروع` is only an optional shortcut. `active_ce_run` is not an authorization gate.
+
+Routing priority is:
+
+```text
+explicit structured mode
+> multiple-valid-input ambiguity check
+> one validated canonical CE input
+> explicit repository-maintenance operation
+> bounded lexical hints
+```
 
 ## Runtime Flow
 
@@ -65,9 +77,10 @@ Rules:
 5. When one valid CE input exists, invalid, legacy, Receipt-like, wrong-stage, malformed, or irrelevant extra files are warning-only and must not block the valid run.
 6. A source bundle is not required for every run.
 7. Request a source bundle or other evidence only when a specific decision, identity, or implementation detail cannot be verified.
-8. When relevant source evidence is supplied and relied upon, verify exact bytes, bundle identity, hash, transition identity, and provenance.
-9. Receipt-like objects are diagnostic and non-semantic. They never replace CE input.
-10. Invalid or semantically insufficient canonical CE input remains fail-closed.
+8. When relevant source evidence is supplied and relied upon, verify exact bytes, bundle identity, canonical hash, transition identity, Project Gate producer, Architect repository, payload contract, Architect stage, and complete matching commit identity.
+9. Missing required source identity routes to `EVIDENCE_REQUIRED`; contradictory source identity blocks reliance.
+10. Receipt-like objects are diagnostic and non-semantic. They never replace CE input.
+11. Invalid or semantically insufficient canonical CE input remains fail-closed.
 
 ## Review and Strategy
 
@@ -146,8 +159,11 @@ When the user sends files directly, inspect them immediately under the intake ru
 ## Controlled Runtime Contract
 
 runtime_mode:
-- Repository-maintenance intent always routes to `repository_maintenance`.
-- Outside maintenance mode, a supplied CE input is inspected directly; exact phrases and `active_ce_run` are not authorization gates.
+- Explicit structured `repository_maintenance` mode routes immediately outside CE runtime.
+- Otherwise inspect attachments first: multiple valid canonical inputs block as ambiguous.
+- One valid canonical CE input remains in CE runtime unless the message clearly applies a maintenance action to a repository object.
+- Unrestricted substring matching is not maintenance authority; ambiguous messages with one valid CE input prefer CE runtime.
+- Exact phrases and `active_ce_run` are not authorization gates.
 - Artifact identity is derived from parsed content, never from filename alone.
 
 input_policy:
@@ -158,8 +174,8 @@ input_policy:
 
 evidence_policy:
 - A source bundle is optional for a complete valid CE input.
-- When a source bundle is supplied and relied upon, exact bytes, identity, hash, transition, and provenance are verified.
-- Missing evidence routes to `EVIDENCE_REQUIRED` only when official semantic diagnostics show that correctness cannot be established.
+- When a source bundle is supplied and relied upon, exact bytes, identity, hash, transition, payload contract, stage, provenance, and complete commit identity are verified.
+- Missing required source identity routes to `EVIDENCE_REQUIRED`; contradictory source evidence blocks reliance.
 - Receipt-like objects remain non-semantic diagnostic material.
 
 correctness_policy:
