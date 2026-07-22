@@ -196,25 +196,28 @@ For changes affecting runtime, schemas, Builder intake, or export, state:
 
 Use focused branches and avoid unrelated refactoring.
 
-## Temporary Shared UX/UI Policy
+## Temporary Shared UX/UI Policy Adapter
 
-For constructability work involving UX/UI obligations, read and silently apply:
-
-```text
-policies/EV4_TEMP_CROSS_REPO_UX_UI_STANDARDS_POLICY_r001.md
-```
-
-Pinned identity:
+Use `policies/EV4_TEMP_CROSS_REPO_UX_UI_STANDARDS_POLICY_r002.md` only as a supplemental policy below repository authority.
 
 ```yaml
-policy_id: EV4-TEMP-CROSS-REPO-UX-UI-STANDARDS-POLICY-r001
-revision: r001
-sha256: fd023d9b815b6d525539d595700a1768245ae83cca401c71fb61ba22d4f76483
-git_blob_sha: b52182c54577189d1b7832199fb699ee67f7d7fb
+policy_id: EV4-TEMP-CROSS-REPO-UX-UI-STANDARDS-POLICY-r002
+revision: r002
+filename: EV4_TEMP_CROSS_REPO_UX_UI_STANDARDS_POLICY_r002.md
+sha256: f09b6978e10833c1ab3c3e35a9128db894684c5ed9cd876fa87699016b6def95
+repository_role: constructability_engineer
+local_consumption_scope: constructability review, implementation strategy, Builder eligibility, and downstream test transfer
+role_must:
+  - prove a feasible strategy for applicable hard gates and required defaults
+  - preserve locked architecture
+  - verify target-project capability when strategy depends on it
+  - transfer runtime-only outcomes as explicit tests
+role_must_not:
+  - redesign for implementation convenience
+  - silently downgrade a hard gate
+  - claim runtime proof from editor or saved-state evidence
 ```
 
-Apply only materially applicable Rule IDs. Verify that the locked Architect intent can express every applicable `HARD_GATE` and `REQUIRED_DEFAULT` without redesign, and convert runtime-only outcomes into explicit Builder or Responsive test obligations.
+Keep nonmaterial routing internal. Represent material failures, exceptions, unresolved requirements, evidence gaps, and downstream obligations through existing repository-supported fields or a concise visible status when continuation or owner action is affected. Do not add unsupported fields or hidden-storage claims.
 
-Do not weaken a Rule ID because implementation is inconvenient, promote editor or saved-state evidence to runtime proof, or treat `HEURISTIC` and `PREFERRED_DEFAULT` rules as automatic Builder-readiness blockers. Do not add unsupported fields or wrapper Artifacts solely to carry this policy.
-
-This temporary policy is supplemental and becomes historical only after an explicitly adopted, pinned Kernel replacement exists.
+`r001` remains an immutable historical revision. A filename, ID, revision, byte, or digest mismatch is `TEMP_UX_UI_POLICY_IDENTITY_MISMATCH`. This adapter does not create Kernel adoption, a new runtime state, or a parallel approval path.
