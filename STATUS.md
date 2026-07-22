@@ -1,434 +1,133 @@
 # STATUS — EV4 Constructability Engineer Repo
 
-Version: 0.3.2  
-Status: constructability_system_active  
-Date: 2026-07-21  
+Version: 0.4.0  
+Status: lean_personal_runtime_consolidated  
+Date: 2026-07-22  
 Authority role: canonical mutable repository status
 
-Conflict rule:
+Conflict order:
 
 ```text
 live default-branch evidence
-→ exact commit, PR, validator, fixture, test, and CI evidence
+→ current schemas, validators, fixtures, tests, and CI
 → STATUS.md
-→ README orientation text
+→ README orientation
+→ historical PR descriptions and archived notes
 ```
-
-`README.md` is not a mutable status authority. The `Current State` and `Validation State` sections below are mutable. Historical addenda are evidence records and must not be rewritten to simulate later state.
-
----
 
 ## Current State
 
 ```yaml
 project_status:
   role: implementation_strategy_gate
+  repository_profile: personal_single_operator
   fail_closed_default: true
-  project_gate_handoff: documented
-  project_gate_runtime: not_implemented
-  ce_producer_adoption: implemented_in_ce_pending_project_gate_integration
-  project_gate_contract_pin: implemented
-  vendored_contract_verification: implemented
-  ce_pipeline_manifest: implemented
-  ce_stage_payload: implemented
-  ce_project_gate_export: implemented
-  ce_project_gate_exporter_command: implemented_merged_pending_fresh_independent_rereview
-  ce_project_gate_exporter_post_merge_audit: repair_merged_content_equivalent_review_not_observed
-  ce_project_gate_exporter_exact_pr_head_validation: confirmed
-  ce_project_gate_exporter_exact_merged_main_ci: not_observed
-  ce_project_gate_exporter_post_merge_content_verification: confirmed_content_equivalent
-  ce_project_gate_exporter_fresh_independent_review: not_observed
-  ce_project_gate_exporter_findings_closed: false
-  ce_ci_adoption: implemented_or_exact_failure_reported
-  builder_package_emission: evidence_gated
-  builder_executable_package_schema: ev4-builder-executable-package@1.0.0_required
-  legacy_contracts_preserved: true
-  builder_acceptance: not_implemented
-  cross_repository_e2e: insufficient_evidence
-  real_elementor_validation: insufficient_evidence
-  responsive_completion: insufficient_evidence
-  consumer_decision_trigger_architecture: adopted
-  decision_escape_route_state: observed
-  kernel_decision_lineage_sequence: sequence_ci_enforced
-  kernel_decision_receipts: ci_enforced
-  ai_authority_deterministic_governance_v1_0_2: merged_on_main_post_merge_verified
-  ai_governance_profile: v1_0_0_identity_enforced
-  governance_scope_revision: CE-GOV-ALL-v2
-  scope_projection_gate: ci_enforced
-  computed_scope_disclosure_gate: ci_enforced
-  progress_evidence_gate: ci_enforced_required_artifact_hashes
-  independent_review_merge_gate: implemented_review_not_observed_before_merge
-  authoritative_exact_head_ci_confirmation: confirmed_run_29279294022
-  governance_implementation_complete: true
-  governance_post_merge_verification: confirmed_content_equivalent
-  fresh_independent_review_after_repair: not_observed
-  governance_adoption_complete: false
+  canonical_architect_intake: ev4-ce-architect-stage-intake@1.1.0
+  runtime_contract: ev4-ce-conversation-bootstrap@1.1.0
+  runtime_mode: content_driven_ce_runtime
+  repository_maintenance_separated: true
+  builder_readiness_guards: preserved
+  deterministic_export_guards: preserved
+  project_gate_producer_export: implemented
+  project_gate_runtime_integration: external_to_this_repository
   production_ready: false
 ```
 
----
-
-## Validation State
+## Lean Runtime Consolidation
 
 ```yaml
-validation_state:
-  primary_python_validation: pytest -q
-  behavioral_rule_coverage: python scripts/validate-behavioral-rule-coverage.py
-  role_alignment_fixtures: python scripts/validate-role-alignment-fixtures.py
-  reference_paradigm_lock: npm run test:reference-paradigm-lock
-  ce_architect_stage_intake: python scripts/validate-ce-architect-stage-intake.py
-  ce_decision_lineage_sequence: python scripts/validate-ce-decision-lineage-sequence.py
-  ce_kernel_decision_receipts: python scripts/validate-ce-kernel-decision-receipts.py
-  ce_project_gate_producer_adoption: python scripts/validate-project-gate-producer-adoption.py
-  ce_project_gate_exporter: pytest -q tests/test_project_gate_exporter.py
-  ce_project_gate_exporter_cleanup_state: pytest -q tests/test_project_gate_exporter_cleanup_state.py
-  ce_project_gate_exporter_post_merge_audit: pytest -q tests/test_project_gate_exporter_post_merge_audit.py
-  decision_escape_routes_schema: pytest -q tests/test_decision_escape_routes_schema.py
-  ai_governance: python scripts/validate-ai-governance.py --head-sha <exact_pr_head> --pr-number <pr_number> --ci-context .governance-ci-context.json --emit-dir .governance-evidence
-  vendored_project_gate_contract: .github/workflows/verify-project-gate-contract.yml
-  downstream_builder_gate_alignment: builder_executable_package.schema_required
-```
-
----
-
-## Boundary
-
-```text
-CE proves implementation strategy and emits structured source evidence.
-CE does not emit Builder runtime carriers.
-CE Builder-ready packages must declare schema: ev4-builder-executable-package@1.0.0.
-CE may emit a Producer Gate Export machine artifact for Project Gate ingestion.
-Project Gate runtime integration remains outside CE and is not implemented here.
-Downstream CE→Builder adapter owns Builder-side normalization and compact projections.
-Production ready remains false unless separate downstream evidence proves otherwise.
-```
-
----
-
-## AI Governance Adoption Snapshot
-
-```yaml
-ai_governance_adoption:
-  plan_id: GOV-ADOPTION-EV4-CONSTRUCTABILITY-ENGINEER-REPO-1F27313-V2
-  scope_revision: CE-GOV-ALL-v2
-  active_profile: personal_ai_operated_strong_governance_minimum_security@v1.0.0
-  completed_before_this_increment:
-    - CE-GOV-001-AUTHORITY-RECONCILIATION
-  implemented_in_pr_35:
-    - CE-GOV-002-AI-AUTHORITY-PROFILE
-    - CE-GOV-003-SCOPE-DISCLOSURE-GATES
-    - CE-GOV-004-PROGRESS-EVIDENCE-GATES
-    - CE-GOV-005-INDEPENDENT-REVIEW-MERGE-GATE
-  computed_evidence:
-    - scope-change-disclosure.json
-    - completion-receipt.json
-    - governance-gate-evidence.json
-  current_status: merged_on_main_post_merge_verified_review_gap_recorded
-  merge_evidence:
-    pull_request: 35
-    validated_head_sha: 0847bf63928e5fa687615369142d78bf4cec6fcb
-    merge_commit_sha: 8234d356d86bbcf5e1fa3f533d4c209794887272
-    content_equivalent_to_validated_head: true
-    exact_head_ci_run_id: 29279294022
-    exact_head_ci_job_id: 86916239709
-    exact_head_ci_conclusion: success
-    project_gate_verification_run_id: 29279294482
-    project_gate_verification_job_id: 86916241112
-    project_gate_verification_conclusion: success
-  closed_gates:
-    - authoritative_exact_head_ci_confirmation
-    - user_merge
-    - post_merge_verification
-  open_gates:
-    - fresh_independent_ai_review
-  review_gap:
-    fresh_review_on_repaired_head: not_observed
-    findings_closed: false
-    merge_occurred_before_required_fresh_review_was_observed: true
-  prohibited_inferences:
-    - findings_closed
-    - governance_adoption_complete
-    - production_ready
-    - runtime_verified
-    - repository_settings_enforced
-```
-
----
-
-## AI Governance Post-Merge Closure Addendum
-
-```yaml
-AI_GOVERNANCE_POST_MERGE_CLOSURE:
-  pull_request: 35
-  validated_head_sha: 0847bf63928e5fa687615369142d78bf4cec6fcb
-  merge_commit_sha: 8234d356d86bbcf5e1fa3f533d4c209794887272
-  merge_commit_file_delta_from_validated_head: none
-  exact_head_validation:
-    workflow: validate-fixtures
-    run_id: 29279294022
-    job_id: 86916239709
-    conclusion: success
-  project_gate_contract_validation:
-    workflow: verify-project-gate-contract
-    run_id: 29279294482
-    job_id: 86916241112
-    conclusion: success
-  implementation_merged_on_main: true
-  post_merge_content_verification: confirmed
-  status_memory_synchronized: true
-  fresh_independent_review_on_repaired_head: not_observed
-  findings_closed: false
-  closure_result: implementation_merged_memory_synchronized_review_gap_retained
-```
-
-This addendum closes repository-memory and post-merge verification for PR #35. It does not retroactively create independent review evidence, close PR Inspector findings, prove repository-setting enforcement, or claim production readiness.
-
----
-
-## Kernel Decision Enforcement Snapshot
-
-```yaml
-kernel_decision_enforcement:
-  architecture:
-    path: docs/architecture/EV4_CONSUMER_DECISION_TRIGGER_ARCHITECTURE.md
-    status: adopted
-    enforcement_complete: false
-  decision_escape_routes:
-    path: planning/DECISION_ESCAPE_ROUTES.yml
-    evidence_state: observed
-  wave_4_lineage:
-    rule_id: CE-KERNEL-LINEAGE-001
-    session_scope: cross_turn
-    enforcement_status: sequence_ci_enforced
-  wave_5_receipts:
-    rule_id: CE-KERNEL-RECEIPT-001
-    session_scope: per_artifact
-    enforcement_status: ci_enforced
-  bounded_non_claims:
-    - runtime_monitor_enforced
-    - os_harness_enforced
-    - downstream_contract_enforced
-    - production_ready
-```
-
----
-
-## Prompt 2 Producer Adoption Addendum
-
-```yaml
-CE_PRODUCER_GATE_EXPORT_ADOPTION:
-  project_gate_prompt_0_pr: 40
-  project_gate_prompt_0_merged_commit_sha: ea19c22c32458068e167b267da8b819e9263cdf7
-  project_gate_contract_id: producer-gate-export.v1
-  project_gate_contract_version: 1.0.0
-  project_gate_contract_sha256: c556bb9deeccdcafeb885a1c8b3dbd660e4e06f452b8ac3c7040d21377465fcc
-  stage_bundle_id: stage-evidence-bundle.v1
-  stage_bundle_sha256: fc1ec6d3f7aecbabaeb0a3455d9eb42788779d2fa1531e8c7b2cb3bde706a886
-  acquisition_mode: producer_emitted_gate_artifact
-  silent_fallback_allowed: false
-  status: implemented_in_ce_pending_project_gate_integration
-```
-
-This addendum is intentionally historical and additive. It does not claim Builder acceptance, Project Gate runtime integration, cross-repository E2E success, real Elementor validation, responsive completion, or production readiness.
-
----
-
-## CE Architect Stage Intake v1 Addendum
-
-```yaml
-CE_ARCHITECT_STAGE_INTAKE_V1:
-  schema: ev4-ce-architect-stage-intake@1.0.0
-  mapping: ev4-architect-stage-to-ce-intake-mapping@1.0.0
-  accepted_source_schema: ev4-architect-stage-payload@1.0.0
-  status: implemented_initial_contract_pr
-  canonical_new_architect_facing_intake: true
-  semantic_validator: added
-  synthetic_fixtures: added
-  ci_enforcement: added
-  legacy_architect_ce_input_package: compatibility_only
-  architect_to_ce_project_gate_transition: not_implemented
-  ce_review_completed_at_intake: false
-  builder_authorization_at_intake: false
-  real_cross_repository_validation: not_available
-```
-
-This addendum is historical. It does not delete, summarize, or replace the existing status history.
-
----
-
-## CE Architect Stage Intake v1.1 Addendum
-
-```yaml
-CE_ARCHITECT_STAGE_INTAKE_V1_1:
-  schema: ev4-ce-architect-stage-intake@1.1.0
-  mapping: ev4-architect-stage-to-ce-intake-mapping@1.1.0
-  accepted_source_schema: ev4-architect-stage-payload@1.0.0
-  transition: ev4-architect-to-ce-transition@1.0.0
-  status: implemented_contract_revision_pr
-  preserves_v1_0_unchanged: true
-  transition_execution_record: required
-  ce_review_completed_at_intake: false
-  builder_authorization_at_intake: false
-  real_cross_repository_validation: not_available
-  fixture_classification: synthetic
-```
-
----
-
-## CE-01 Real Exporter Addendum
-
-```yaml
-CE_01_REAL_PROJECT_GATE_EXPORTER:
-  prompt_id: P-002
-  task_id: CE-01
-  implementation_state: repaired_in_pr_pending_fresh_independent_rereview
-  operator_command: ev4-ce-project-gate-export
-  script_entrypoint: scripts/export-ce-project-gate.py
-  output_artifact: ce-project-gate.json
-  accepted_intake: ev4-ce-architect-stage-intake@1.1.0
-  ce_stage_payload: ev4-ce-stage-payload@1.0.0
-  builder_executable_package: ev4-builder-executable-package@1.0.0
-  stage_bundle: stage-evidence-bundle.v1@1.0.0
-  producer_export: producer-gate-export.v1@1.0.0
-  source_bundle_binding: required_from_supplied_canonical_json
-  source_intake_snapshot_stability: enforced
-  source_intake_read_failure_diagnostic: CE_EXPORT_SOURCE_INTAKE_READ_FAILED
-  git_provenance_source: verified_live_checkout_only
-  caller_supplied_git_provenance: forbidden
-  post_write_cleanup_failure_diagnostic: CE_EXPORT_POST_WRITE_CLEANUP_FAILED
-  cleanup_failure_artifact_reporting: truthful_invalid_artifact_state
-  cleanup_failed_artifact_handoff_allowed: false
-  official_ce_validation: required
-  deterministic_atomic_output: implemented
-  invalid_input_output_written: false
-  blocked_diagnostic_export_allowed: true
-  synthetic_evidence_handoff_allowed: false
-  dirty_checkout_handoff_allowed: false
-  fresh_pr_inspector_review_after_repair: required
-  project_gate_runtime_integration: not_implemented
-  builder_context_package_generation: forbidden_in_ce
-  builder_runtime_authorization: not_claimed
+CE_LEAN_PERSONAL_RUNTIME:
+  contract: ev4-ce-conversation-bootstrap@1.1.0
+  repository_maintenance_mode:
+    normal_ci: kept
+    automated_tests: kept
+    schema_validation: kept
+    regression_tests: kept
+    deterministic_export_tests: kept
+  ce_runtime_mode:
+    exact_start_authorization_gate: removed
+    active_run_ticket_gate: removed
+    pr_state_dependency: removed
+    independent_review_dependency: removed
+    external_receipt_dependency: removed
+    exact_head_artifact_dependency: removed
+    governance_bundle_dependency: removed
+  input_policy:
+    canonical_input: ev4-ce-architect-stage-intake@1.1.0
+    schema_validation: required
+    semantic_validation: required
+    source_bundle_policy: conditional_correctness_evidence
+    extra_irrelevant_files: warning_only
+    receipt_like_extras: warning_only_nonsemantic
+    multiple_valid_inputs: blocked_ambiguous_input
+    invalid_canonical_input: fail_closed
+    insufficient_evidence: EVIDENCE_REQUIRED
+  runtime_states:
+    - INTAKE_VALIDATING
+    - REVIEW_ACTIVE
+    - EVIDENCE_REQUIRED
+    - STRATEGY_READY
+    - EXPORT_VALIDATING
+    - COMPLETED
+  correctness:
+    candidate_identity_lock: preserved
+    architecture_intent_preservation: preserved
+    unknown_tracking: preserved
+    blocking_dependency_tracking: preserved
+    implementation_strategy_completeness: preserved
+    builder_readiness_guards: preserved
+    deterministic_export_guards: preserved
+    atomic_write_guards: preserved
+    invalid_artifact_publication: forbidden
   production_ready: false
 ```
 
-This addendum records the bounded CE-owned exporter repair. It does not claim merge, final closure of PR Inspector findings, Project Gate runtime acceptance, Builder acceptance, cross-repository E2E completion, Responsive completion, or production readiness.
+## Builder Eligibility
 
----
-
-## CE-02 Post-Merge Exporter Audit Addendum
+Builder-ready remains blocked when:
 
 ```yaml
-CE_02_POST_MERGE_EXPORTER_AUDIT:
-  prompt_id: P-004
-  task_id: CE-02
-  audited_default_branch: main
-  audited_main_commit: ebc73c28a154123b4c76f340ff0913934833789d
-  merged_pull_request: 36
-  merged_head_sha: 1804705c1ad86b4e414b2e5a40294bb8d1a9727a
-  merge_commit_content_delta_from_validated_head: none
-  repair_branch: audit/ce-02-exporter-audit-repair
-  findings:
-    source_bundle_snapshot_stability: defect_reproduced_repair_in_pr
-    output_leaf_symlink_refusal: defect_reproduced_repair_in_pr
-    output_path_inspection_diagnostics: defect_reproduced_repair_in_pr
-  bounded_repairs:
-    source_bundle_byte_snapshot: added
-    source_bundle_second_read_equality: added
-    source_bundle_read_failure_diagnostic: CE_EXPORT_SOURCE_BUNDLE_READ_FAILED
-    source_bundle_mutation_diagnostic: CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT
-    leaf_symlink_pre_resolution_rejection: added
-    output_path_inspection_diagnostic: CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED
-    focused_adversarial_regressions: added
-  exact_head_validation: pending
-  independent_repair_review: pending
-  repair_merged: false
-  project_gate_runtime_acceptance: unverified
-  cross_repository_e2e: unverified
-  builder_acceptance: unverified
+builder_gate:
+  blocking_dependencies_present: blocked
+  builder_decision_remaining: blocked
+  implementation_strategy_incomplete: blocked
+  required_fields_missing: blocked
+  selected_candidate_mismatch: blocked
+  architecture_intent_drift: blocked
+  unsupported_builder_package_schema: blocked
 ```
 
-This addendum records the CE-02 audit and bounded repair branch without claiming exact-head CI success, independent repair acceptance, merge, downstream runtime acceptance, or production readiness.
-
----
-
-## CE-02 Post-Merge Status Reconciliation Addendum
+## Export Integrity
 
 ```yaml
-CE_02_POST_MERGE_STATUS_RECONCILIATION:
-  task: PR_37_STATUS_RECONCILIATION
-  reconciliation_date: 2026-07-21
-  pull_request: 37
-  pull_request_state: merged
-  merged_at: 2026-07-17T16:19:23Z
-  validated_pr_base_sha: ebc73c28a154123b4c76f340ff0913934833789d
-  validated_head_sha: 677ff32edc8bca3e4c4156031d72b89a9c0a26d5
-  merge_commit_sha: 6650c31304e5a0472b276c36018c1df8f42ac983
-  current_main_sha_at_reconciliation: 6650c31304e5a0472b276c36018c1df8f42ac983
-  current_main_relationship_to_merge_commit: identical
-  merge_commit_file_delta_from_validated_head: none
-  exact_pr_head_validation:
-    validate_fixtures:
-      run_id: 29563815214
-      conclusion: success
-    verify_project_gate_contract:
-      run_id: 29563815485
-      conclusion: success
-    pytest:
-      tests: 287
-      failures: 0
-      errors: 0
-      skipped: 0
-  exact_merged_main_ci: not_observed
-  implementation_merged: true
-  repair_merged: true
-  post_merge_content_verification: confirmed
-  status_memory_synchronized: true
-  fresh_independent_review_on_repaired_head: not_observed
-  independent_review: insufficient_evidence
-  findings_closed: false
-  project_gate_runtime_acceptance: unverified
-  real_non_synthetic_cross_repository_handoff: unverified
-  cross_repository_e2e: unverified
-  builder_acceptance: unverified
-  responsive_completion: unverified
-  deployment: unverified
-  reconciliation_result: implementation_merged_content_equivalent_review_gap_retained
+export:
+  deterministic_serialization: required
+  schema_valid_output: required
+  artifact_consistency: required
+  atomic_write: required
+  input_output_aliasing: forbidden
+  invalid_artifact_publication: forbidden
+  silent_fallback: forbidden
+  blocked_artifact_is_builder_authorization: false
 ```
 
-This reconciliation records that PR #37 was exact-head validated and later merged, and that its merge commit preserves the validated file content. It does not relabel PR-head validation as exact merged-main CI, retroactively create independent review evidence, close PR Inspector findings, or establish Project Gate runtime acceptance, a real non-synthetic cross-repository handoff, Builder acceptance, Responsive completion, deployment, or production readiness.
+## Validation Commands
 
----
-
-## CE Conversation Bootstrap v1 Current State
-
-```yaml
-CE_CONVERSATION_BOOTSTRAP_V1:
-  implementation_state: repaired_in_pr_pending_exact_head_ci_and_independent_review
-  contract: ev4-ce-conversation-bootstrap@1.0.0
-  canonical_trigger: شروع
-  canonical_input: ev4-ce-architect-stage-intake@1.1.0
-  source_transition: ev4-architect-to-ce-transition@1.0.0
-  integrated_routing_authorization: implemented
-  source_binding_required: true
-  source_bundle_bytes_verified_at_bootstrap: true
-  source_provenance_checks: bundle_id_sha256_transition_producer_upstream_producer
-  first_stage: architect_intake_validation
-  receipt_validation_status: unverified
-  receipt_role: diagnostic_untrusted
-  invalid_receipt_with_valid_input: blocked_conflicting_evidence
-  mixed_attachment_precedence: fail_closed_conflict_blocking
-  coordinated_manifest_schema_drift_detection: semantic_invariant_matrix
-  deployable_project_instructions: implemented
-  first_run_guide: implemented
-  semantic_validator: implemented
-  mutation_suite: implemented
-  focused_exact_head_ci_workflow: implemented
-  external_model_host_loading: unverified
-  real_non_synthetic_ce_run: insufficient_evidence
-  builder_acceptance: unverified
-  responsive_completion: unverified
-  deployment: unverified
-  production_readiness_claim: not_made
+```bash
+python -m pip install -e '.[dev]'
+python scripts/check-ce-bootstrap.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py
+python scripts/validate-ce-architect-stage-intake.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_strategy_batch_gates.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_builder_producer_contract.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_project_gate_exporter.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_validation_transaction.py
+python scripts/validate-behavioral-rule-coverage.py
+python scripts/validate-role-alignment-fixtures.py
+npm run test:reference-paradigm-lock
 ```
 
-This block records the bounded repair in the open bootstrap PR. It does not prove exact-Head CI until the new Head workflows succeed, external ChatGPT Project loading, a real non-synthetic CE execution, Project Gate runtime acceptance, Builder acceptance, Responsive completion, deployment, independent review, or production readiness. The existing mutable `project_status.production_ready: false` boundary remains unchanged.
+## Historical Evidence
+
+Detailed pre-consolidation governance, PR Inspector, exact-head, and post-merge evidence remains available in Git history and the merged PR records. It is retained as historical evidence but is not a CE runtime prerequisite.

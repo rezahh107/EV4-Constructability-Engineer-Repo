@@ -6,42 +6,61 @@ Role: `implementation_strategy_gate`
 
 ## Purpose
 
-EV4 Constructability Engineer sits between Architect and Builder. It determines whether approved architecture can be implemented safely without forcing Builder to guess.
+EV4 Constructability Engineer sits between Architect and Builder.
 
 ```text
 Architect says what should be built.
-CE proves how it can be safely built.
-Builder executes proven strategy.
-Responsive validates post-build responsive behavior.
+CE proves how it can be built without hidden Builder decisions.
+Builder executes the proven strategy.
 ```
 
 Core rule:
 
 ```text
-not proven executable → not builder-ready
+not proven executable → not Builder-ready
 ```
 
-## EV4 Project Gate Workflow
+## Lean Personal Runtime
 
-CE participates in two planned gates:
+This repository is operated by one owner. Runtime correctness remains strict, but enterprise-style authorization and attestation are not CE execution gates.
+
+Two concerns are separated:
+
+### Repository maintenance
+
+Machine-readable mode identifier: `repository_maintenance`.
+
+Includes code, contracts, schemas, fixtures, tests, CI, PRs, and documentation.
+
+Keep normal automated validation. Maintenance evidence does not authorize or block a normal CE project run.
+
+### CE runtime
 
 ```text
-Architect output
-→ EV4 Project Gate
-→ accepted CE Input Package
-→ CE review and output
-→ CE Project Gate Export artifact
-→ EV4 Project Gate runtime integration
-→ accepted Builder Input Package
+CE Input
+→ Schema Validation
+→ Semantic Validation
+→ Constructability Review
+→ Implementation Strategy
+→ Builder Eligibility Check
+→ Deterministic Export
 ```
 
-If Architect input fails the first gate, the user receives an Architect repair package. If CE output fails the second gate, the user receives a CE repair package or an Architect amendment package only when evidence establishes upstream ownership.
+Runtime states:
 
-The CE repository owns a producer-emitted Project Gate artifact path for CE output. Project Gate runtime integration remains outside this repository.
+```text
+INTAKE_VALIDATING
+→ REVIEW_ACTIVE
+→ STRATEGY_READY
+→ EXPORT_VALIDATING
+→ COMPLETED
+```
 
-## Canonical Architect-facing CE intake
+`EVIDENCE_REQUIRED` is used only when a concrete correctness question remains unresolved.
 
-For Project Gate-produced Architect Stage Payload work, the canonical CE-owned Architect-facing intake is:
+## Runtime Intake
+
+Canonical Architect-facing CE input:
 
 ```text
 ev4-ce-architect-stage-intake@1.1.0
@@ -53,46 +72,44 @@ Accepted upstream source:
 ev4-architect-stage-payload@1.0.0
 ```
 
-Declarative mapping contract:
+Mapping contract:
 
 ```text
 ev4-architect-stage-to-ce-intake-mapping@1.1.0
 ```
 
-v1.1 adds a required `project_gate_transition` record so an executed `ev4-architect-to-ce-transition@1.0.0` can be represented truthfully without implying CE review, implementation strategy, Builder authorization, or real Elementor validation.
+Behavior:
 
-Historical compatibility-only Architect Stage intake files remain available:
+- sending `شروع` first is optional;
+- `active_ce_run` is not an authorization gate;
+- a valid CE input can start intake directly;
+- schema and semantic validation remain mandatory;
+- multiple valid CE inputs block as ambiguous;
+- extra irrelevant, Receipt-like, malformed, legacy, or wrong-stage files produce a warning when one valid CE input exists;
+- a source bundle is requested only when needed to establish correctness;
+- supplied relevant source evidence is verified before it is relied upon;
+- invalid or insufficient CE input remains fail-closed.
 
-```text
-contracts/CE_ARCHITECT_STAGE_INTAKE_V1.md
-contracts/ARCHITECT_STAGE_TO_CE_INTAKE_MAPPING_V1.md
-schemas/ce_architect_stage_intake.v1.schema.json
-```
+## Builder-ready Integrity
 
-The older legacy compatibility-only intake files also remain available:
-
-```text
-contracts/ARCHITECT_TO_CE_INPUT_MAPPING_V1.md
-schemas/architect_ce_input_package.v1.schema.json
-```
-
-Those files target previous compatibility paths and must not be treated as the preferred intake for Project Gate-produced v1.1 transition output.
-
-## CE Project Gate Producer Export
-
-CE producer adoption uses these CE-owned artifacts:
+Builder-ready remains impossible unless all of these are true:
 
 ```text
-manifests/ce_pipeline_manifest.v1.json
-schemas/ce_pipeline_manifest.v1.schema.json
-schemas/ce_stage_payload.v1.schema.json
-contracts/project-gate/producer-gate-export.v1.schema.json
-contracts/project-gate/producer-gate-export.v1.lock.json
-validator/project_gate_export.py
-scripts/validate-project-gate-producer-adoption.py
+builder_executable_package.schema is ev4-builder-executable-package@1.0.0
+selected_candidate_id remains locked
+approved architecture and class intent remain preserved
+blocking dependencies are empty
+builder_decisions_required is zero
+implementation strategy is explicit and complete
+first safe Builder batch is present
+required structured confirmation data is present
 ```
 
-Composition:
+CE does not claim production readiness.
+
+## Deterministic Export
+
+CE owns the producer-emitted Project Gate artifact path:
 
 ```text
 CE Stage Payload
@@ -100,124 +117,78 @@ inside Stage Evidence Bundle v1
 inside Producer Gate Export v1
 ```
 
-The vendored Producer Gate Export contract is pinned to Project Gate merge commit:
+Key artifacts:
 
 ```text
-ea19c22c32458068e167b267da8b819e9263cdf7
+manifests/ce_pipeline_manifest.v1.json
+schemas/ce_pipeline_manifest.v1.schema.json
+schemas/ce_stage_payload.v1.schema.json
+contracts/project-gate/producer-gate-export.v1.schema.json
+validator/project_gate_export.py
+scripts/validate-project-gate-producer-adoption.py
 ```
 
-Silent fallback is forbidden. A blocked CE run may still emit a valid machine artifact, but that artifact is not Builder authorization.
+Export protections remain:
 
-## CE Input and Output
-
-CE receives only an Architect package accepted for constructability review.
-
-CE output may become Builder-ready only when implementation strategy is proven and Builder has no remaining strategy decisions.
-
-Expected Builder-ready conditions include:
-
-```text
-builder_executable_package.schema is ev4-builder-executable-package@1.0.0
-selected_candidate_id remains locked
-approved class intent remains preserved
-blocking dependencies are empty
-builder_decisions_required is zero
-implementation strategy is explicit
-first safe Builder batch is present
-structured confirmation data is present
-production readiness remains false
-```
-
-For visual-reference Builder packages, CE must keep reference carriers structured. In particular, `paradigm_to_structure_map.connector_layer` remains `{node, model}` in CE output; the downstream CE→Builder adapter owns any Builder-side `node:model` projection. See `docs/CE_TO_BUILDER_PRODUCER_CONTRACT.md`.
-
-Typical CE concerns include geometry, source and target anchors, assets, overlays, z-index, responsive scope, interaction, Dynamic Loop, accessibility evidence, and exact Elementor UI-control evidence.
-
-## Authority
-
-This repository remains authoritative for its own constructability schemas, validators, fixtures, failure patterns, strategy rules, and Builder-ready package semantics.
-
-EV4 Project Gate verifies the real CE-to-Builder path using official CE validation, the documented adapter, Builder intake validation, and preservation checks. It does not redesign architecture, invent strategy, replace CE contracts, or silently repair CE output.
-
-When responsibility cannot be established:
-
-```yaml
-status: insufficient_evidence
-repair_owner: unresolved
-```
-
-## Repair Loop
-
-A future CE repair package will explain the confirmed problem in plain Persian, identify affected contract data, retain the original output identity, and state what valid data must remain unchanged. The corrected complete CE output is checked again before Builder receives it.
-
-## CE Status Values
-
-```text
-executable_ready
-blocked
-needs_user_evidence
-needs_architect_amendment
-executable_with_logged_assumption
-```
-
-`executable_with_logged_assumption` is limited to explicit, low-risk, reversible, boundary-safe assumptions that leave no Builder strategy decision.
+- deterministic serialization;
+- schema-valid output;
+- source and artifact consistency checks;
+- atomic writes;
+- invalid-artifact publication blocking;
+- no silent fallback;
+- blocked output is never Builder authorization.
 
 ## Boundaries
 
-CE does not redesign architecture, rescore candidates, change `selected_candidate_id`, act as Builder, or claim production readiness.
+CE does not:
+
+- redesign architecture;
+- rescore candidates;
+- change `selected_candidate_id`;
+- act as Builder;
+- hide unknowns or blocking dependencies;
+- claim real Elementor validation, responsive completion, deployment, or production readiness without evidence.
+
+## Quick Start
+
+1. Load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md`.
+2. Send the valid `ce-input.json`; `شروع` is optional.
+3. Add a source bundle only after CE reports a specific blocking evidence need.
+4. Treat extra files as warnings unless they create multiple valid CE inputs or contradict relevant evidence.
+5. Continue until the implementation strategy and Builder eligibility checks pass.
+6. Export through the deterministic CE Project Gate path.
+
+Controlled quick-start contract:
+
+1. Load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md`.
+2. Send the valid `ce-input.json`; sending `شروع` first is optional.
+3. Add a source bundle only when CE reports a concrete evidence requirement.
+4. Extra unrelated files are warnings, not runtime blockers.
+5. CE blocks only invalid/insufficient CE input, multiple valid CE inputs, or relevant evidence that contradicts the selected input.
+6. Builder-ready remains impossible while dependencies, strategy decisions, required fields, or validation errors remain.
+
+## Validation
+
+```bash
+python -m pip install -e '.[dev]'
+python scripts/check-ce-bootstrap.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py
+python scripts/validate-ce-architect-stage-intake.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_strategy_batch_gates.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_builder_producer_contract.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_project_gate_exporter.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_validation_transaction.py
+python scripts/validate-behavioral-rule-coverage.py
+python scripts/validate-role-alignment-fixtures.py
+npm run test:reference-paradigm-lock
+```
 
 ## Companion Repositories
 
 ```text
-https://github.com/rezahh107/EV4-Project-Gate
-https://github.com/rezahh107/EV4-Architect-Repo
-https://github.com/rezahh107/EV4-Builder-Assistant-Repo
-https://github.com/rezahh107/EV4-Responsive-Architect
+rezahh107/EV4-Project-Gate
+rezahh107/EV4-Architect-Repo
+rezahh107/EV4-Builder-Assistant-Repo
+rezahh107/EV4-Responsive-Architect
 ```
-
-## Current Status Authority
-
-Current mutable implementation and readiness claims are maintained only in:
-
-```text
-STATUS.md
-```
-
-This README describes stable mission, contracts, and boundaries. It must not be used as the current mutable status authority. When README wording, `STATUS.md`, and live repository evidence differ, live default-branch evidence wins and `STATUS.md` must be reconciled.
-
----
-
-## CE Conversation Quick Start
-
-Canonical machine-readable startup contract:
-
-```text
-manifests/ce-conversation-bootstrap.v1.json
-```
-
-<!-- EV4_CE_BOOTSTRAP_QUICK_START_START -->
-```text
-1. Create or open the CE ChatGPT Project and load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md` as the Project Instructions.
-2. Send the exact normalized message `شروع`.
-3. Upload the standalone `ce-input.json` produced by `EV4-Project-Gate / architect-to-ce`.
-4. Upload the exact Architect source bundle whose canonical SHA-256 is declared by that CE input.
-5. Treat any Receipt-like attachment as `diagnostic_untrusted` until official external Receipt validation succeeds.
-6. Never extract nested `result.output`, rebuild CE input manually, or continue on mixed/conflicting attachments.
-7. Only successful integrated authorization + intake validation + source binding may route to `architect_intake_validation`.
-```
-<!-- EV4_CE_BOOTSTRAP_QUICK_START_END -->
-
-```text
-exact normalized شروع + no maintenance intent
-→ authorized CE bootstrap context
-→ standalone ce-input.json + exact source bundle
-→ official intake validation + validate_source_bundle_binding()
-→ architect_intake_validation only
-```
-
-A valid attachment without the exact startup trigger or an already authorized `active_ce_run` does not create a CE run. Repository-maintenance intent always routes to `repository_maintenance`, even when the message contains `شروع`.
-
-The normal filename `ce-input.json` is a convention, not proof. Acceptance requires parsed content matching `ev4-ce-architect-stage-intake@1.1.0`, official CE semantic validation, and successful source-bundle byte binding.
-
-Receipt-like files are not validated audit evidence from `schema_version` alone. Until official external validation succeeds, they remain `receipt_validation_status: unverified` with `receipt_role: diagnostic_untrusted`; they never become CE semantic input. Mixed or conflicting candidates block automatic selection.
-
-Never extract nested `result.output` or rebuild CE input manually. Bootstrap authorizes no Constructability conclusion, hidden-dependency inference, implementation strategy, Builder package, Builder readiness, Responsive completion, deployment, or production readiness.
