@@ -19,6 +19,8 @@ on:
       - 'scripts/ce_bootstrap_test_support.py'
       - 'scripts/validate-ce-architect-stage-intake.py'
       - 'tests/test_ce_bootstrap_semantics.py'
+      - 'tests/test_ce_runtime_balanced_repairs.py'
+      - 'tests/test_validate_fixtures_workflow_policy.py'
       - 'tests/test_ce_architect_stage_intake.py'
       - 'tests/test_strategy_batch_gates.py'
       - 'tests/test_ce_builder_producer_contract.py'
@@ -28,6 +30,7 @@ on:
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/EV4_FIRST_RUN_GUIDE.md'
       - '.github/workflows/validate-ce-bootstrap.yml'
+      - '.github/workflows/validate-fixtures.yml'
 
 permissions:
   contents: read
@@ -36,8 +39,20 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR head
+      - name: Checkout exact PR head
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Assert exact PR-head identity
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          TESTED_SHA="$(git rev-parse HEAD)"
+          test "$TESTED_SHA" = "$EXPECTED_HEAD_SHA"
+          printf 'tested_pr_head=%s\n' "$TESTED_SHA"
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
@@ -50,7 +65,10 @@ jobs:
         run: python scripts/check-ce-bootstrap.py
 
       - name: Run CE runtime routing tests
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_bootstrap_semantics.py
+        run: |
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
+            tests/test_ce_bootstrap_semantics.py \
+            tests/test_ce_runtime_balanced_repairs.py
 
       - name: Validate official Architect-stage intake
         run: |
@@ -69,14 +87,17 @@ jobs:
             tests/test_project_gate_exporter.py \
             tests/test_ce_validation_transaction.py
 
+      - name: Verify workflow policy
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_validate_fixtures_workflow_policy.py
+
       - name: Validate behavioral coverage and role boundaries
         run: |
           python scripts/validate-behavioral-rule-coverage.py
           python scripts/validate-role-alignment-fixtures.py
           python scripts/validate-project-gate-producer-adoption.py
 
-      - name: Run repository regression suite
-        run: pytest -q
-
       - name: Verify reference paradigm lock
         run: npm run test:reference-paradigm-lock
+
+      - name: Run repository regression suite
+        run: pytest -q
