@@ -107,12 +107,28 @@ jobs:
         continue-on-error: true
         run: ruff check . --output-format=concise | tee ruff-report.txt
 
-      - name: Upload Ruff report
+      - name: Upload exact lint/source snapshot
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ruff-report
-          path: ruff-report.txt
+          name: pr-debug-snapshot
+          path: |
+            ruff-report.txt
+            scripts/report-ce-model-trust-field-reduction.py
+            tests/test_ce_authority_mutation_harness.py
+            tests/test_ce_claim_policy_and_model_reduction.py
+            tests/test_ce_validation_transaction.py
+            tests/test_ce_validation_transaction_rereview.py
+            tests/test_project_gate_exporter.py
+            tests/test_project_gate_exporter_cleanup_state.py
+            tests/test_project_gate_exporter_post_merge_audit.py
+            tests/test_verified_constructability_runtime.py
+            tests/verified_exporter_test_support.py
+            validator/__init__.py
+            validator/authority_boundary.py
+            validator/claim_policy_registry.py
+            validator/verified_constructability.py
+            validator/verified_project_gate_exporter.py
           retention-days: 1
 
       - name: Verify workflow policy
