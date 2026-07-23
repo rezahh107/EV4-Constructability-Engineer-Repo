@@ -9,6 +9,7 @@ from .verified_project_gate_exporter import secure_build_export
 
 _INSTALLED = False
 _ORIGINAL_LEGACY_BUILD: Callable[..., Any] | None = None
+_ORIGINAL_VERIFY_REPO_ARTIFACT: Callable[..., Any] | None = None
 
 
 def _reject_legacy_orchestration_build(*args: Any, **kwargs: Any) -> None:
@@ -94,22 +95,40 @@ def _validate_verified_successor_semantics(
     }
 
 
+def _verify_repo_artifact_fail_closed(*args: Any, **kwargs: Any) -> Any:
+    if _ORIGINAL_VERIFY_REPO_ARTIFACT is None:
+        raise RuntimeError("Verified artifact adapter boundary was not initialized")
+    from .verified_constructability import EvidenceVerificationError
+
+    try:
+        return _ORIGINAL_VERIFY_REPO_ARTIFACT(*args, **kwargs)
+    except OSError as exc:
+        source_ref = kwargs.get("source_ref", "unknown")
+        raise EvidenceVerificationError(
+            f"Verified artifact source is unavailable: {source_ref}"
+        ) from exc
+
+
 def install_authority_boundary() -> None:
     """Replace former raw-payload authority entrypoints with verified or preview-only paths."""
-    global _INSTALLED, _ORIGINAL_LEGACY_BUILD
+    global _INSTALLED, _ORIGINAL_LEGACY_BUILD, _ORIGINAL_VERIFY_REPO_ARTIFACT
     if _INSTALLED:
         return
 
     from . import ce_validation_transaction as transaction
     from . import project_gate_exporter as exporter
     from . import project_gate_exporter_orchestration as legacy_orchestration
+    from . import verified_constructability
     from . import verified_project_gate_exporter as verified_exporter
 
     _ORIGINAL_LEGACY_BUILD = exporter.build_export
+    _ORIGINAL_VERIFY_REPO_ARTIFACT = verified_constructability.verify_repo_artifact
     transaction.secure_build_export = secure_build_export  # type: ignore[assignment]
     exporter.build_export = _legacy_preview_build  # type: ignore[assignment]
     legacy_orchestration.build_export = _reject_legacy_orchestration_build  # type: ignore[assignment]
+    verified_constructability.verify_repo_artifact = _verify_repo_artifact_fail_closed  # type: ignore[assignment]
     verified_exporter.validate_document = _validate_verified_successor_semantics  # type: ignore[assignment]
+    verified_exporter.VERIFIED_EXPORTER_ID = verified_exporter.EXPORTER_ID
     _INSTALLED = True
 
 
@@ -117,13 +136,16 @@ def legacy_payload_authorization_is_closed() -> bool:
     from . import ce_validation_transaction as transaction
     from . import project_gate_exporter as exporter
     from . import project_gate_exporter_orchestration as legacy_orchestration
+    from . import verified_constructability
     from . import verified_project_gate_exporter as verified_exporter
 
     return (
         transaction.secure_build_export is secure_build_export
         and exporter.build_export is _legacy_preview_build
         and legacy_orchestration.build_export is _reject_legacy_orchestration_build
+        and verified_constructability.verify_repo_artifact is _verify_repo_artifact_fail_closed
         and verified_exporter.validate_document is _validate_verified_successor_semantics
+        and verified_exporter.VERIFIED_EXPORTER_ID == verified_exporter.EXPORTER_ID
     )
 
 
