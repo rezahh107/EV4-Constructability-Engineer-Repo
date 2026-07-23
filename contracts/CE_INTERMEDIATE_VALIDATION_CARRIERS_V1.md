@@ -12,19 +12,69 @@ project_gate_authorization: false
 
 ## Purpose
 
-These carriers remove a circular-proof gap between CE source evidence and the final CE Stage Payload. They are derived by code from existing CE-owned inputs and semantics. They do not replace `ev4-ce-stage-payload@1.0.0`, the final CE validation transaction, or the Project Gate exporter.
+The four carriers provide deterministic, inspectable evidence between canonical CE inputs and the final CE Stage Payload. They do not replace `ev4-ce-stage-payload@1.0.0`, `ev4-builder-executable-package@1.0.0`, the existing CE final validation transaction, or the Project Gate exporter.
 
-The authority chain is:
+The only authoritative intermediate-validation path is:
 
 ```text
-canonical Architect intake + trusted source bundle + CE review/strategy/package inputs
-→ deterministic intermediate derivation
-→ four evaluator-derived carriers
-→ final CE Stage Payload fidelity comparison
-→ existing final validation transaction remains authoritative
+raw canonical inputs
+→ derive Carrier 1
+→ validate Carrier 1
+→ derive Carrier 2
+→ validate Carrier 2
+→ derive Carrier 3
+→ validate Carrier 3
+→ derive Carrier 4
+→ validate Carrier 4
+→ compare the final CE Stage Payload with internally derived facts
+→ return one deterministic transaction result
 ```
 
-No model-authored Boolean is proof by itself. Assertions in the final payload are comparison targets only.
+The repository-owned entry point is:
+
+```python
+evaluate_ce_intermediate_validation(...)
+```
+
+## Authoritative input set
+
+The composite evaluator receives only:
+
+- `run_id`;
+- canonical `ev4-ce-architect-stage-intake@1.1.0`;
+- the trusted source bundle already referenced by the intake contract;
+- the current CE constructability review;
+- the current Implementation Strategy Map when present;
+- the current Builder Executable Package when present;
+- a separately assembled final CE Stage Payload.
+
+No serialized carrier is accepted as authoritative input.
+
+## Carrier authority boundary
+
+Serialized intermediate carriers are observational outputs.
+
+They may be used as:
+
+- deterministic diagnostic artifacts;
+- inspectable intermediate results;
+- fixture outputs;
+- test evidence;
+- debugging and reporting surfaces.
+
+They are not authoritative inputs to the final CE Payload fidelity decision. An authoritative result must rederive all four carriers from raw canonical inputs inside the same repository-owned evaluator execution.
+
+The individual derivation functions remain available for diagnostics, tests, and artifact generation:
+
+```python
+derive_architecture_identity_preservation(...)
+derive_review_units_and_interrogation_results(...)
+derive_dependency_classification(...)
+derive_implementation_strategy_coverage(...)
+validate_carrier(...)
+```
+
+`validate_ce_payload_against_intermediate_carriers(...)` is retained only as a diagnostic compatibility wrapper. It is excluded from the package public authority surface and must not be used to authorize Builder readiness or Project Gate transition.
 
 ## Common envelope
 
@@ -42,7 +92,7 @@ source_identities: []
 derived_data: {}
 ```
 
-Carrier content is deterministic. It contains no timestamps, random identifiers, network-derived state, GUI state, GitHub/PR state, or mutable filesystem-order assumptions. Identical inputs produce identical canonical JSON bytes.
+Carrier content is deterministic and contains no timestamps, random identifiers, network-derived state, GUI state, GitHub/PR state, or mutable filesystem-order assumptions. Identical inputs produce identical canonical JSON bytes.
 
 Status precedence is:
 
@@ -50,7 +100,7 @@ Status precedence is:
 invalid > blocked > insufficient_evidence > complete
 ```
 
-Diagnostics are CE-owned and stable. Families are:
+Diagnostic families are:
 
 ```text
 CE_IDENTITY_*
@@ -62,67 +112,47 @@ CE_INTERMEDIATE_*
 
 ## Carrier 1 — `architecture_identity_preservation_result`
 
-### Inputs
+Inputs:
 
-- canonical `ev4-ce-architect-stage-intake@1.1.0`;
-- explicitly supplied trusted Architect source bundle referenced by the intake transition;
-- current CE `constructability_review`.
+- canonical Architect intake;
+- trusted Architect source bundle;
+- current CE constructability review.
 
-### Derived facts
+Derived facts include:
 
-- source bundle identity and canonical hash match the intake transition;
-- `selected_candidate_id` matches across source bundle, intake, and CE review;
-- approved class set matches across source bundle, intake, and CE review;
-- accepted Build Tree node identity set is preserved by CE review units;
-- Architect Unknown IDs are preserved;
-- `forbidden_work` is not weakened;
-- review-unit traces cover accepted Architect nodes;
-- no class/structure redesign occurs without `architect_decomposition_permission`.
+- source bundle ID and canonical hash consistency;
+- selected-candidate preservation;
+- approved class-set preservation;
+- accepted Build Tree node preservation;
+- Architect Unknown preservation;
+- forbidden-work preservation;
+- review-unit trace coverage;
+- absence of unauthorized class or structure redesign.
 
-Missing source facts produce `insufficient_evidence`; contradictions or unauthorized redesign produce `blocked` or `invalid`.
-
-### Payload projection
-
-The carrier derives and verifies `ce_stage_payload.architecture_identity`, including candidate locks, approved classes, Build Tree preservation, Unknown preservation, forbidden-work weakening, and review-unit traces.
+The payload projection covers `ce_stage_payload.architecture_identity`.
 
 ## Carrier 2 — `ce_review_units_and_interrogation_results`
 
-### Inputs
+Inputs:
 
-- canonical Architect intake structure projection;
+- canonical Architect structure projection;
 - current CE `constructability_review.reviewed_nodes`.
 
-### Derived facts
+Derived facts include:
 
-- every required Architect node has one review unit;
-- every review unit maps to a known Architect node;
-- review-unit IDs are unique;
-- duplicate source-node mappings are rejected unless a future explicit repository rule allows them;
-- every review unit has a structured `interrogation_result`;
-- current constructability-review interrogation fields are present;
-- class/structure change carries explicit Architect permission state;
-- missing and orphan node sets are explicit.
+- complete source-node coverage;
+- unique CE `review_unit_id` values;
+- one Architect source mapping per review unit;
+- no missing or orphan mappings;
+- structured interrogation results;
+- all current CE interrogation fields;
+- explicit Architect permission state for class or structure changes.
 
-Completeness is never defined as “`reviewed_nodes` is non-empty”.
-
-### Payload projection
-
-The carrier derives and verifies:
-
-- `ce_stage_payload.constructability_review.reviewed_nodes`;
-- `ce_stage_payload.architecture_identity.review_unit_traces`.
+`review_unit_id` is the canonical CE execution identity. `architect_node_ref` is source traceability evidence only.
 
 ## Carrier 3 — `dependency_classification`
 
-### Inputs
-
-- complete Carrier 2;
-- current CE constructability review;
-- current CE rule dimensions and rule IDs.
-
-### Classification dimensions
-
-The carrier reuses existing CE rule semantics:
+Carrier 3 classifies every CE review unit across the existing rule dimensions:
 
 | Dimension | Existing rule |
 |---|---|
@@ -136,7 +166,7 @@ The carrier reuses existing CE rule semantics:
 | exact UI path | `R10_UI_CONTROL_PATH_REQUIRES_EVIDENCE` |
 | accessibility | `R16_ACCESSIBILITY_CLAIM_REQUIRES_EVIDENCE` |
 
-Each review unit receives exactly one result per dimension:
+Legal classifications are:
 
 ```text
 satisfied
@@ -146,39 +176,27 @@ insufficient_evidence
 not_applicable
 ```
 
-The carrier exposes blocking dependency IDs, non-blocking obligations, unresolved dependency IDs, evidence references, downstream owner, and complete traceability. Derived blockers must exactly match `constructability_review.blocking_dependencies`; suppression and untraceable declarations fail closed.
-
-### Payload projection
-
-The carrier verifies:
-
-- `ce_stage_payload.constructability_review.blocking_dependencies`;
-- dependency-related `ce_stage_payload.unresolved_evidence`;
-- evidence references used by classification against `ce_stage_payload.evidence_register`.
-
-The carrier itself is not reduced to a string blocker list.
+Carrier 3 must expose the same CE `review_unit_id` set as Carrier 2. Any mismatch is an internal consistency failure and fails closed.
 
 ## Carrier 4 — `implementation_strategy_coverage_result`
 
-### Inputs
+Strategy coverage is keyed exclusively by CE `review_unit_id` through the existing Strategy `node_id` field.
 
-- complete Carriers 1–3;
-- canonical `implementation_strategy_map`;
-- current Builder Executable Package when ready output is claimed.
+`architect_node_ref` must not be accepted as an interchangeable Strategy key. No dual-ID guessing, alias lookup, or fallback resolution is permitted.
 
-### Derived facts
+Carrier 4 verifies:
 
-- every required review unit has Strategy coverage;
-- non-blocking obligations are covered by Strategy for the same unit;
-- blocking or insufficient dependencies remain uncovered and block/limit status;
-- selected candidate and approved classes remain preserved;
-- every strategy has zero hidden Builder decisions for ready output;
-- Architect amendment requirements are not hidden;
-- first safe Builder batch is present and decision-free;
-- structured confirmation data is present;
-- Builder package schema, candidate, class set, strategy reference, blockers, and decision count are consistent.
+- every CE review unit has Strategy coverage;
+- non-blocking obligations are covered by Strategy for the same review unit;
+- blockers and insufficient evidence remain visible;
+- selected candidate and approved classes are preserved;
+- zero hidden Builder decisions;
+- no hidden Architect amendments;
+- complete structured confirmation data;
+- a decision-free first safe Builder batch;
+- Builder package schema, status, candidate, class set, Strategy reference, blockers, and decision count.
 
-When Strategy is absent, the carrier emits one repository-local absence reason:
+When Strategy is absent, the deterministic non-emission reasons remain:
 
 ```text
 strategy_unavailable_due_to_blocking_dependencies
@@ -186,32 +204,65 @@ strategy_unavailable_due_to_insufficient_evidence
 strategy_missing_without_repository_supported_absence_basis
 ```
 
-The reason is not copied from `builder_package_not_emitted_reason`; it is independently derived.
+When Strategy exists but complete validated Builder output cannot be produced, the repository-local reason is:
 
-### Payload projection
+```text
+builder_package_not_emitted_due_to_incomplete_strategy_coverage
+```
 
-The carrier derives and verifies:
-
-- `ce_stage_payload.implementation_strategy_map`;
-- `ce_stage_payload.builder_package_not_emitted_reason`;
-- Strategy-related unresolved evidence visibility.
+Detailed causes remain in diagnostics rather than a larger reason taxonomy.
 
 ## Final CE Stage Payload fidelity
 
-`validate_ce_payload_against_intermediate_carriers(...)` compares a separately assembled final CE Stage Payload with independently derived carriers. It verifies:
+The final comparator receives the raw Builder Executable Package that Carrier 4 validated in the same composite transaction.
 
-- shared `run_id`;
-- architecture identity projection;
-- reviewed nodes and traces;
-- blocker equality;
-- unresolved dependency preservation;
-- evidence-reference preservation;
-- Strategy Map equality;
-- Strategy absence reason;
-- selected candidate consistency across payload surfaces;
-- absence of a false `complete` or emitted Builder package while any carrier is incomplete.
+When Carrier 4 is `complete`, the final payload must satisfy all of these:
 
-Deriving carriers from the final payload and comparing them back to the same payload is prohibited circular validation.
+```yaml
+builder_package_emitted: true
+builder_package_not_emitted_reason: null
+builder_executable_package: canonically equal to the raw validated package
+```
+
+Canonical equality uses compact, sorted JSON bytes. Object-key ordering does not affect equality, while any nested semantic drift does.
+
+When Carrier 4 is not `complete`, the final payload must satisfy:
+
+```yaml
+builder_package_emitted: false
+builder_executable_package: null
+builder_package_not_emitted_reason: <Carrier 4 deterministic reason>
+```
+
+The comparator also verifies run identity, architecture projection, reviewed nodes, review traces, blockers, unresolved dependencies, evidence references, Strategy Map equality, and selected-candidate consistency.
+
+## Fidelity and Builder readiness
+
+Fidelity and Builder readiness are separate outputs.
+
+```yaml
+complete_ready:
+  fidelity_passed: true
+  builder_ready: true
+  transaction_status: complete
+
+faithful_blocked:
+  fidelity_passed: true
+  builder_ready: false
+  transaction_status: blocked
+
+faithful_insufficient_evidence:
+  fidelity_passed: true
+  builder_ready: false
+  transaction_status: insufficient_evidence
+
+payload_drift:
+  fidelity_passed: false
+  builder_ready: false
+  transaction_status: blocked | invalid
+```
+
+`builder_ready=true` is forbidden unless all carriers are complete, all carrier validations pass, Review Unit identities are internally consistent, final-payload fidelity passes, and an exact validated Builder package is present.
 
 ## Compatibility and integration boundary
 
@@ -221,7 +272,19 @@ This contract does not change:
 - `ev4-ce-stage-payload@1.0.0`;
 - `ev4-builder-executable-package@1.0.0`;
 - Project Gate Producer Export contracts;
+- the existing CE final validation transaction;
 - Project Instructions or release-pack instructions;
 - Architect, Builder, Responsive, Project Gate, or Shared Contracts repositories.
 
-The current direct final-payload validation and exporter remain compatible. This PR exposes the carriers and fidelity validator as an independently callable prerequisite for a future replay runtime. It does not implement `evaluate_ce_stage`, `evaluate_ce_run`, replay Run State, conversational Stage Output contracts, GUI behavior, or Stage QC integration.
+The carriers do not authorize Builder execution or Project Gate transition. The existing final CE validation transaction remains authoritative and compatible.
+
+## Out of scope
+
+This contract does not add:
+
+- conversational Stage Output contracts;
+- `evaluate_ce_stage`;
+- `evaluate_ce_run`;
+- replay Run State;
+- GUI or Stage QC integration;
+- signatures, tokens, seals, attestations, receipts, remote provenance services, GitHub identity enforcement, or repository-settings requirements.
