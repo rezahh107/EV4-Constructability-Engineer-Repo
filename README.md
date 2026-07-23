@@ -30,6 +30,12 @@ Correctness depends on canonical source identity, complete obligation derivation
 semantic evaluation, deterministic projection, and recomputation before handoff—not Python object
 identity or hidden runtime state.
 
+## Repository maintenance
+
+`repository_maintenance` remains an explicit out-of-band route for code, contracts, Schemas, tests,
+CI, and documentation work. It does not authorize or execute the CE runtime pipeline, and its
+maintenance evidence does not substitute for project evidence.
+
 ## CE runtime
 
 ```text
