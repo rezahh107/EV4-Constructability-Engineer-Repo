@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ev4.local/schemas/ce/ce-intermediate-validation-carriers.v1.schema.json",
+  "title": "EV4 CE Intermediate Validation Carrier v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "carrier_kind",
+    "owner_repository",
+    "run_id",
+    "status",
+    "diagnostics",
+    "source_identities",
+    "derived_data"
+  ],
+  "properties": {
+    "schema_id": {"const": "ev4-ce-intermediate-validation-carrier@1.0.0"},
+    "schema_version": {"const": "1.0.0"},
+    "carrier_kind": {
+      "enum": [
+        "architecture_identity_preservation_result",
+        "ce_review_units_and_interrogation_results",
+        "dependency_classification",
+        "implementation_strategy_coverage_result"
+      ]
+    },
+    "owner_repository": {"const": "rezahh107/EV4-Constructability-Engineer-Repo"},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["complete", "insufficient_evidence", "blocked", "invalid"]},
+    "diagnostics": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/diagnostic"}
+    },
+    "source_identities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/source_identity"}
+    },
+    "derived_data": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"carrier_kind": {"const": "architecture_identity_preservation_result"}}},
+      "then": {
+        "properties": {
+          "derived_data": {
+            "type": "object",
+            "required": [
+              "selected_candidate",
+              "approved_class_names",
+              "build_tree_identity",
+              "architect_unknowns",
+              "forbidden_work",
+              "review_unit_trace_coverage",
+              "architecture_redesign_absent",
+              "payload_projection"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"carrier_kind": {"const": "ce_review_units_and_interrogation_results"}}},
+      "then": {
+        "properties": {
+          "derived_data": {
+            "type": "object",
+            "required": [
+              "required_source_nodes",
+              "review_units",
+              "review_unit_traces",
+              "coverage",
+              "payload_projection"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"carrier_kind": {"const": "dependency_classification"}}},
+      "then": {
+        "properties": {
+          "derived_data": {
+            "type": "object",
+            "required": [
+              "review_unit_ids",
+              "dependency_dimensions",
+              "classifications",
+              "blocking_dependencies",
+              "non_blocking_obligations",
+              "unresolved_dependencies",
+              "coverage",
+              "payload_projection"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"carrier_kind": {"const": "implementation_strategy_coverage_result"}}},
+      "then": {
+        "properties": {
+          "derived_data": {
+            "type": "object",
+            "required": [
+              "strategy_present",
+              "absence_reason",
+              "strategy_identity",
+              "strategy_map",
+              "coverage_by_review_unit",
+              "coverage_by_dependency",
+              "uncovered_review_units",
+              "uncovered_dependencies",
+              "builder_decisions_remaining",
+              "first_safe_batch_status",
+              "payload_projection"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "carrier_kind",
+        "severity_or_status",
+        "message",
+        "path_or_source_ref",
+        "repair_owner",
+        "related_ids"
+      ],
+      "properties": {
+        "code": {"type": "string", "pattern": "^CE_(IDENTITY|REVIEW_UNIT|DEPENDENCY|STRATEGY_COVERAGE|INTERMEDIATE)_"},
+        "carrier_kind": {"type": "string", "minLength": 1},
+        "severity_or_status": {"enum": ["complete", "insufficient_evidence", "blocked", "invalid"]},
+        "message": {"type": "string", "minLength": 1},
+        "path_or_source_ref": {"type": "string", "minLength": 1},
+        "repair_owner": {"type": "string", "minLength": 1},
+        "related_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "identity", "sha256"],
+      "properties": {
+        "source_kind": {"type": "string", "minLength": 1},
+        "identity": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  }
+}
