@@ -84,7 +84,7 @@ def test_export_file_api_rejects_caller_supplied_provenance(tmp_path: Path) -> N
     assert not output_path.exists()
 
 
-def test_valid_real_payload_produces_allowed_gate_ready_export(
+def test_valid_real_legacy_payload_produces_declaration_only_preview(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -115,19 +115,17 @@ def test_valid_real_payload_produces_allowed_gate_ready_export(
             output_path=output_path,
         )
         assert len(calls) == 1
-        assert result.status == "successful", result.as_dict()
+        assert result.status == "blocked", result.as_dict()
         assert result.output_written is True
-        assert result.handoff_allowed is True
+        assert result.handoff_allowed is False
         export = load_json(output_path)
         assert export["schema_version"] == "producer-gate-export.v1"
         assert export["final_stage_bundle"]["schema_version"] == "stage-evidence-bundle.v1"
-        assert export["handoff"] == {
-            "target": "builder",
-            "status": "successful",
-            "allowed": True,
-            "failure_reasons": [],
-            "blocking_diagnostics": [],
-            "unresolved_evidence": [],
+        assert export["handoff"]["target"] == "builder"
+        assert export["handoff"]["status"] == "blocked"
+        assert export["handoff"]["allowed"] is False
+        assert "CE_EXPORT_LEGACY_PAYLOAD_AUTHORIZATION_FORBIDDEN" in {
+            item["code"] for item in export["handoff"]["blocking_diagnostics"]
         }
         assert export["producer"] == {
             "stage": "ce",
@@ -137,13 +135,16 @@ def test_valid_real_payload_produces_allowed_gate_ready_export(
         }
         assert result.summary["producer_commit"] == observed.commit_sha
         assert result.summary["producer_ref"] == observed.ref
+        assert result.summary["assurance_kind"] == "DECLARATION"
+        assert result.summary["verification_status"] == "MANUAL_UNVERIFIED"
+        assert result.summary["official_builder_authorization"] is False
         assert verify_export_identity(export)
         assert "builder_context_package" not in json.dumps(export).lower()
     finally:
         _cleanup_output(output_path)
 
 
-def test_repeated_export_of_same_run_is_deterministic(tmp_path: Path) -> None:
+def test_repeated_legacy_preview_of_same_run_is_deterministic(tmp_path: Path) -> None:
     intake, _, intake_path, source_path = _real_source_pair(tmp_path)
     payload_path = _write_json(tmp_path / "ce-stage-payload.json", _payload(intake, intake_path))
     output_path = ROOT / ".tmp-test-output" / "ce-project-gate.json"
@@ -165,7 +166,8 @@ def test_repeated_export_of_same_run_is_deterministic(tmp_path: Path) -> None:
             output_path=output_path,
             overwrite=True,
         )
-        assert first.status == second.status == "successful"
+        assert first.status == second.status == "blocked"
+        assert first.handoff_allowed is second.handoff_allowed is False
         assert output_path.read_bytes() == first_bytes
         assert first.summary["export_hash"] == second.summary["export_hash"]
     finally:
@@ -194,6 +196,9 @@ def test_synthetic_payload_writes_blocked_export_without_false_acceptance(tmp_pa
         export = load_json(output_path)
         assert export["handoff"]["allowed"] is False
         assert "CE_EXPORT_SYNTHETIC_EVIDENCE_BLOCKED" in {
+            item["code"] for item in export["handoff"]["blocking_diagnostics"]
+        }
+        assert "CE_EXPORT_LEGACY_PAYLOAD_AUTHORIZATION_FORBIDDEN" in {
             item["code"] for item in export["handoff"]["blocking_diagnostics"]
         }
     finally:
@@ -277,7 +282,8 @@ def test_file_bytes_source_intake_hash_uses_stable_snapshot(tmp_path: Path) -> N
             source_bundle_path=source_path,
             output_path=output_path,
         )
-        assert result.status == "successful", result.as_dict()
+        assert result.status == "blocked", result.as_dict()
+        assert result.handoff_allowed is False
         assert result.summary["source_intake_hash_scope"] == "file_bytes"
     finally:
         _cleanup_output(output_path)
