@@ -45,18 +45,15 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-          show-progress: false
-
-      - name: Assert exact PR-head identity
+      - name: Fetch exact PR head with low-noise Git
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          git init -q
+          git remote add origin https://github.com/${{ github.repository }}
+          git fetch -q --depth=1 origin "$EXPECTED_HEAD_SHA"
+          git checkout -q --detach FETCH_HEAD
           TESTED_SHA="$(git rev-parse HEAD)"
           test "$TESTED_SHA" = "$EXPECTED_HEAD_SHA"
           printf 'tested_pr_head=%s\n' "$TESTED_SHA"
