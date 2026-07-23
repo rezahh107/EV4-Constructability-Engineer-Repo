@@ -195,3 +195,29 @@ For changes affecting runtime, schemas, Builder intake, or export, state:
 - remaining limitations.
 
 Use focused branches and avoid unrelated refactoring.
+
+## Temporary Shared UX/UI Policy Adapter
+
+Use `policies/EV4_TEMP_CROSS_REPO_UX_UI_STANDARDS_POLICY_r002.md` only as a supplemental policy below repository authority.
+
+```yaml
+policy_id: EV4-TEMP-CROSS-REPO-UX-UI-STANDARDS-POLICY-r002
+revision: r002
+filename: EV4_TEMP_CROSS_REPO_UX_UI_STANDARDS_POLICY_r002.md
+sha256: f09b6978e10833c1ab3c3e35a9128db894684c5ed9cd876fa87699016b6def95
+repository_role: constructability_engineer
+local_consumption_scope: constructability review, implementation strategy, Builder eligibility, and downstream test transfer
+role_must:
+  - prove a feasible strategy for applicable hard gates and required defaults
+  - preserve locked architecture
+  - verify target-project capability when strategy depends on it
+  - transfer runtime-only outcomes as explicit tests
+role_must_not:
+  - redesign for implementation convenience
+  - silently downgrade a hard gate
+  - claim runtime proof from editor or saved-state evidence
+```
+
+Keep nonmaterial routing internal. Represent material failures, exceptions, unresolved requirements, evidence gaps, and downstream obligations through existing repository-supported fields or a concise visible status when continuation or owner action is affected. Do not add unsupported fields or hidden-storage claims.
+
+`r001` remains an immutable historical revision. A filename, ID, revision, byte, or digest mismatch is `TEMP_UX_UI_POLICY_IDENTITY_MISMATCH`. This adapter does not create Kernel adoption, a new runtime state, or a parallel approval path.
