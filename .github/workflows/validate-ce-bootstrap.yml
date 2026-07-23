@@ -117,5 +117,19 @@ jobs:
       - name: Run repository regression suite
         run: pytest -q
 
-      - name: Run Ruff
-        run: ruff check .
+      - name: Capture Ruff report
+        id: ruff
+        continue-on-error: true
+        run: ruff check . --output-format=concise | tee ruff-report.txt
+
+      - name: Upload Ruff report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ruff-report
+          path: ruff-report.txt
+          retention-days: 1
+
+      - name: Enforce Ruff
+        if: steps.ruff.outcome == 'failure'
+        run: exit 1
