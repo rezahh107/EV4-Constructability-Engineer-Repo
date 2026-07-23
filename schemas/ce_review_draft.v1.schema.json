@@ -17,19 +17,72 @@
     "downstream_test_obligations"
   ],
   "properties": {
-    "schema_id": {"const": "ev4-ce-review-draft@1.0.0"},
-    "review_id": {"type": "string", "minLength": 1},
-    "reviewer_identity": {"type": "string", "minLength": 1},
-    "source_intake_ref": {"type": "string", "minLength": 1},
+    "schema_id": {
+      "const": "ev4-ce-review-draft@1.0.0"
+    },
+    "review_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewer_identity": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_intake_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "architecture_echo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "selected_candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_class_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "build_tree_node_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "architect_unknown_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "forbidden_work": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
     "reviewed_nodes": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/reviewed_node"}
+      "items": {
+        "$ref": "#/$defs/reviewed_node"
+      }
     },
     "implementation_strategy_proposal": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["strategies"],
+      "required": [
+        "strategies"
+      ],
       "properties": {
         "strategies": {
           "type": "array",
@@ -37,12 +90,29 @@
           "items": {
             "type": "object",
             "additionalProperties": true,
-            "required": ["strategy_id", "node_id", "strategy_selected", "rationale"],
+            "required": [
+              "strategy_id",
+              "node_id",
+              "strategy_selected",
+              "rationale"
+            ],
             "properties": {
-              "strategy_id": {"type": "string", "minLength": 1},
-              "node_id": {"type": "string", "minLength": 1},
-              "strategy_selected": {"type": "string", "minLength": 1},
-              "rationale": {"type": "string", "minLength": 1}
+              "strategy_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "node_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "strategy_selected": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
         }
@@ -54,40 +124,42 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["action_id", "action_type", "target_node", "parameters"],
+        "required": [
+          "action_id",
+          "action_type",
+          "target_node",
+          "parameters"
+        ],
         "properties": {
-          "action_id": {"type": "string", "minLength": 1},
-          "action_type": {"type": "string", "minLength": 1},
-          "target_node": {"type": "string", "minLength": 1},
-          "parameters": {"type": "object"}
+          "action_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_node": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {
+            "type": "object"
+          }
         }
       }
     },
     "unresolved_questions": {
       "type": "array",
-      "items": {"type": "string", "minLength": 1}
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "downstream_test_obligations": {
       "type": "array",
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "claim_id",
-          "subject_ref",
-          "consumer_stage",
-          "required_test",
-          "blocking_behavior",
-          "completion_criteria"
-        ],
-        "properties": {
-          "claim_id": {"type": "string", "minLength": 1},
-          "subject_ref": {"type": "string", "minLength": 1},
-          "consumer_stage": {"type": "string", "minLength": 1},
-          "required_test": {"type": "string", "minLength": 1},
-          "blocking_behavior": {"type": "string", "minLength": 1},
-          "completion_criteria": {"type": "string", "minLength": 1}
-        }
+        "$ref": "#/$defs/downstream_obligation"
       }
     }
   },
@@ -95,39 +167,135 @@
     "claim_request": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["claim_id", "required"],
+      "required": [
+        "claim_id",
+        "required"
+      ],
       "properties": {
-        "claim_id": {"type": "string", "minLength": 1},
-        "required": {"type": "boolean"},
-        "consumer_stage": {"type": "string", "minLength": 1},
-        "required_test": {"type": "string", "minLength": 1},
-        "blocking_behavior": {"type": "string", "minLength": 1},
-        "completion_criteria": {"type": "string", "minLength": 1}
+        "claim_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "consumer_stage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_test": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocking_behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "completion_criteria": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "candidate_source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["claim_id", "mode"],
+      "required": [
+        "claim_id",
+        "mode"
+      ],
       "properties": {
-        "claim_id": {"type": "string", "minLength": 1},
-        "mode": {
-          "enum": ["VERIFIED_ARTIFACT", "VERIFIED_ARCHITECT_DECISION"]
+        "claim_id": {
+          "type": "string",
+          "minLength": 1
         },
-        "source_ref": {"type": "string", "minLength": 1},
-        "source_identity": {"type": "string", "minLength": 1},
-        "decision_ref": {"type": "string", "minLength": 1}
+        "mode": {
+          "enum": [
+            "VERIFIED_ARTIFACT",
+            "VERIFIED_ARCHITECT_DECISION"
+          ]
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision_ref": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "allOf": [
         {
-          "if": {"properties": {"mode": {"const": "VERIFIED_ARTIFACT"}}},
-          "then": {"required": ["source_ref"]}
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "VERIFIED_ARTIFACT"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "source_ref"
+            ]
+          }
         },
         {
-          "if": {"properties": {"mode": {"const": "VERIFIED_ARCHITECT_DECISION"}}},
-          "then": {"required": ["decision_ref"]}
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "VERIFIED_ARCHITECT_DECISION"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "decision_ref"
+            ]
+          }
         }
       ]
+    },
+    "downstream_obligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "subject_ref",
+        "consumer_stage",
+        "required_test",
+        "blocking_behavior",
+        "completion_criteria"
+      ],
+      "properties": {
+        "claim_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "consumer_stage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_test": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocking_behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "completion_criteria": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "reviewed_node": {
       "type": "object",
@@ -142,39 +310,73 @@
         "limitations"
       ],
       "properties": {
-        "node_id": {"type": "string", "minLength": 1},
-        "node_type": {"type": "string", "minLength": 1},
-        "proposed_action": {"type": "string", "minLength": 1},
-        "engineering_rationale": {"type": "string"},
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proposed_action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "engineering_rationale": {
+          "type": "string"
+        },
         "requested_claims": {
           "type": "array",
           "items": {
             "oneOf": [
-              {"type": "string", "minLength": 1},
-              {"$ref": "#/$defs/claim_request"}
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "$ref": "#/$defs/claim_request"
+              }
             ]
           }
         },
         "candidate_source_refs": {
           "type": "array",
-          "items": {"$ref": "#/$defs/candidate_source"}
+          "items": {
+            "$ref": "#/$defs/candidate_source"
+          }
         },
         "claim_semantics": {
           "type": "object",
-          "additionalProperties": {"type": "object"}
+          "additionalProperties": {
+            "type": "object"
+          }
         },
         "assumptions": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "limitations": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "reversible_if_wrong": {"type": "boolean"},
-        "requires_class_change": {"type": "boolean"},
-        "requires_structure_change": {"type": "boolean"},
-        "architect_decomposition_permission": {"type": "boolean"}
+        "reversible_if_wrong": {
+          "type": "boolean"
+        },
+        "requires_class_change": {
+          "type": "boolean"
+        },
+        "requires_structure_change": {
+          "type": "boolean"
+        },
+        "architect_decomposition_permission": {
+          "type": "boolean"
+        }
       }
     }
   }

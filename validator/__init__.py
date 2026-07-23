@@ -1,9 +1,9 @@
-"""EV4 Constructability Engineer validator package."""
+"""EV4 Constructability Engineer validator package.
+
+Importing this package performs no import-time cross-module state mutation.
+"""
 
 from .engine import validate_document, validate_file
 from .exceptions import ConstructabilityException
-from .authority_boundary import install_authority_boundary
-
-install_authority_boundary()
 
 __all__ = ["ConstructabilityException", "validate_document", "validate_file"]

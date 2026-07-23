@@ -1,85 +1,22 @@
-# CE Review Draft Migration v1.1
+# CE Review Draft migration — deterministic evaluator v1.1
 
-## Scope
+Use `ev4-ce-review-draft@1.0.0` as engineering input. The Draft may contain rationale, assumptions,
+limitations, candidate source references, claim semantics, implementation strategies, Builder-action
+proposals, unresolved questions, and downstream-test suggestions.
 
-This guide migrates historical manually authored `ev4-ce-stage-payload@1.0.0` content into the non-authoritative `ev4-ce-review-draft@1.0.0` input.
+Do not put authoritative outcomes in the Draft. In particular, do not add `geometry_proven`,
+`overlay_strategy_proven`, `constructability_status`, `builder_eligibility`,
+`builder_package_emitted`, `payload_status`, or `handoff_allowed`.
 
-It does not convert historical proof assertions into verified evidence.
+`requested_claims` is advisory and additive. The runtime derives mandatory obligations from the
+accepted Architect Build Tree, supported action vocabulary, proposed changes, responsive/overlay/
+interaction/Dynamic Loop/asset/UI/accessibility consequences, Builder execution requirements, and
+applicable CE rules. Omission from `requested_claims` cannot remove a mandatory claim.
 
-## Field treatment
+For CE-owned engineering claims, provide complete structured semantics and explicit premises.
+A file reference and digest are not semantic proof. For runtime-only claims, pass actual captured
+execution results from a known evaluator or leave an explicit downstream obligation. A downstream
+obligation remains visible and cannot authorize Builder handoff.
 
-### Preserve as analysis
-
-Move these meanings into the Draft when present:
-
-| Historical meaning | Draft destination |
-|---|---|
-| reviewed Node identity | `reviewed_nodes[].node_id` |
-| proposed implementation action | `reviewed_nodes[].proposed_action` |
-| engineering explanation | `reviewed_nodes[].engineering_rationale` |
-| required proof question | `reviewed_nodes[].requested_claims[]` |
-| source path or decision pointer candidate | `reviewed_nodes[].candidate_source_refs[]` |
-| assumptions | `reviewed_nodes[].assumptions[]` |
-| limitations and unresolved evidence | `reviewed_nodes[].limitations[]` and `unresolved_questions[]` |
-| implementation strategy | `implementation_strategy_proposal` |
-| proposed Builder actions | `builder_action_proposals[]` |
-| runtime-only unfinished proof | `downstream_test_obligations[]` |
-
-### Never preserve as authority
-
-Discard or diagnose these caller-authored states rather than copying them into the Draft:
-
-```text
-*_proven
-responsive_behavior=evidence_backed
-interaction_approved
-dynamic_loop_approved
-accessibility_evidenced
-ui_control_evidence_present
-evidence_register.state=validated
-payload_status
-constructability_status
-builder_package_status
-builder_package_emitted
-verification_status
-handoff.allowed
-```
-
-Do not copy caller-authored `producer`, `source_sha256`, `tool_identity`, `run_id`, `method`, or `verification_status` as verified provenance. Keep a source path or decision pointer only as a candidate reference for an official adapter.
-
-## Migration result
-
-A migrated Draft has this assurance:
-
-```yaml
-assurance_kind: DECLARATION
-contains_engineering_analysis: true
-contains_verified_proof_authority: false
-may_request_official_source_verification: true
-may_authorize_builder_handoff: false
-```
-
-## Official continuation
-
-```text
-migrated Draft
-→ verify exact Architect intake and source bundle
-→ resolve candidate source references through CE adapters
-→ attribute permitted CE judgment
-→ create downstream obligations for unavailable runtime evidence
-→ assemble VerifiedCEStagePayload
-→ run official deterministic export
-```
-
-## Legacy preview
-
-The historical raw Payload path remains available for diagnostics and preview. Its fixed result is:
-
-```yaml
-assurance_kind: DECLARATION
-verification_status: MANUAL_UNVERIFIED
-official_builder_authorization: false
-handoff.allowed: false
-```
-
-It cannot silently upgrade into the successor authority path.
+The migration preserves the legacy raw Payload for diagnostic preview only. Use the verified Draft
+export command for any successor handoff attempt.

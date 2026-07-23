@@ -1,76 +1,57 @@
 from __future__ import annotations
-
-import importlib.util
+import ast
+import importlib
 from pathlib import Path
-
-from validator.claim_policy_registry import CLAIM_POLICIES
-
+from validator.claim_policy_registry import ACTION_CLAIMS, CLAIM_POLICIES
 ROOT = Path(__file__).resolve().parents[1]
 
+def test_one_canonical_claim_policy_registry_exists() -> None:
+    declarations: list[tuple[str, int]] = []
+    for path in (ROOT / 'validator').glob('*.py'):
+        tree = ast.parse(path.read_text(encoding='utf-8'))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                names = []
+                if isinstance(node, ast.Assign):
+                    names = [target.id for target in node.targets if isinstance(target, ast.Name)]
+                elif isinstance(node.target, ast.Name):
+                    names = [node.target.id]
+                if 'CLAIM_POLICIES' in names:
+                    declarations.append((path.name, node.lineno))
+    assert declarations == [('claim_policy_registry.py', declarations[0][1])]
+    assert set(CLAIM_POLICIES) == {'geometry', 'asset_source', 'placeholder_policy', 'overlay_strategy', 'responsive_behavior', 'interaction_approval', 'dynamic_loop_approval', 'ui_control_path', 'accessibility', 'QA'}
 
-def _load_report_module():
-    path = ROOT / "scripts/report-ce-model-trust-field-reduction.py"
-    spec = importlib.util.spec_from_file_location("ce_model_trust_reduction", path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def test_supported_actions_have_explicit_claim_or_no_claim_rule() -> None:
+    assert ACTION_CLAIMS['configure_layout'] == ('geometry',)
+    assert ACTION_CLAIMS['configure_overlay'] == ('geometry', 'overlay_strategy')
+    assert ACTION_CLAIMS['preserve_existing'] == ()
+    assert ACTION_CLAIMS['inspect_only'] == ()
 
+def test_importing_validator_has_no_authority_install_side_effect() -> None:
+    package = importlib.import_module('validator')
+    assert not hasattr(package, 'install_authority_boundary')
+    source = (ROOT / 'validator/__init__.py').read_text(encoding='utf-8')
+    assert 'install_authority_boundary' not in source
+    assert 'authority_boundary' not in source
 
-def test_claim_policy_registry_covers_required_authority_surfaces() -> None:
-    assert set(CLAIM_POLICIES) == {
-        "geometry",
-        "overlay_strategy",
-        "responsive_behavior",
-        "ui_control_path",
-        "accessibility",
-        "dynamic_loop_approval",
-        "interaction_approval",
-        "asset_source",
-        "placeholder_policy",
-        "QA",
-        "constructability_status",
-        "builder_eligibility",
-    }
-    for claim_id, policy in CLAIM_POLICIES.items():
-        assert set(policy) == {
-            "semantic_class",
-            "authority_owner",
-            "subject_binding_required",
-            "admissible_evidence_modes",
-            "required_semantics",
-            "derivation_rule",
-            "unavailable_evidence_behavior",
-            "may_authorize_builder_handoff",
-        }, claim_id
+def test_runtime_contains_no_object_identity_authority_registry() -> None:
+    runtime_source = (ROOT / 'validator/verified_constructability.py').read_text(encoding='utf-8')
+    assert '_CAPABILITY_REGISTRY' not in runtime_source
+    assert '__copy__' not in runtime_source
+    assert '__deepcopy__' not in runtime_source
+    assert 'id(' not in runtime_source
+    assert 'install_authority_boundary' not in runtime_source
 
-
-def test_runtime_only_claims_reject_editor_artifact_substitution() -> None:
-    for claim_id in ("responsive_behavior", "accessibility", "QA"):
-        policy = CLAIM_POLICIES[claim_id]
-        assert policy["authority_owner"] == "downstream_runtime_validation"
-        assert policy["admissible_evidence_modes"] == ("VERIFIED_TOOL_EXECUTION",)
-        assert policy["unavailable_evidence_behavior"] == (
-            "DOWNSTREAM_VALIDATION_REQUIRED"
-        )
-        assert policy["may_authorize_builder_handoff"] is True
-
-
-def test_architect_owned_claims_cannot_be_ce_self_approved() -> None:
-    for claim_id in ("dynamic_loop_approval", "interaction_approval"):
-        policy = CLAIM_POLICIES[claim_id]
-        assert policy["authority_owner"] == "Architect"
-        assert policy["admissible_evidence_modes"] == (
-            "VERIFIED_ARCHITECT_DECISION",
-        )
-
-
-def test_schema_derived_model_workload_reduction_is_exact() -> None:
-    report = _load_report_module().build_report()
-    assert report["old_model_authored_trust_relevant_fields"] == 40
-    assert report["new_model_authored_trust_relevant_fields"] == 0
-    assert report["fields_now_runtime_derived"] == 40
-    assert report["fields_removed_from_model_input"] == 40
-    assert report["reduction_percent"] == 100.0
-    assert len(report["old_field_paths"]) == 40
-    assert report["new_authority_field_paths"] == []
+def test_single_payload_assembler_and_single_fidelity_validator() -> None:
+    assembler_definitions = []
+    fidelity_definitions = []
+    for path in (ROOT / 'validator').glob('*.py'):
+        tree = ast.parse(path.read_text(encoding='utf-8'))
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if node.name == 'assemble_ce_stage_payload':
+                    assembler_definitions.append(path.name)
+                if node.name == 'compare_persisted_payload':
+                    fidelity_definitions.append(path.name)
+    assert assembler_definitions == ['payload_assembler.py']
+    assert fidelity_definitions == ['payload_fidelity.py']
