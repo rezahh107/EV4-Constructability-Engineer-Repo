@@ -111,7 +111,6 @@ def _wrong_source_sha(payload: dict) -> None:
 
 
 def _raw_operator_payload(payload: dict) -> None:
-    # The baseline itself is a raw operator-authored CE Stage Payload path.
     assert payload["builder_package_emitted"] is True
 
 
@@ -138,8 +137,12 @@ def clean_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-@pytest.mark.parametrize(("test_id", "authority_effect", "mutate"), CASES, ids=[item[0] for item in CASES])
-def test_current_runtime_allows_unsupported_authority_to_reach_handoff(
+@pytest.mark.parametrize(
+    ("test_id", "authority_effect", "mutate"),
+    CASES,
+    ids=[item[0] for item in CASES],
+)
+def test_legacy_authority_mutation_cannot_reach_authorized_handoff(
     tmp_path: Path,
     test_id: str,
     authority_effect: str,
@@ -161,21 +164,22 @@ def test_current_runtime_allows_unsupported_authority_to_reach_handoff(
             source_bundle_path=source_path,
             output_path=output_path,
         )
-        persisted = load_json(output_path) if output_path.exists() else {}
+        persisted = load_json(output_path)
+        codes = {
+            item["code"]
+            for item in persisted["handoff"]["blocking_diagnostics"]
+        }
 
-        assert result.status == "successful", {
+        assert result.status == "blocked", {
             "test_id": test_id,
             "authority_effect": authority_effect,
             "classification": "AUTHORITY_PATH_REJECTED",
             "result": result.as_dict(),
         }
         assert result.output_written is True
-        assert result.handoff_allowed is True
-        assert persisted["handoff"]["allowed"] is True, {
-            "test_id": test_id,
-            "authority_effect": authority_effect,
-            "classification": "AUTHORITY_BYPASS_CONFIRMED",
-        }
+        assert result.handoff_allowed is False
+        assert persisted["handoff"]["allowed"] is False
+        assert "CE_EXPORT_LEGACY_PAYLOAD_AUTHORIZATION_FORBIDDEN" in codes
     finally:
         output_path.unlink(missing_ok=True)
         try:
