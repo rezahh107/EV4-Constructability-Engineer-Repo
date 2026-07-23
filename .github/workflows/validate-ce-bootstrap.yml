@@ -11,6 +11,9 @@ on:
       - 'schemas/ce-conversation-bootstrap.v1.schema.json'
       - 'schemas/ce_architect_stage_intake.v1.schema.json'
       - 'schemas/ce_architect_stage_intake.v1_1.schema.json'
+      - 'schemas/ce_review_draft.v1.schema.json'
+      - 'schemas/constructability_review.v1_1.schema.json'
+      - 'schemas/ce_stage_payload.v1_1.schema.json'
       - 'scripts/check-ce-bootstrap.py'
       - 'scripts/ce_bootstrap_spec.py'
       - 'scripts/ce_bootstrap_snapshot.py'
@@ -26,6 +29,9 @@ on:
       - 'tests/test_ce_builder_producer_contract.py'
       - 'tests/test_project_gate_exporter.py'
       - 'tests/test_ce_validation_transaction.py'
+      - 'tests/test_ce_authority_mutation_harness.py'
+      - 'tests/test_verified_constructability_runtime.py'
+      - 'tests/verified_exporter_test_support.py'
       - 'validator/**'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/EV4_FIRST_RUN_GUIDE.md'
@@ -86,6 +92,12 @@ jobs:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
             tests/test_project_gate_exporter.py \
             tests/test_ce_validation_transaction.py
+
+      - name: Verify constructability proof authority
+        run: |
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
+            tests/test_ce_authority_mutation_harness.py \
+            tests/test_verified_constructability_runtime.py
 
       - name: Verify workflow policy
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_validate_fixtures_workflow_policy.py
