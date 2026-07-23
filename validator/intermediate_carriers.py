@@ -24,6 +24,7 @@ from .intermediate_carriers_dependency import derive_dependency_classification
 from .intermediate_carriers_fidelity import (
     _compare_ce_payload_with_derived_carriers,
     validate_carrier,
+    validate_ce_payload_against_intermediate_carriers,
 )
 from .intermediate_carriers_identity import derive_architecture_identity_preservation
 from .intermediate_carriers_review import derive_review_units_and_interrogation_results
