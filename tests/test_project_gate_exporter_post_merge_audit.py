@@ -38,7 +38,7 @@ def _prepare_export(tmp_path: Path, name: str) -> tuple[Path, Path, Path, Path]:
 
 def _cleanup_output(output_path: Path) -> None:
     output_path.unlink(missing_ok=True)
-    if output_path.parent.exists():
+    if output_path.parent.exists() and not any(output_path.parent.iterdir()):
         output_path.parent.rmdir()
 
 
@@ -91,7 +91,7 @@ def test_source_bundle_change_after_official_validation_fails_closed(
         _cleanup_output(output_path)
 
 
-def test_source_bundle_aba_change_during_official_validation_fails_or_uses_private_snapshot(
+def test_source_bundle_aba_change_uses_private_snapshot_without_authorizing_legacy_payload(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -143,9 +143,9 @@ def test_source_bundle_aba_change_during_official_validation_fails_or_uses_priva
             source_bundle_path=source_path,
             output_path=output_path,
         )
-        assert result.status == "successful", result.as_dict()
+        assert result.status == "blocked", result.as_dict()
         assert result.output_written is True
-        assert result.handoff_allowed is True
+        assert result.handoff_allowed is False
         assert observed["source_path"] != source_path
         assert observed["source_bytes"] == original_bytes
         assert observed["source_bytes"] != mutated_bytes
@@ -157,12 +157,13 @@ def test_source_bundle_aba_change_during_official_validation_fails_or_uses_priva
         assert result.summary["source_bundle_hash"] == orchestration_module._json_hash(
             expected_source_bundle
         )
+        assert result.summary["official_builder_authorization"] is False
     finally:
         source_path.write_bytes(original_bytes)
         _cleanup_output(output_path)
 
 
-def test_source_intake_aba_change_during_official_validation_uses_private_snapshot(
+def test_source_intake_aba_change_uses_private_snapshot_without_authorizing_legacy_payload(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -207,9 +208,9 @@ def test_source_intake_aba_change_during_official_validation_uses_private_snapsh
             source_bundle_path=source_path,
             output_path=output_path,
         )
-        assert result.status == "successful", result.as_dict()
+        assert result.status == "blocked", result.as_dict()
         assert result.output_written is True
-        assert result.handoff_allowed is True
+        assert result.handoff_allowed is False
         assert observed["intake_path"] != intake_path
         assert observed["intake_bytes"] == original_bytes
         assert observed["intake_bytes"] != mutated_bytes
@@ -217,6 +218,7 @@ def test_source_intake_aba_change_during_official_validation_uses_private_snapsh
         assert isinstance(snapshot_directory, Path)
         assert snapshot_directory != output_path.parent
         assert not snapshot_directory.exists()
+        assert result.summary["official_builder_authorization"] is False
     finally:
         intake_path.write_bytes(original_bytes)
         _cleanup_output(output_path)
