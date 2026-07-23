@@ -5,6 +5,7 @@ from typing import Any
 
 from .intermediate_carriers_common import *  # noqa: F403
 
+
 def derive_implementation_strategy_coverage(
     *,
     run_id: str,
@@ -27,10 +28,29 @@ def derive_implementation_strategy_coverage(
             severity = carrier.get("status") if carrier.get("status") in LEGAL_STATUSES else "invalid"
             diagnostics.append(_diag(f"{code}_INCOMPLETE", kind, str(severity), f"{expected_kind} must be complete before ready Strategy coverage.", "$.source_carriers"))
 
-    required_units = _strings(_as_dict(review_carrier.get("derived_data")).get("required_source_nodes") or [])
+    review_data = _as_dict(review_carrier.get("derived_data"))
+    review_units = [
+        item
+        for item in _as_list(review_data.get("review_units"))
+        if isinstance(item, dict)
+    ]
+    required_units = _strings(item.get("review_unit_id") for item in review_units)
     expected_candidate = _as_dict(_as_dict(identity_carrier.get("derived_data")).get("selected_candidate")).get("expected")
     dep_data = _as_dict(dependency_carrier.get("derived_data"))
+    dependency_review_unit_ids = _strings(dep_data.get("review_unit_ids") or [])
     classifications = [item for item in _as_list(dep_data.get("classifications")) if isinstance(item, dict)]
+
+    if required_units != dependency_review_unit_ids:
+        diagnostics.append(
+            _diag(
+                "CE_STRATEGY_COVERAGE_REVIEW_UNIT_IDENTITY_MISMATCH",
+                kind,
+                "invalid",
+                "Carrier 2 and Carrier 3 must expose the same CE review_unit_id set.",
+                "$.source_carriers",
+                related_ids=sorted(set(required_units).symmetric_difference(dependency_review_unit_ids)),
+            )
+        )
 
     if not isinstance(implementation_strategy_map, dict):
         blockers = _strings(dep_data.get("blocking_dependencies") or [])
@@ -88,7 +108,7 @@ def derive_implementation_strategy_coverage(
     if missing_units:
         diagnostics.append(_diag("CE_STRATEGY_COVERAGE_REVIEW_UNIT_UNCOVERED", kind, "blocked", "Every required review unit must have Strategy coverage.", "$.coverage_by_review_unit", related_ids=missing_units))
     if orphan_units:
-        diagnostics.append(_diag("CE_STRATEGY_COVERAGE_ORPHAN_STRATEGY", kind, "invalid", "Strategy references an unknown review unit.", "$.coverage_by_review_unit", related_ids=orphan_units))
+        diagnostics.append(_diag("CE_STRATEGY_COVERAGE_ORPHAN_STRATEGY", kind, "invalid", "Strategy references an unknown CE review_unit_id.", "$.coverage_by_review_unit", related_ids=orphan_units))
 
     coverage_by_unit = [{"review_unit_id": unit_id, "strategy_ids": _strings(item.get("strategy_id") for item in by_unit.get(unit_id, [])), "covered": bool(by_unit.get(unit_id))} for unit_id in required_units]
     coverage_by_dependency: list[dict[str, Any]] = []
@@ -150,9 +170,10 @@ def derive_implementation_strategy_coverage(
             else:
                 first_safe_batch_status = "complete"
 
+    absence_reason = None if not diagnostics else "builder_package_not_emitted_due_to_incomplete_strategy_coverage"
     derived_data = {
         "strategy_present": True,
-        "absence_reason": None,
+        "absence_reason": absence_reason,
         "strategy_identity": strategy_id,
         "strategy_map": strategy_map,
         "coverage_by_review_unit": coverage_by_unit,
@@ -161,7 +182,7 @@ def derive_implementation_strategy_coverage(
         "uncovered_dependencies": sorted(set(uncovered_dependencies)),
         "builder_decisions_remaining": builder_decisions,
         "first_safe_batch_status": first_safe_batch_status,
-        "payload_projection": {"implementation_strategy_map": strategy_map, "builder_package_not_emitted_reason": None, "required_unresolved_ids": _strings(dep_data.get("unresolved_dependencies") or [])},
+        "payload_projection": {"implementation_strategy_map": strategy_map, "builder_package_not_emitted_reason": absence_reason, "required_unresolved_ids": _strings(dep_data.get("unresolved_dependencies") or [])},
     }
     return _carrier(kind, run_id, diagnostics, [
         _source_identity("identity_carrier", "architecture_identity_preservation_result", identity_carrier),
