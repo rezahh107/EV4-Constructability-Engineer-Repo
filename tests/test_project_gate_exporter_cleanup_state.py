@@ -99,7 +99,7 @@ def test_cleanup_failure_reports_persisted_invalid_artifact_truthfully(
             "CE_EXPORT_POST_WRITE_CLEANUP_FAILED",
         ]
         assert output_path.exists()
-        assert load_json(output_path)["handoff"]["allowed"] is True
+        assert load_json(output_path)["handoff"]["allowed"] is False
         assert report["handoff_allowed"] is False
         assert report["handoff_prohibited"] is True
     finally:
