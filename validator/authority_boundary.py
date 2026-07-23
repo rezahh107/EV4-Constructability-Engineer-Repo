@@ -120,9 +120,13 @@ def install_authority_boundary() -> None:
     from . import project_gate_exporter_orchestration as legacy_orchestration
     from . import verified_constructability
     from . import verified_project_gate_exporter as verified_exporter
+    from .claim_policy_registry import mutable_claim_policies
 
     _ORIGINAL_LEGACY_BUILD = exporter.build_export
     _ORIGINAL_VERIFY_REPO_ARTIFACT = verified_constructability.verify_repo_artifact
+    canonical_policies = mutable_claim_policies()
+    verified_constructability.CLAIM_POLICIES = canonical_policies
+    verified_exporter.CLAIM_POLICIES = canonical_policies
     transaction.secure_build_export = secure_build_export  # type: ignore[assignment]
     exporter.build_export = _legacy_preview_build  # type: ignore[assignment]
     legacy_orchestration.build_export = _reject_legacy_orchestration_build  # type: ignore[assignment]
@@ -139,6 +143,7 @@ def legacy_payload_authorization_is_closed() -> bool:
     from . import project_gate_exporter_orchestration as legacy_orchestration
     from . import verified_constructability
     from . import verified_project_gate_exporter as verified_exporter
+    from .claim_policy_registry import mutable_claim_policies
 
     return (
         transaction.secure_build_export is secure_build_export
@@ -148,6 +153,8 @@ def legacy_payload_authorization_is_closed() -> bool:
         and verified_exporter.validate_document is _validate_verified_successor_semantics
         and verified_exporter.VERIFIED_EXPORTER_ID == "ev4-producer-gate-export-validator"
         and verified_exporter.VERIFIED_EXPORTER_VERSION == "1.0.0"
+        and verified_constructability.CLAIM_POLICIES == mutable_claim_policies()
+        and verified_exporter.CLAIM_POLICIES == mutable_claim_policies()
     )
 
 
