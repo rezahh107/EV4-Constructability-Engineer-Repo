@@ -163,7 +163,7 @@ def test_overwrite_refuses_unowned_existing_target(tmp_path: Path) -> None:
         _cleanup(output_path)
 
 
-def test_failed_overwrite_restores_prior_valid_owned_artifact(
+def test_failed_overwrite_restores_prior_valid_owned_preview_artifact(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -179,7 +179,8 @@ def test_failed_overwrite_restores_prior_valid_owned_artifact(
             source_bundle_path=source_path,
             output_path=output_path,
         )
-        assert first.status == "successful", first.as_dict()
+        assert first.status == "blocked", first.as_dict()
+        assert first.handoff_allowed is False
         prior_bytes = output_path.read_bytes()
 
         def reject_post_write(repo_root: Path, bundle: dict) -> None:
@@ -205,7 +206,7 @@ def test_failed_overwrite_restores_prior_valid_owned_artifact(
         assert second.summary["artifact_state"] == "prior_valid_artifact_restored"
         assert second.summary["prior_artifact_preserved"] is True
         assert output_path.read_bytes() == prior_bytes
-        assert load_json(output_path)["handoff"]["allowed"] is True
+        assert load_json(output_path)["handoff"]["allowed"] is False
     finally:
         _cleanup(output_path)
 
@@ -225,7 +226,8 @@ def test_caller_authored_allowed_handoff_is_rejected_by_recomputation(
             source_bundle_path=source_path,
             output_path=output_path,
         )
-        assert result.status == "successful", result.as_dict()
+        assert result.status == "blocked", result.as_dict()
+        assert result.handoff_allowed is False
         forged = load_json(output_path)
         forged["final_stage_bundle"]["payload"]["data"]["unresolved_evidence"] = [
             {"unresolved_id": "forged-blocker"}
