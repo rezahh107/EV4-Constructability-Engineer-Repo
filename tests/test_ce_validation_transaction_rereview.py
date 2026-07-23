@@ -75,7 +75,8 @@ def test_restoration_write_failure_reports_persisted_candidate_truthfully(
             source_bundle_path=source_path,
             output_path=output_path,
         )
-        assert first.status == "successful", first.as_dict()
+        assert first.status == "blocked", first.as_dict()
+        assert first.handoff_allowed is False
         prior_bytes = output_path.read_bytes()
 
         changed_payload = load_json(payload_path)
@@ -194,7 +195,7 @@ def test_nested_synthetic_marker_cannot_be_cleared_by_declared_flag_mutation(
         _cleanup(output_path)
 
 
-def test_successful_overwrite_reports_replacement_not_preservation(
+def test_successful_legacy_preview_overwrite_reports_replacement_not_preservation(
     tmp_path: Path,
 ) -> None:
     intake, _, intake_path, source_path = _real_source_pair(tmp_path)
@@ -212,7 +213,8 @@ def test_successful_overwrite_reports_replacement_not_preservation(
             source_bundle_path=source_path,
             output_path=output_path,
         )
-        assert first.status == "successful", first.as_dict()
+        assert first.status == "blocked", first.as_dict()
+        assert first.handoff_allowed is False
         prior_bytes = output_path.read_bytes()
 
         changed_payload = load_json(payload_path)
@@ -227,7 +229,8 @@ def test_successful_overwrite_reports_replacement_not_preservation(
             overwrite=True,
         )
 
-        assert second.status == "successful", second.as_dict()
+        assert second.status == "blocked", second.as_dict()
+        assert second.handoff_allowed is False
         assert output_path.read_bytes() != prior_bytes
         assert second.summary["prior_artifact_existed"] is True
         assert second.summary["prior_artifact_replaced"] is True
