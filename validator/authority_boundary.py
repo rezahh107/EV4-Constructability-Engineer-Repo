@@ -128,7 +128,8 @@ def install_authority_boundary() -> None:
     legacy_orchestration.build_export = _reject_legacy_orchestration_build  # type: ignore[assignment]
     verified_constructability.verify_repo_artifact = _verify_repo_artifact_fail_closed  # type: ignore[assignment]
     verified_exporter.validate_document = _validate_verified_successor_semantics  # type: ignore[assignment]
-    verified_exporter.VERIFIED_EXPORTER_ID = verified_exporter.EXPORTER_ID
+    verified_exporter.VERIFIED_EXPORTER_ID = "ev4-producer-gate-export-validator"
+    verified_exporter.VERIFIED_EXPORTER_VERSION = "1.0.0"
     _INSTALLED = True
 
 
@@ -145,7 +146,8 @@ def legacy_payload_authorization_is_closed() -> bool:
         and legacy_orchestration.build_export is _reject_legacy_orchestration_build
         and verified_constructability.verify_repo_artifact is _verify_repo_artifact_fail_closed
         and verified_exporter.validate_document is _validate_verified_successor_semantics
-        and verified_exporter.VERIFIED_EXPORTER_ID == verified_exporter.EXPORTER_ID
+        and verified_exporter.VERIFIED_EXPORTER_ID == "ev4-producer-gate-export-validator"
+        and verified_exporter.VERIFIED_EXPORTER_VERSION == "1.0.0"
     )
 
 
