@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator
 
 from .intermediate_carriers_common import *  # noqa: F403
 
+
 def validate_carrier(
     carrier: dict[str, Any],
     *,
@@ -86,14 +87,18 @@ def validate_carrier(
             diagnostics.append(_diag("CE_STRATEGY_COVERAGE_DUPLICATE_REVIEW_UNIT", kind, "invalid", "Strategy coverage rows must be unique by review unit.", "$.derived_data.coverage_by_review_unit", related_ids=duplicate_units))
     return [item.as_dict() for item in sorted(diagnostics, key=_diagnostic_key)]
 
-def validate_ce_payload_against_intermediate_carriers(
+
+def _compare_ce_payload_with_derived_carriers(
     *,
     payload: dict[str, Any],
     identity_carrier: dict[str, Any],
     review_carrier: dict[str, Any],
     dependency_carrier: dict[str, Any],
     strategy_carrier: dict[str, Any],
+    builder_executable_package: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    """Compare a final CE payload with carriers derived in the current transaction."""
+
     kind = "final_ce_payload_fidelity"
     diagnostics: list[CarrierDiagnostic] = []
     carriers = [identity_carrier, review_carrier, dependency_carrier, strategy_carrier]
@@ -139,8 +144,22 @@ def validate_ce_payload_against_intermediate_carriers(
     if not strategy_unresolved.issubset(unresolved_ids):
         diagnostics.append(_diag("CE_INTERMEDIATE_FIDELITY_STRATEGY_UNRESOLVED_OMITTED", kind, "blocked", "Payload unresolved_evidence omits Carrier 4 items.", "$.unresolved_evidence", related_ids=sorted(strategy_unresolved - unresolved_ids)))
 
+    strategy_ready = strategy_carrier.get("status") == "complete"
+    if strategy_ready:
+        if payload.get("builder_package_emitted") is not True:
+            diagnostics.append(_diag("CE_INTERMEDIATE_FIDELITY_BUILDER_PACKAGE_EMISSION_MISMATCH", kind, "blocked", "A complete Strategy carrier requires Builder package emission.", "$.builder_package_emitted"))
+        if payload.get("builder_package_not_emitted_reason") is not None:
+            diagnostics.append(_diag("CE_INTERMEDIATE_FIDELITY_BUILDER_PACKAGE_REASON_PRESENT_WHEN_READY", kind, "blocked", "A ready Builder package cannot carry a non-emission reason.", "$.builder_package_not_emitted_reason"))
+        if not isinstance(builder_executable_package, dict) or canonical_json_bytes(payload.get("builder_executable_package")) != canonical_json_bytes(builder_executable_package):
+            diagnostics.append(_diag("CE_INTERMEDIATE_FIDELITY_BUILDER_PACKAGE_MISMATCH", kind, "blocked", "Final payload Builder package differs from the raw package validated in this transaction.", "$.builder_executable_package"))
+    else:
+        if payload.get("builder_package_emitted") is not False:
+            diagnostics.append(_diag("CE_INTERMEDIATE_FIDELITY_BUILDER_PACKAGE_EMISSION_MISMATCH", kind, "blocked", "An incomplete Strategy carrier requires Builder package non-emission.", "$.builder_package_emitted"))
+        if payload.get("builder_executable_package") is not None:
+            diagnostics.append(_diag("CE_INTERMEDIATE_FIDELITY_BUILDER_PACKAGE_PRESENT_WHEN_NOT_READY", kind, "blocked", "An incomplete Strategy carrier forbids a Builder package in the final payload.", "$.builder_executable_package"))
+
     candidates = {
-        _as_dict(identity_carrier.get("derived_data")).get("selected_candidate", {}).get("expected"),
+        _as_dict(_as_dict(identity_carrier.get("derived_data")).get("selected_candidate")).get("expected"),
         _as_dict(payload.get("architecture_identity")).get("selected_candidate_id"),
         _as_dict(payload.get("constructability_review")).get("selected_candidate_id"),
         _as_dict(payload.get("implementation_strategy_map")).get("selected_candidate_id"),
@@ -162,3 +181,35 @@ def validate_ce_payload_against_intermediate_carriers(
             str(carrier.get("carrier_kind")): carrier.get("status") for carrier in carriers
         },
     }
+
+
+def validate_ce_payload_against_intermediate_carriers(
+    *,
+    payload: dict[str, Any],
+    identity_carrier: dict[str, Any],
+    review_carrier: dict[str, Any],
+    dependency_carrier: dict[str, Any],
+    strategy_carrier: dict[str, Any],
+) -> dict[str, Any]:
+    """Diagnostic-only compatibility wrapper; it is not an authority boundary.
+
+    Authoritative decisions must use ``evaluate_ce_intermediate_validation`` so
+    all carriers are rederived from raw canonical inputs in one transaction.
+    """
+
+    result = _compare_ce_payload_with_derived_carriers(
+        payload=payload,
+        identity_carrier=identity_carrier,
+        review_carrier=review_carrier,
+        dependency_carrier=dependency_carrier,
+        strategy_carrier=strategy_carrier,
+        builder_executable_package=_as_dict(payload.get("builder_executable_package")) or None,
+    )
+    return {**result, "authoritative": False}
+
+
+__all__ = [
+    "validate_carrier",
+    "_compare_ce_payload_with_derived_carriers",
+    "validate_ce_payload_against_intermediate_carriers",
+]
