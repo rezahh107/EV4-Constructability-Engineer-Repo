@@ -3,8 +3,15 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
+import validator.project_gate_exporter as legacy_exporter
 import validator.verified_project_gate_exporter as verified_exporter
 from exporter_test_support import _provenance, _real_source_pair, _write_json
+
+
+def _install_test_provenance() -> None:
+    inspect = lambda repo_root, ignored_paths=(): _provenance(dirty=False)
+    verified_exporter.inspect_git_provenance = inspect
+    legacy_exporter.inspect_git_provenance = inspect
 
 
 def _draft(intake_path: Path, *, claims: list[dict] | None = None) -> dict:
@@ -74,13 +81,13 @@ def _geometry_draft(intake_path: Path) -> dict:
 
 
 def _write_verified_inputs(tmp_path: Path, *, geometry: bool = False):
-    verified_exporter.inspect_git_provenance = (
-        lambda repo_root, ignored_paths=(): _provenance(dirty=False)
-    )
+    _install_test_provenance()
     intake, source, intake_path, source_path = _real_source_pair(tmp_path)
     draft = _geometry_draft(intake_path) if geometry else _draft(intake_path)
     draft_path = _write_json(tmp_path / "ce-review-draft.json", draft)
     return intake, source, intake_path, source_path, draft, draft_path
 
+
+_install_test_provenance()
 
 __all__ = ["_draft", "_geometry_draft", "_provenance", "_write_verified_inputs"]
