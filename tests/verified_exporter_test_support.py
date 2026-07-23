@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
+import validator.verified_project_gate_exporter as verified_exporter
 from exporter_test_support import _provenance, _real_source_pair, _write_json
 
 
@@ -73,6 +74,9 @@ def _geometry_draft(intake_path: Path) -> dict:
 
 
 def _write_verified_inputs(tmp_path: Path, *, geometry: bool = False):
+    verified_exporter.inspect_git_provenance = (
+        lambda repo_root, ignored_paths=(): _provenance(dirty=False)
+    )
     intake, source, intake_path, source_path = _real_source_pair(tmp_path)
     draft = _geometry_draft(intake_path) if geometry else _draft(intake_path)
     draft_path = _write_json(tmp_path / "ce-review-draft.json", draft)
