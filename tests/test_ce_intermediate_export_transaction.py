@@ -154,7 +154,7 @@ def test_identical_invalid_builder_packages_cannot_authorize_export(
     assert result.status == "invalid"
     assert result.output_written is False
     assert result.handoff_allowed is False
-    assert "CE_STRATEGY_COVERAGE_PACKAGE_SCHEMA_VALIDATION_FAILED" in {
+    assert "CE_INTERMEDIATE_PAYLOAD_SCHEMA_INVALID" in {
         item.code for item in result.diagnostics
     }
     assert not output_path.exists()

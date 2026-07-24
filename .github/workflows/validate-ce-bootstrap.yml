@@ -1,100 +1,103 @@
-name: Apply CE46 final regression fixes
+name: validate-ce-runtime
 
 on:
-  push:
-    branches:
-      - agent/ce-intermediate-validation-carriers
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'README.md'
+      - 'STATUS.md'
+      - 'manifests/ce-conversation-bootstrap.v1.json'
+      - 'manifests/ce_pipeline_manifest.v1.json'
+      - 'schemas/ce-conversation-bootstrap.v1.schema.json'
+      - 'schemas/ce_architect_stage_intake.v1.schema.json'
+      - 'schemas/ce_architect_stage_intake.v1_1.schema.json'
+      - 'scripts/check-ce-bootstrap.py'
+      - 'scripts/ce_bootstrap_spec.py'
+      - 'scripts/ce_bootstrap_snapshot.py'
+      - 'scripts/ce_bootstrap_validation.py'
+      - 'scripts/ce_bootstrap_routing.py'
+      - 'scripts/ce_bootstrap_test_support.py'
+      - 'scripts/validate-ce-architect-stage-intake.py'
+      - 'tests/test_ce_bootstrap_semantics.py'
+      - 'tests/test_ce_runtime_balanced_repairs.py'
+      - 'tests/test_validate_fixtures_workflow_policy.py'
+      - 'tests/test_ce_architect_stage_intake.py'
+      - 'tests/test_strategy_batch_gates.py'
+      - 'tests/test_ce_builder_producer_contract.py'
+      - 'tests/test_project_gate_exporter.py'
+      - 'tests/test_ce_validation_transaction.py'
+      - 'validator/**'
+      - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md'
+      - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/EV4_FIRST_RUN_GUIDE.md'
+      - '.github/workflows/validate-ce-bootstrap.yml'
+      - '.github/workflows/validate-fixtures.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
+  validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repair branch
+      - name: Checkout exact PR head
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          ref: ${{ github.ref_name }}
-          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
-      - name: Apply final focused regression fixes
-        shell: bash
+      - name: Assert exact PR-head identity
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
+          TESTED_SHA="$(git rev-parse HEAD)"
+          test "$TESTED_SHA" = "$EXPECTED_HEAD_SHA"
+          printf 'tested_pr_head=%s\n' "$TESTED_SHA"
 
-          def replace_once(path: str, old: str, new: str) -> None:
-              target = Path(path)
-              text = target.read_text(encoding="utf-8")
-              if text.count(old) != 1:
-                  raise SystemExit(f"expected one match in {path}, observed {text.count(old)}")
-              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
 
-          replace_once(
-              "tests/test_ce_intermediate_export_transaction.py",
-              '''    assert "CE_STRATEGY_COVERAGE_PACKAGE_SCHEMA_VALIDATION_FAILED" in {
-                  item.code for item in result.diagnostics
-              }
-          ''',
-              '''    assert "CE_INTERMEDIATE_PAYLOAD_SCHEMA_INVALID" in {
-                  item.code for item in result.diagnostics
-              }
-          ''',
-          )
+      - name: Install validation dependencies
+        run: python -m pip install -e '.[dev]'
 
-          replace_once(
-              "tests/test_ce_validation_transaction_rereview.py",
-              '''from exporter_test_support import (
-              ROOT,
-          ''',
-              '''from exporter_test_support import (
-              INTERMEDIATE_INPUTS_FILENAME,
-              ROOT,
-          ''',
-          )
-          replace_once(
-              "tests/test_ce_validation_transaction_rereview.py",
-              '''        changed_payload = load_json(payload_path)
-                  changed_payload["payload_identity"]["run_id"] = "ce-run-test-restoration-failure"
-                  _write_json(payload_path, changed_payload)
-          ''',
-              '''        changed_payload = load_json(payload_path)
-                  changed_run_id = "ce-run-test-restoration-failure"
-                  changed_payload["payload_identity"]["run_id"] = changed_run_id
-                  _write_json(payload_path, changed_payload)
-                  sidecar_path = intake_path.with_name(INTERMEDIATE_INPUTS_FILENAME)
-                  sidecar = load_json(sidecar_path)
-                  sidecar["run_id"] = changed_run_id
-                  _write_json(sidecar_path, sidecar)
-          ''',
-          )
-          replace_once(
-              "tests/test_ce_validation_transaction_rereview.py",
-              '''        changed_payload = load_json(payload_path)
-                  changed_payload["payload_identity"]["run_id"] = "ce-run-test-replacement"
-                  _write_json(payload_path, changed_payload)
-                  second = export_file(
-          ''',
-              '''        changed_payload = load_json(payload_path)
-                  changed_run_id = "ce-run-test-replacement"
-                  changed_payload["payload_identity"]["run_id"] = changed_run_id
-                  _write_json(payload_path, changed_payload)
-                  sidecar_path = intake_path.with_name(INTERMEDIATE_INPUTS_FILENAME)
-                  sidecar = load_json(sidecar_path)
-                  sidecar["run_id"] = changed_run_id
-                  _write_json(sidecar_path, sidecar)
-                  second = export_file(
-          ''',
-          )
-          PY
+      - name: Validate lean CE runtime contract
+        run: python scripts/check-ce-bootstrap.py
 
-          git show d9d28b06813da0263a2cdfec721fb46a5b47816a:.github/workflows/validate-ce-bootstrap.yml > .github/workflows/validate-ce-bootstrap.yml
-          python -m py_compile validator/engine.py validator/intermediate_carriers*.py tests/test_ce_intermediate_export_transaction.py tests/test_ce_validation_transaction_rereview.py
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "Fix CE intermediate regression expectations"
-          git push origin HEAD:${{ github.ref_name }}
+      - name: Run CE runtime routing tests
+        run: |
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
+            tests/test_ce_bootstrap_semantics.py \
+            tests/test_ce_runtime_balanced_repairs.py
+
+      - name: Validate official Architect-stage intake
+        run: |
+          python scripts/validate-ce-architect-stage-intake.py
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_architect_stage_intake.py
+
+      - name: Verify Builder eligibility guards
+        run: |
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
+            tests/test_strategy_batch_gates.py \
+            tests/test_ce_builder_producer_contract.py
+
+      - name: Verify deterministic and atomic export
+        run: |
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
+            tests/test_project_gate_exporter.py \
+            tests/test_ce_validation_transaction.py
+
+      - name: Verify workflow policy
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_validate_fixtures_workflow_policy.py
+
+      - name: Validate behavioral coverage and role boundaries
+        run: |
+          python scripts/validate-behavioral-rule-coverage.py
+          python scripts/validate-role-alignment-fixtures.py
+          python scripts/validate-project-gate-producer-adoption.py
+
+      - name: Verify reference paradigm lock
+        run: npm run test:reference-paradigm-lock
+
+      - name: Run repository regression suite
+        run: pytest -q

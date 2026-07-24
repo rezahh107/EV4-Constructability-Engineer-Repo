@@ -21,6 +21,7 @@ from validator.project_gate_exporter_validation import (
     verify_export_identity,
 )
 from exporter_test_support import (
+    INTERMEDIATE_INPUTS_FILENAME,
     ROOT,
     _payload,
     _provenance,
@@ -79,8 +80,13 @@ def test_restoration_write_failure_reports_persisted_candidate_truthfully(
         prior_bytes = output_path.read_bytes()
 
         changed_payload = load_json(payload_path)
-        changed_payload["payload_identity"]["run_id"] = "ce-run-test-restoration-failure"
+        changed_run_id = "ce-run-test-restoration-failure"
+        changed_payload["payload_identity"]["run_id"] = changed_run_id
         _write_json(payload_path, changed_payload)
+        sidecar_path = intake_path.with_name(INTERMEDIATE_INPUTS_FILENAME)
+        sidecar = load_json(sidecar_path)
+        sidecar["run_id"] = changed_run_id
+        _write_json(sidecar_path, sidecar)
 
         monkeypatch.setattr(
             exporter_module,
@@ -216,8 +222,13 @@ def test_successful_overwrite_reports_replacement_not_preservation(
         prior_bytes = output_path.read_bytes()
 
         changed_payload = load_json(payload_path)
-        changed_payload["payload_identity"]["run_id"] = "ce-run-test-replacement"
+        changed_run_id = "ce-run-test-replacement"
+        changed_payload["payload_identity"]["run_id"] = changed_run_id
         _write_json(payload_path, changed_payload)
+        sidecar_path = intake_path.with_name(INTERMEDIATE_INPUTS_FILENAME)
+        sidecar = load_json(sidecar_path)
+        sidecar["run_id"] = changed_run_id
+        _write_json(sidecar_path, sidecar)
         second = export_file(
             repo_root=ROOT,
             payload_path=payload_path,
