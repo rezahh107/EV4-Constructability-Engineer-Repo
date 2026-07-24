@@ -38,14 +38,29 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
-      - name: Regression J
-        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_j*.py')]; sys.exit(subprocess.call(['pytest','-q',*f]))"
+      - name: Regression A-C
+        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_*.py') if 'a' <= p.name[5].lower() <= 'c']; sys.exit(0 if not f else subprocess.call(['pytest','-q',*f]))"
 
-      - name: Regression K
-        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_k*.py')]; sys.exit(subprocess.call(['pytest','-q',*f]))"
+      - name: Regression D-F
+        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_*.py') if 'd' <= p.name[5].lower() <= 'f']; sys.exit(0 if not f else subprocess.call(['pytest','-q',*f]))"
 
-      - name: Regression L
-        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_l*.py')]; sys.exit(subprocess.call(['pytest','-q',*f]))"
+      - name: Regression G-I
+        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_*.py') if 'g' <= p.name[5].lower() <= 'i']; sys.exit(0 if not f else subprocess.call(['pytest','-q',*f]))"
+
+      - name: Regression J-L
+        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_*.py') if 'j' <= p.name[5].lower() <= 'l']; sys.exit(0 if not f else subprocess.call(['pytest','-q',*f]))"
+
+      - name: Regression M-O
+        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_*.py') if 'm' <= p.name[5].lower() <= 'o']; sys.exit(0 if not f else subprocess.call(['pytest','-q',*f]))"
+
+      - name: Regression P-R
+        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_*.py') if 'p' <= p.name[5].lower() <= 'r']; sys.exit(0 if not f else subprocess.call(['pytest','-q',*f]))"
+
+      - name: Regression S-U
+        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_*.py') if 's' <= p.name[5].lower() <= 'u']; sys.exit(0 if not f else subprocess.call(['pytest','-q',*f]))"
+
+      - name: Regression V-Z
+        run: python -c "import pathlib,subprocess,sys; f=[str(p) for p in pathlib.Path('tests').glob('test_*.py') if 'v' <= p.name[5].lower() <= 'z']; sys.exit(0 if not f else subprocess.call(['pytest','-q',*f]))"
 
       - name: Validate behavioral and role boundaries
         run: |
