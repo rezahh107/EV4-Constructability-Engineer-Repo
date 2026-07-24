@@ -10,17 +10,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 
-from deterministic_runtime_support import (  # noqa: E402
-    canonical_bundle,
-    canonical_draft,
-    canonical_intake,
-)
-from validator.payload_assembler import canonical_bytes  # noqa: E402
-
-
-def _write(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(canonical_bytes(value) + b"\n")
+from exporter_test_support import _real_source_pair, _write_json  # noqa: E402
+from verified_exporter_test_support import _geometry_draft  # noqa: E402
+from validator.payload_assembler import sha256_json  # noqa: E402
 
 
 def _run_cli(
@@ -77,6 +69,21 @@ def _assert_authorized(report: dict[str, Any]) -> None:
     assert report["output_valid"] is True, report
 
 
+def _write_real_authorized_inputs(workspace: Path, review: Path) -> tuple[Path, Path]:
+    intake, source, intake_path, bundle_path = _real_source_pair(workspace)
+
+    intake["unresolved_evidence"] = []
+    source["payload"]["unresolved_evidence"] = []
+    intake["architect_intent_preserved"]["responsive_risk_seeds"] = []
+    source["payload"]["architect_intent"]["responsive_risk_seeds"] = []
+    intake["project_gate_transition"]["source_bundle_hash"]["value"] = sha256_json(source)
+
+    _write_json(intake_path, intake)
+    _write_json(bundle_path, source)
+    _write_json(review, _geometry_draft(intake_path))
+    return intake_path, bundle_path
+
+
 def main() -> int:
     executable = shutil.which("ev4-ce-project-gate-export")
     if executable is None:
@@ -84,24 +91,20 @@ def main() -> int:
 
     workspace = ROOT / ".tmp-ce-cli-validation"
     review = workspace / "custom-review-location" / "review-any-name.json"
-    intake = workspace / "architect-intake.json"
-    bundle_path = workspace / "architect-source-bundle.json"
     output = workspace / "verified-project-gate-export.json"
     dirty_probe = ROOT / "docs" / ".ce-cli-dirty-metadata-probe.tmp"
 
     shutil.rmtree(workspace, ignore_errors=True)
     dirty_probe.unlink(missing_ok=True)
-    bundle = canonical_bundle()
-    _write(review, canonical_draft())
-    _write(intake, canonical_intake(bundle=bundle))
-    _write(bundle_path, bundle)
+    workspace.mkdir(parents=True, exist_ok=True)
+    intake, bundle = _write_real_authorized_inputs(workspace, review)
 
     try:
         clean = _run_cli(
             executable,
             review=review,
             intake=intake,
-            bundle=bundle_path,
+            bundle=bundle,
             output=output,
             overwrite=False,
         )
@@ -114,7 +117,7 @@ def main() -> int:
             executable,
             review=review,
             intake=intake,
-            bundle=bundle_path,
+            bundle=bundle,
             output=output,
             overwrite=True,
         )
