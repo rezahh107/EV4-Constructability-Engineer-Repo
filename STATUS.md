@@ -143,6 +143,9 @@ CE_ARCHITECT_STAGE_INTAKE_V1_1:
   schema: ev4-ce-architect-stage-intake@1.1.0
   historical_record: preserved
   canonical_runtime_authority: false
+  builder_authorization_at_intake: false
+  real_cross_repository_validation: not_available
+  fixture_classification: synthetic
 ```
 
 ## Historical Evidence
