@@ -74,10 +74,18 @@ jobs:
       - name: Install validation dependencies
         run: python -m pip install -e '.[dev]'
 
-      - name: Compile reconciliation surfaces
+      - name: Compile validator A-I
+        run: python -m py_compile validator/_*.py validator/[a-i]*.py
+
+      - name: Compile validator J-R
+        run: python -m py_compile validator/[j-r]*.py
+
+      - name: Compile validator S-Z
+        run: python -m py_compile validator/[s-z]*.py
+
+      - name: Compile required reconciliation tests
         run: |
           python -m py_compile \
-            validator/*.py \
             tests/test_ce_r2_root_cause_repairs.py \
             tests/test_ce_r4_phase_aware.py \
             tests/test_verified_constructability_runtime.py \
