@@ -32,7 +32,10 @@ on:
       - 'tests/test_strategy_batch_gates.py'
       - 'tests/test_ce_builder_producer_contract.py'
       - 'tests/test_project_gate_exporter.py'
+      - 'tests/test_project_gate_exporter_cleanup_state.py'
+      - 'tests/test_project_gate_exporter_post_merge_audit.py'
       - 'tests/test_ce_validation_transaction.py'
+      - 'tests/test_ce_validation_transaction_rereview.py'
       - 'tests/test_ce_authority_mutation_harness.py'
       - 'tests/test_verified_constructability_runtime.py'
       - 'tests/test_ce_claim_policy_and_model_reduction.py'
@@ -129,14 +132,20 @@ jobs:
             tests/test_strategy_batch_gates.py \
             tests/test_ce_builder_producer_contract.py
 
-      - name: Verify deterministic and atomic export
-        run: |
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
-            tests/test_project_gate_exporter.py \
-            tests/test_project_gate_exporter_cleanup_state.py \
-            tests/test_project_gate_exporter_post_merge_audit.py \
-            tests/test_ce_validation_transaction.py \
-            tests/test_ce_validation_transaction_rereview.py
+      - name: Verify Project Gate exporter
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_project_gate_exporter.py
+
+      - name: Verify exporter cleanup state
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_project_gate_exporter_cleanup_state.py
+
+      - name: Verify exporter post-write audit
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_project_gate_exporter_post_merge_audit.py
+
+      - name: Verify CE validation transaction
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_validation_transaction.py
+
+      - name: Verify CE validation transaction rereview
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_validation_transaction_rereview.py
 
       - name: Verify constructability proof authority
         run: |
