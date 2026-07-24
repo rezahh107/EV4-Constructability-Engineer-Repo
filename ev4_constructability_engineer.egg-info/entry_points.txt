@@ -1,3 +1,0 @@
-[console_scripts]
-ev4-ce-project-gate-export = validator.project_gate_exporter:main
-ev4-constructability = validator.engine:main
