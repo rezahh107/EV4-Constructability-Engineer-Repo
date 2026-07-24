@@ -72,10 +72,10 @@ def _assert_authorized(report: dict[str, Any]) -> None:
 def _write_real_authorized_inputs(workspace: Path, review: Path) -> tuple[Path, Path]:
     intake, source, intake_path, bundle_path = _real_source_pair(workspace)
 
+    # Retain canonical responsive risk seeds: they are Architect-owned scope hints,
+    # not executed runtime evidence and do not block an unrelated geometry-only Draft.
     intake["unresolved_evidence"] = []
     source["payload"]["unresolved_evidence"] = []
-    intake["architect_intent_preserved"]["responsive_risk_seeds"] = []
-    source["payload"]["architect_intent"]["responsive_risk_seeds"] = []
     intake["project_gate_transition"]["source_bundle_hash"]["value"] = sha256_json(source)
 
     _write_json(intake_path, intake)
