@@ -78,6 +78,7 @@ def test_source_bundle_change_after_official_validation_fails_closed(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -141,6 +142,7 @@ def test_source_bundle_aba_change_during_official_validation_fails_or_uses_priva
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "successful", result.as_dict()
@@ -205,6 +207,7 @@ def test_source_intake_aba_change_during_official_validation_uses_private_snapsh
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "successful", result.as_dict()
@@ -257,6 +260,7 @@ def test_private_validation_snapshots_are_removed_when_validation_fails(
         payload_path=payload_path,
         source_intake_path=intake_path,
         source_bundle_path=source_path,
+        intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
         output_path=output_path,
     )
     assert result.status == "invalid"
@@ -289,6 +293,7 @@ def test_private_validation_snapshot_cleanup_failure_is_structured(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -332,6 +337,7 @@ def test_source_bundle_second_read_failure_is_structured_and_writes_no_output(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -366,6 +372,8 @@ def test_cli_refuses_existing_leaf_symlink_with_structured_json(
                 str(tmp_path / "unused-intake.json"),
                 "--source-bundle",
                 str(tmp_path / "unused-bundle.json"),
+                "--intermediate-inputs",
+                str(Path(tmp_path / "unused-intake.json").with_name("ce-intermediate-export-inputs.json")),
                 "--output",
                 str(output_path),
             ]
@@ -407,6 +415,8 @@ def test_cli_rejects_output_directory_even_with_overwrite(
                 str(tmp_path / "unused-intake.json"),
                 "--source-bundle",
                 str(tmp_path / "unused-bundle.json"),
+                "--intermediate-inputs",
+                str(Path(tmp_path / "unused-intake.json").with_name("ce-intermediate-export-inputs.json")),
                 "--output",
                 str(output_path),
                 "--overwrite",
@@ -475,6 +485,8 @@ def test_cli_path_resolution_failures_are_structured_and_write_no_output(
             str(intake_path),
             "--source-bundle",
             str(source_path),
+            "--intermediate-inputs",
+            str(Path(intake_path).with_name("ce-intermediate-export-inputs.json")),
             "--output",
             str(output_path),
         ]

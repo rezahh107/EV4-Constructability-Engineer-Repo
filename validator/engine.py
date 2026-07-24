@@ -18,6 +18,9 @@ SCHEMA_BY_KIND = {
     "implementation_strategy_map": "schemas/implementation_strategy_map.schema.json",
     "builder_executable_package": "schemas/builder_executable_package.schema.json",
 }
+DOCUMENT_SCHEMA_BY_ID = {
+    "ev4-ce-stage-payload@1.0.0": "schemas/ce_stage_payload.v1.schema.json",
+}
 REFERENCE_PARADIGM_SCHEMA = "schemas/reference-paradigm-lock.schema.json"
 VALIDATION_MODES = {"report", "package", "full"}
 
@@ -51,8 +54,13 @@ def schema_validate(document: dict[str, Any], repo_root: Path | None = None) -> 
     root = repo_root or Path.cwd()
     errors: list[str] = []
 
+    document_schema_path = DOCUMENT_SCHEMA_BY_ID.get(document.get("schema_id"))
+    if document_schema_path:
+        schema = load_json(root / document_schema_path)
+        errors.extend(_collect_schema_errors(schema, document, "document"))
+
     for key, schema_path in SCHEMA_BY_KIND.items():
-        if key not in document:
+        if key not in document or document[key] is None:
             continue
         schema = load_json(root / schema_path)
         errors.extend(_collect_schema_errors(schema, document[key], key))

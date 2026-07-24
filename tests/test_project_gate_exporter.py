@@ -78,6 +78,7 @@ def test_export_file_api_rejects_caller_supplied_provenance(tmp_path: Path) -> N
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
             provenance=_provenance(dirty=False),  # type: ignore[call-arg]
         )
@@ -112,6 +113,7 @@ def test_valid_real_payload_produces_allowed_gate_ready_export(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert len(calls) == 1
@@ -154,6 +156,7 @@ def test_repeated_export_of_same_run_is_deterministic(tmp_path: Path) -> None:
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         first_bytes = output_path.read_bytes()
@@ -162,6 +165,7 @@ def test_repeated_export_of_same_run_is_deterministic(tmp_path: Path) -> None:
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
             overwrite=True,
         )
@@ -186,6 +190,7 @@ def test_synthetic_payload_writes_blocked_export_without_false_acceptance(tmp_pa
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "blocked"
@@ -200,7 +205,7 @@ def test_synthetic_payload_writes_blocked_export_without_false_acceptance(tmp_pa
         _cleanup_output(output_path)
 
 
-def test_dirty_live_checkout_cannot_authorize_handoff(
+def test_dirty_live_checkout_is_metadata_only_and_allows_handoff(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -220,19 +225,23 @@ def test_dirty_live_checkout_cannot_authorize_handoff(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
-        assert result.status == "blocked"
+        assert result.status == "successful", result.as_dict()
         assert result.output_written is True
-        assert result.handoff_allowed is False
+        assert result.handoff_allowed is True
+        assert result.summary["authorization_valid"] is True
         assert result.summary["repository_dirty"] is True
+        assert result.summary["dirty_paths"] == list(observed.dirty_paths)
         export = load_json(output_path)
-        assert export["handoff"]["allowed"] is False
-        assert "CE_EXPORT_DIRTY_WORKTREE_BLOCKS_HANDOFF" in {
+        assert export["handoff"]["allowed"] is True
+        assert "CE_EXPORT_DIRTY_WORKTREE_BLOCKS_HANDOFF" not in {
             item["code"] for item in export["handoff"]["blocking_diagnostics"]
         }
     finally:
         _cleanup_output(output_path)
+
 
 
 def test_source_intake_hash_mismatch_produces_no_output(tmp_path: Path) -> None:
@@ -248,6 +257,7 @@ def test_source_intake_hash_mismatch_produces_no_output(tmp_path: Path) -> None:
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -275,6 +285,7 @@ def test_file_bytes_source_intake_hash_uses_stable_snapshot(tmp_path: Path) -> N
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "successful", result.as_dict()
@@ -303,6 +314,7 @@ def test_source_intake_second_read_failure_is_structured_and_writes_no_output(
         payload_path=payload_path,
         source_intake_path=intake_path,
         source_bundle_path=source_path,
+        intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
         output_path=output_path,
     )
     assert result.status == "invalid"
@@ -344,6 +356,7 @@ def test_source_intake_change_between_validation_stages_fails_closed(
         payload_path=payload_path,
         source_intake_path=intake_path,
         source_bundle_path=source_path,
+        intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
         output_path=output_path,
     )
     assert result.status == "invalid"
@@ -372,6 +385,8 @@ def test_cli_source_intake_read_failure_returns_json_and_exit_one(
             str(intake_path),
             "--source-bundle",
             str(source_path),
+            "--intermediate-inputs",
+            str(Path(intake_path).with_name("ce-intermediate-export-inputs.json")),
             "--output",
             str(output_path),
         ]
@@ -398,6 +413,7 @@ def test_tampered_export_identity_is_rejected(tmp_path: Path) -> None:
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.output_written
@@ -491,6 +507,7 @@ def test_post_write_validation_failure_removes_invalid_output(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"

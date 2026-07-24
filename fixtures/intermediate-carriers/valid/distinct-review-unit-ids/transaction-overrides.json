@@ -1,0 +1,21 @@
+{
+  "fixture_kind": "complete_valid_transaction_overlay",
+  "base_fixture": "../minimal-complete",
+  "review_unit_mappings": [
+    {
+      "architect_node_ref": "node-root",
+      "review_unit_id": "CE-RU-001"
+    },
+    {
+      "architect_node_ref": "node-wrapper",
+      "review_unit_id": "CE-RU-002"
+    }
+  ],
+  "expected": {
+    "carrier_2_status": "complete",
+    "carrier_3_status": "complete",
+    "carrier_4_status": "complete",
+    "uncovered_review_units": [],
+    "orphan_strategies": []
+  }
+}

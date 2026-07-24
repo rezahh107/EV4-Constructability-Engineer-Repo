@@ -239,6 +239,7 @@ def export_file(
     payload_path: Path,
     source_intake_path: Path,
     source_bundle_path: Path,
+    intermediate_inputs_path: Path,
     output_path: Path,
     overwrite: bool = False,
 ) -> ExportResult:
@@ -253,6 +254,10 @@ def export_file(
             source_bundle_path,
             "Architect source bundle",
         )
+        resolved_intermediate_inputs = _resolve_input_path(
+            intermediate_inputs_path,
+            "CE intermediate validation inputs",
+        )
         safe_output = _safe_output_path(
             root,
             output_path,
@@ -261,6 +266,7 @@ def export_file(
                 resolved_payload,
                 resolved_source_intake,
                 resolved_source_bundle,
+                resolved_intermediate_inputs,
             ),
         )
         prior_output_bytes = _read_prior_owned_output(safe_output)
@@ -270,6 +276,7 @@ def export_file(
                 resolved_payload,
                 resolved_source_intake,
                 resolved_source_bundle,
+                resolved_intermediate_inputs,
                 safe_output,
             ),
         )
@@ -278,6 +285,7 @@ def export_file(
             payload_path=resolved_payload,
             source_intake_path=resolved_source_intake,
             source_bundle_path=resolved_source_bundle,
+            intermediate_inputs_path=resolved_intermediate_inputs,
             output_path=safe_output,
             provenance=observed_provenance,
         )
@@ -396,6 +404,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Architect Stage Evidence Bundle used to verify intake source binding.",
     )
     parser.add_argument(
+        "--intermediate-inputs",
+        required=True,
+        type=Path,
+        help=(
+            "Independent CE intermediate-input artifact containing the current "
+            "constructability review, Implementation Strategy Map, and Builder "
+            "Executable Package."
+        ),
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=Path("ce-project-gate.json"),
@@ -418,6 +436,7 @@ def main(argv: list[str] | None = None) -> int:
         payload_path=args.payload,
         source_intake_path=args.source_intake,
         source_bundle_path=args.source_bundle,
+        intermediate_inputs_path=args.intermediate_inputs,
         output_path=args.output,
         overwrite=args.overwrite,
     )

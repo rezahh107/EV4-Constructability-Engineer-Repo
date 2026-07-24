@@ -83,6 +83,7 @@ def test_cleanup_failure_reports_persisted_invalid_artifact_truthfully(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         report = result.as_dict()
@@ -130,6 +131,8 @@ def test_cli_cleanup_failure_returns_structured_invalid_artifact_state(
                 str(intake_path),
                 "--source-bundle",
                 str(source_path),
+                "--intermediate-inputs",
+                str(Path(intake_path).with_name("ce-intermediate-export-inputs.json")),
                 "--output",
                 str(output_path),
             ]
