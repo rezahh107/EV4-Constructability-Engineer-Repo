@@ -21,7 +21,6 @@ from validator.project_gate_exporter_validation import (
     verify_export_identity,
 )
 from exporter_test_support import (
-    INTERMEDIATE_INPUTS_FILENAME,
     ROOT,
     _payload,
     _provenance,
@@ -74,20 +73,15 @@ def test_restoration_write_failure_reports_persisted_candidate_truthfully(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
-        assert first.status == "successful", first.as_dict()
+        assert first.status == "blocked", first.as_dict()
+        assert first.handoff_allowed is False
         prior_bytes = output_path.read_bytes()
 
         changed_payload = load_json(payload_path)
-        changed_run_id = "ce-run-test-restoration-failure"
-        changed_payload["payload_identity"]["run_id"] = changed_run_id
+        changed_payload["payload_identity"]["run_id"] = "ce-run-test-restoration-failure"
         _write_json(payload_path, changed_payload)
-        sidecar_path = intake_path.with_name(INTERMEDIATE_INPUTS_FILENAME)
-        sidecar = load_json(sidecar_path)
-        sidecar["run_id"] = changed_run_id
-        _write_json(sidecar_path, sidecar)
 
         monkeypatch.setattr(
             exporter_module,
@@ -123,8 +117,6 @@ def test_restoration_write_failure_reports_persisted_candidate_truthfully(
                 str(intake_path),
                 "--source-bundle",
                 str(source_path),
-                "--intermediate-inputs",
-                str(Path(intake_path).with_name("ce-intermediate-export-inputs.json")),
                 "--output",
                 str(output_path),
                 "--overwrite",
@@ -170,7 +162,6 @@ def test_nested_synthetic_marker_cannot_be_cleared_by_declared_flag_mutation(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "blocked", result.as_dict()
@@ -204,7 +195,7 @@ def test_nested_synthetic_marker_cannot_be_cleared_by_declared_flag_mutation(
         _cleanup(output_path)
 
 
-def test_successful_overwrite_reports_replacement_not_preservation(
+def test_successful_legacy_preview_overwrite_reports_replacement_not_preservation(
     tmp_path: Path,
 ) -> None:
     intake, _, intake_path, source_path = _real_source_pair(tmp_path)
@@ -220,31 +211,26 @@ def test_successful_overwrite_reports_replacement_not_preservation(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
-        assert first.status == "successful", first.as_dict()
+        assert first.status == "blocked", first.as_dict()
+        assert first.handoff_allowed is False
         prior_bytes = output_path.read_bytes()
 
         changed_payload = load_json(payload_path)
-        changed_run_id = "ce-run-test-replacement"
-        changed_payload["payload_identity"]["run_id"] = changed_run_id
+        changed_payload["payload_identity"]["run_id"] = "ce-run-test-replacement"
         _write_json(payload_path, changed_payload)
-        sidecar_path = intake_path.with_name(INTERMEDIATE_INPUTS_FILENAME)
-        sidecar = load_json(sidecar_path)
-        sidecar["run_id"] = changed_run_id
-        _write_json(sidecar_path, sidecar)
         second = export_file(
             repo_root=ROOT,
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
             overwrite=True,
         )
 
-        assert second.status == "successful", second.as_dict()
+        assert second.status == "blocked", second.as_dict()
+        assert second.handoff_allowed is False
         assert output_path.read_bytes() != prior_bytes
         assert second.summary["prior_artifact_existed"] is True
         assert second.summary["prior_artifact_replaced"] is True

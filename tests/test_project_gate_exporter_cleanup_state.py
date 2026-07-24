@@ -83,7 +83,6 @@ def test_cleanup_failure_reports_persisted_invalid_artifact_truthfully(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         report = result.as_dict()
@@ -100,7 +99,7 @@ def test_cleanup_failure_reports_persisted_invalid_artifact_truthfully(
             "CE_EXPORT_POST_WRITE_CLEANUP_FAILED",
         ]
         assert output_path.exists()
-        assert load_json(output_path)["handoff"]["allowed"] is True
+        assert load_json(output_path)["handoff"]["allowed"] is False
         assert report["handoff_allowed"] is False
         assert report["handoff_prohibited"] is True
     finally:
@@ -131,8 +130,6 @@ def test_cli_cleanup_failure_returns_structured_invalid_artifact_state(
                 str(intake_path),
                 "--source-bundle",
                 str(source_path),
-                "--intermediate-inputs",
-                str(Path(intake_path).with_name("ce-intermediate-export-inputs.json")),
                 "--output",
                 str(output_path),
             ]
