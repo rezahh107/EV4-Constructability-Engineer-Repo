@@ -3,6 +3,17 @@ from __future__ import annotations
 from . import _verified_project_gate_exporter_impl as _impl
 
 
+# Public CLI manifest retained in this module so the installed entry point and
+# repository source-level contract expose the same explicit operator inputs.
+OFFICIAL_CLI_OPTIONS = (
+    "--review-draft",
+    "--source-intake",
+    "--source-bundle",
+    "--output",
+    "--repo-root",
+    "--overwrite",
+)
+
 # The public Project Gate contract owns these validation identity values.
 # The same verified exporter implementation remains authoritative; this facade
 # only aligns its external envelope with producer-gate-export.v1.
