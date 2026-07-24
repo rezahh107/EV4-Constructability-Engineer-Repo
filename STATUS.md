@@ -129,6 +129,22 @@ validation:
   findings_closed: false
 ```
 
+## Preserved Intake Contract History
+
+These identifiers are retained as historical compatibility records only. They do not override the live v1.1 runtime above.
+
+```yaml
+CE_ARCHITECT_STAGE_INTAKE_V1:
+  schema: ev4-ce-architect-stage-intake@1.0.0
+  historical_record: preserved
+  canonical_runtime_authority: false
+
+CE_ARCHITECT_STAGE_INTAKE_V1_1:
+  schema: ev4-ce-architect-stage-intake@1.1.0
+  historical_record: preserved
+  canonical_runtime_authority: false
+```
+
 ## Historical Evidence
 
 The previous complete `STATUS.md` snapshot is preserved at:
