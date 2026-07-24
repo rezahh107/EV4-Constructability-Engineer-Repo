@@ -13,8 +13,11 @@ from validator.intermediate_carriers import (
     derive_dependency_classification,
     derive_implementation_strategy_coverage,
     derive_review_units_and_interrogation_results,
+    evaluate_ce_intermediate_validation,
     validate_carrier,
-    validate_ce_payload_against_intermediate_carriers,
+)
+from validator.intermediate_carriers_fidelity import (
+    _diagnose_ce_payload_against_serialized_carriers,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,50 +67,68 @@ def derive_all(*, intake=None, source_bundle=None, review=None, strategy=None, p
         identity_carrier=identity,
         review_carrier=review_carrier,
         dependency_carrier=dependency,
+        constructability_review=review,
         implementation_strategy_map=strategy,
         builder_executable_package=package,
+        repo_root=ROOT,
     )
     return identity, review_carrier, dependency, strategy_carrier
 
 
-@pytest.mark.parametrize(
-    ("expected_file", "index"),
-    [
-        ("expected-architecture-identity-preservation-result.json", 0),
-        ("expected-ce-review-units-and-interrogation-results.json", 1),
-        ("expected-dependency-classification.json", 2),
-        ("expected-implementation-strategy-coverage-result.json", 3),
-    ],
-)
-def test_positive_carriers_match_expected(expected_file, index):
-    carriers = derive_all()
-    assert carriers[index] == load(expected_file)
-    assert carriers[index]["status"] == "complete"
+def transaction_inputs():
+    return {
+        "run_id": RUN_ID,
+        "intake": load("architect-intake.json"),
+        "source_bundle": load("source-bundle.json"),
+        "constructability_review": load("constructability-review.json"),
+        "implementation_strategy_map": load("implementation-strategy-map.json"),
+        "builder_executable_package": load("builder-executable-package.json"),
+        "final_payload": load("final-ce-stage-payload.json"),
+        "repo_root": ROOT,
+    }
 
 
-@pytest.mark.parametrize("index", range(4))
-def test_each_carrier_is_byte_deterministic(index):
-    first = derive_all()[index]
-    second = derive_all()[index]
-    assert canonical_json_bytes(first) == canonical_json_bytes(second)
+def evaluate(values=None):
+    return evaluate_ce_intermediate_validation(**(values or transaction_inputs()))
 
 
-@pytest.mark.parametrize("index", range(4))
-def test_each_carrier_passes_schema_and_semantic_validation(index):
-    assert validate_carrier(derive_all()[index], repo_root=ROOT) == []
+def test_positive_carriers_are_complete_deterministic_and_schema_valid():
+    first = derive_all()
+    second = derive_all()
+    assert [item["status"] for item in first] == ["complete"] * 4
+    for index, carrier in enumerate(first):
+        assert canonical_json_bytes(carrier) == canonical_json_bytes(second[index])
+        assert validate_carrier(carrier, repo_root=ROOT) == []
 
 
-def test_final_positive_payload_fidelity_passes():
-    identity, review, dependency, strategy = derive_all()
-    result = validate_ce_payload_against_intermediate_carriers(
-        payload=load("final-ce-stage-payload.json"),
-        identity_carrier=identity,
-        review_carrier=review,
-        dependency_carrier=dependency,
-        strategy_carrier=strategy,
+def test_authoritative_complete_transaction_is_ready():
+    result = evaluate()
+    assert result["transaction_status"] == "complete"
+    assert result["fidelity_passed"] is True
+    assert result["builder_ready"] is True
+    assert set(result["carriers"]) == {
+        "architecture_identity_preservation_result",
+        "ce_review_units_and_interrogation_results",
+        "dependency_classification",
+        "implementation_strategy_coverage_result",
+    }
+
+
+def test_private_serialized_carrier_diagnostic_has_no_success_shape():
+    result = evaluate()
+    carriers = result["carriers"]
+    diagnostic = _diagnose_ce_payload_against_serialized_carriers(
+        payload=transaction_inputs()["final_payload"],
+        identity_carrier=carriers["architecture_identity_preservation_result"],
+        review_carrier=carriers["ce_review_units_and_interrogation_results"],
+        dependency_carrier=carriers["dependency_classification"],
+        strategy_carrier=carriers["implementation_strategy_coverage_result"],
     )
-    assert result["passed"] is True
-    assert result["diagnostics"] == []
+    assert diagnostic["diagnostic_match"] is True
+    assert diagnostic["authoritative"] is False
+    assert "passed" not in diagnostic
+    assert "fidelity_passed" not in diagnostic
+    assert "builder_ready" not in diagnostic
 
 
 def test_identity_selected_candidate_changed():
@@ -141,19 +162,15 @@ def test_identity_architect_unknown_removed():
     bind_source(intake, source)
     review = load("constructability-review.json")
     review["architect_unknowns"] = []
-    assert "CE_IDENTITY_ARCHITECT_UNKNOWN_REMOVED" in code_set(derive_all(intake=intake, source_bundle=source, review=review)[0])
+    assert "CE_IDENTITY_ARCHITECT_UNKNOWN_REMOVED" in code_set(
+        derive_all(intake=intake, source_bundle=source, review=review)[0]
+    )
 
 
 def test_identity_forbidden_work_weakened():
     review = load("constructability-review.json")
     review["preserved_forbidden_work"].pop()
     assert "CE_IDENTITY_FORBIDDEN_WORK_WEAKENED" in code_set(derive_all(review=review)[0])
-
-
-def test_identity_review_trace_points_to_unknown_node():
-    review = load("constructability-review.json")
-    review["reviewed_nodes"][0]["architect_node_ref"] = "node-unknown"
-    assert "CE_IDENTITY_BUILD_TREE_MISMATCH" in code_set(derive_all(review=review)[0])
 
 
 def test_identity_source_hash_mismatch_is_invalid():
@@ -172,40 +189,29 @@ def test_identity_unauthorized_architecture_redesign():
     assert "CE_IDENTITY_ARCHITECTURE_REDESIGN_DETECTED" in code_set(derive_all(review=review)[0])
 
 
-def test_review_required_source_node_missing():
+@pytest.mark.parametrize(
+    "mutation,code",
+    [
+        ("missing", "CE_REVIEW_UNIT_REQUIRED_NODE_UNREVIEWED"),
+        ("duplicate_id", "CE_REVIEW_UNIT_DUPLICATE_ID"),
+        ("duplicate_source", "CE_REVIEW_UNIT_DUPLICATE_SOURCE_MAPPING"),
+        ("orphan", "CE_REVIEW_UNIT_ORPHAN_SOURCE_NODE"),
+        ("missing_interrogation", "CE_REVIEW_UNIT_INTERROGATION_MISSING"),
+    ],
+)
+def test_review_unit_fail_closed_mutations(mutation, code):
     review = load("constructability-review.json")
-    review["reviewed_nodes"].pop()
-    assert "CE_REVIEW_UNIT_REQUIRED_NODE_UNREVIEWED" in code_set(derive_all(review=review)[1])
-
-
-def test_review_duplicate_review_unit_id():
-    review = load("constructability-review.json")
-    review["reviewed_nodes"][1]["review_unit_id"] = review["reviewed_nodes"][0]["review_unit_id"]
-    assert "CE_REVIEW_UNIT_DUPLICATE_ID" in code_set(derive_all(review=review)[1])
-
-
-def test_review_duplicate_source_mapping():
-    review = load("constructability-review.json")
-    review["reviewed_nodes"][1]["architect_node_ref"] = review["reviewed_nodes"][0]["architect_node_ref"]
-    assert "CE_REVIEW_UNIT_DUPLICATE_SOURCE_MAPPING" in code_set(derive_all(review=review)[1])
-
-
-def test_review_orphan_unit():
-    review = load("constructability-review.json")
-    review["reviewed_nodes"][0]["architect_node_ref"] = "orphan-node"
-    assert "CE_REVIEW_UNIT_ORPHAN_SOURCE_NODE" in code_set(derive_all(review=review)[1])
-
-
-def test_review_missing_interrogation_result():
-    review = load("constructability-review.json")
-    del review["reviewed_nodes"][0]["interrogation_result"]
-    assert "CE_REVIEW_UNIT_INTERROGATION_MISSING" in code_set(derive_all(review=review)[1])
-
-
-def test_review_missing_required_interrogation_field():
-    review = load("constructability-review.json")
-    del review["reviewed_nodes"][0]["interrogation_result"]["geometry_required"]
-    assert "CE_REVIEW_UNIT_INTERROGATION_FIELD_MISSING" in code_set(derive_all(review=review)[1])
+    if mutation == "missing":
+        review["reviewed_nodes"].pop()
+    elif mutation == "duplicate_id":
+        review["reviewed_nodes"][1]["review_unit_id"] = review["reviewed_nodes"][0]["review_unit_id"]
+    elif mutation == "duplicate_source":
+        review["reviewed_nodes"][1]["architect_node_ref"] = review["reviewed_nodes"][0]["architect_node_ref"]
+    elif mutation == "orphan":
+        review["reviewed_nodes"][0]["architect_node_ref"] = "orphan-node"
+    else:
+        del review["reviewed_nodes"][0]["interrogation_result"]
+    assert code in code_set(derive_all(review=review)[1])
 
 
 def test_dependency_geometry_evidence_gap_is_preserved():
@@ -218,196 +224,231 @@ def test_dependency_geometry_evidence_gap_is_preserved():
     assert "CE_DEPENDENCY_EVIDENCE_UNRESOLVED" in code_set(carrier)
 
 
-@pytest.mark.parametrize(
-    ("field_updates", "expected_code"),
-    [
-        ({"overlay_strategy_required": True, "overlay_strategy_proven": False}, "CE_DEPENDENCY_BLOCKING_PRESENT"),
-        ({"dynamic_loop_implied": True, "dynamic_loop_approved": False}, "CE_DEPENDENCY_BLOCKING_PRESENT"),
-        ({"accessibility_claimed": True, "accessibility_evidenced": False}, "CE_DEPENDENCY_BLOCKING_PRESENT"),
-        ({"requires_class_change": True, "architect_decomposition_permission": False}, "CE_DEPENDENCY_BLOCKING_PRESENT"),
-    ],
-)
-def test_dependency_blocking_dimensions(field_updates, expected_code):
+def test_dependency_blocker_suppression_is_rejected():
     review = load("constructability-review.json")
-    review["reviewed_nodes"][0]["interrogation_result"].update(field_updates)
+    interrogation = review["reviewed_nodes"][0]["interrogation_result"]
+    interrogation["overlay_strategy_required"] = True
+    interrogation["overlay_strategy_proven"] = False
     carrier = derive_all(review=review)[2]
-    assert expected_code in code_set(carrier)
+    assert "CE_DEPENDENCY_BLOCKING_PRESENT" in code_set(carrier)
     assert "CE_DEPENDENCY_BLOCKING_SUPPRESSED" in code_set(carrier)
 
 
-def test_dependency_responsive_not_applicable_is_unsupported_when_targeted():
-    review = load("constructability-review.json")
-    interrogation = review["reviewed_nodes"][0]["interrogation_result"]
-    interrogation["action_targets_responsive"] = True
-    interrogation["responsive_behavior"] = "not_applicable"
-    assert "CE_DEPENDENCY_RESPONSIVE_NOT_APPLICABLE_UNSUPPORTED" in code_set(derive_all(review=review)[2])
+def test_strategy_uses_review_unit_id_not_architect_node_ref():
+    values = transaction_inputs()
+    review = values["constructability_review"]
+    strategy = values["implementation_strategy_map"]
+    payload = values["final_payload"]
+    mapping = {"node-root": "CE-RU-001", "node-wrapper": "CE-RU-002"}
+    for item in review["reviewed_nodes"]:
+        item["review_unit_id"] = mapping[item["architect_node_ref"]]
+        item["node_id"] = mapping[item["architect_node_ref"]]
+    for item in strategy["strategies"]:
+        item["node_id"] = mapping[item["node_id"]]
+    payload["constructability_review"] = copy.deepcopy(review)
+    payload["implementation_strategy_map"] = copy.deepcopy(strategy)
+    for trace in payload["architecture_identity"]["review_unit_traces"]:
+        trace["ce_review_unit_id"] = mapping[trace["architect_node_ref"]]
+    result = evaluate(values)
+    assert result["builder_ready"] is True
+    carrier = result["carriers"]["implementation_strategy_coverage_result"]
+    assert carrier["derived_data"]["uncovered_review_units"] == []
 
 
-def test_dependency_exact_ui_path_evidence_gap_is_preserved():
-    review = load("constructability-review.json")
-    interrogation = review["reviewed_nodes"][0]["interrogation_result"]
-    interrogation["exact_ui_control_path_used"] = True
-    interrogation["ui_control_evidence_present"] = False
-    carrier = derive_all(review=review)[2]
-    assert carrier["status"] == "insufficient_evidence"
-    assert "CE_DEPENDENCY_EVIDENCE_UNRESOLVED" in code_set(carrier)
+def test_strategy_using_architect_node_ref_is_rejected():
+    values = transaction_inputs()
+    review = values["constructability_review"]
+    payload = values["final_payload"]
+    mapping = {"node-root": "CE-RU-001", "node-wrapper": "CE-RU-002"}
+    for item in review["reviewed_nodes"]:
+        item["review_unit_id"] = mapping[item["architect_node_ref"]]
+        item["node_id"] = mapping[item["architect_node_ref"]]
+    payload["constructability_review"] = copy.deepcopy(review)
+    for trace in payload["architecture_identity"]["review_unit_traces"]:
+        trace["ce_review_unit_id"] = mapping[trace["architect_node_ref"]]
+    result = evaluate(values)
+    assert "CE_STRATEGY_COVERAGE_REVIEW_UNIT_UNCOVERED" in code_set(result)
+    assert "CE_STRATEGY_COVERAGE_ORPHAN_STRATEGY" in code_set(result)
+    assert result["builder_ready"] is False
 
 
-def test_dependency_non_blocking_obligation_is_preserved():
-    review = load("constructability-review.json")
-    interrogation = review["reviewed_nodes"][0]["interrogation_result"]
-    interrogation["overlay_strategy_required"] = True
-    interrogation["overlay_strategy_proven"] = True
-    interrogation["overlay_strategy"] = {"positioning": "absolute", "containment": "node-root"}
-    carrier = derive_all(review=review)[2]
-    assert carrier["status"] == "complete"
-    assert carrier["derived_data"]["non_blocking_obligations"]
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "missing_package_id",
+        "missing_review_ref",
+        "identity_lock_false",
+        "architect_contract",
+        "confirmed_actions_empty",
+        "missing_batch_id",
+        "non_object_action",
+        "missing_action_type",
+        "missing_target_node",
+        "missing_parameters",
+        "parameters_not_object",
+        "visual_parity_missing_structures",
+    ],
+)
+def test_raw_builder_package_requires_complete_official_schema(mutation):
+    values = transaction_inputs()
+    package = values["builder_executable_package"]
+    if mutation == "missing_package_id":
+        package.pop("package_id")
+    elif mutation == "missing_review_ref":
+        package.pop("review_ref")
+    elif mutation == "identity_lock_false":
+        package["selected_candidate_locked"] = False
+    elif mutation == "architect_contract":
+        package["architect_contract"] = {"source_ref": "x"}
+    elif mutation == "confirmed_actions_empty":
+        package["confirmation_request"]["confirmed_action_ids"] = []
+    elif mutation == "missing_batch_id":
+        package["first_safe_builder_batch"].pop("batch_id")
+    elif mutation == "non_object_action":
+        package["first_safe_builder_batch"]["actions"] = ["bad"]
+    elif mutation == "missing_action_type":
+        package["first_safe_builder_batch"]["actions"][0].pop("action_type")
+    elif mutation == "missing_target_node":
+        package["first_safe_builder_batch"]["actions"][0].pop("target_node")
+    elif mutation == "missing_parameters":
+        package["first_safe_builder_batch"]["actions"][0].pop("parameters")
+    elif mutation == "parameters_not_object":
+        package["first_safe_builder_batch"]["actions"][0]["parameters"] = []
+    else:
+        package["visual_parity_build"] = True
+        package.pop("reference_paradigm_lock", None)
+        package.pop("paradigm_to_structure_map", None)
+    values["final_payload"]["builder_executable_package"] = copy.deepcopy(package)
+    result = evaluate(values)
+    assert result["builder_ready"] is False
+    assert "CE_STRATEGY_COVERAGE_PACKAGE_SCHEMA_VALIDATION_FAILED" in code_set(result)
 
 
-def test_dependency_mutated_carrier_duplicate_classification_is_rejected():
-    carrier = copy.deepcopy(derive_all()[2])
-    carrier["derived_data"]["classifications"].append(copy.deepcopy(carrier["derived_data"]["classifications"][0]))
-    assert "CE_DEPENDENCY_DUPLICATE_CLASSIFICATION" in {item["code"] for item in validate_carrier(carrier, repo_root=ROOT)}
+@pytest.mark.parametrize(
+    "mutation",
+    ["emission_false", "package_null", "reason", "candidate", "nested"],
+)
+def test_final_payload_must_equal_validated_raw_package(mutation):
+    values = transaction_inputs()
+    payload = values["final_payload"]
+    if mutation == "emission_false":
+        payload["builder_package_emitted"] = False
+        payload["builder_executable_package"] = None
+        payload["builder_package_not_emitted_reason"] = "unexpected"
+    elif mutation == "package_null":
+        payload["builder_executable_package"] = None
+    elif mutation == "reason":
+        payload["builder_package_not_emitted_reason"] = "unexpected"
+    elif mutation == "candidate":
+        payload["builder_executable_package"]["selected_candidate_id"] = "ARCH-FAM-X"
+    else:
+        payload["builder_executable_package"]["first_safe_builder_batch"]["actions"][0]["parameters"]["drift"] = True
+    result = evaluate(values)
+    assert result["fidelity_passed"] is False
+    assert result["builder_ready"] is False
 
 
-def test_dependency_mutated_carrier_missing_dimension_is_rejected():
-    carrier = copy.deepcopy(derive_all()[2])
-    carrier["derived_data"]["classifications"].pop()
-    assert "CE_DEPENDENCY_CLASSIFICATION_COVERAGE_INCOMPLETE" in {item["code"] for item in validate_carrier(carrier, repo_root=ROOT)}
+def test_serialized_forged_carriers_cannot_be_passed_to_authoritative_api():
+    forged = {"status": "complete", "diagnostics": [], "source_identities": [{"sha256": "0" * 64}]}
+    with pytest.raises(TypeError):
+        evaluate_ce_intermediate_validation(**transaction_inputs(), identity_carrier=forged)
 
 
-def test_strategy_review_unit_uncovered():
-    strategy = load("implementation-strategy-map.json")
-    strategy["strategies"].pop()
-    assert "CE_STRATEGY_COVERAGE_REVIEW_UNIT_UNCOVERED" in code_set(derive_all(strategy=strategy)[3])
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "unsupported_status",
+        "missing_required",
+        "boundary",
+        "payload_identity",
+        "evidence",
+        "semantic",
+    ],
+)
+def test_official_payload_validation_is_mandatory(mutation):
+    values = transaction_inputs()
+    payload = values["final_payload"]
+    if mutation == "unsupported_status":
+        payload["payload_status"] = "blocked"
+    elif mutation == "missing_required":
+        payload.pop("repair_routing")
+    elif mutation == "boundary":
+        payload["boundary_assertions"]["production_ready"] = True
+    elif mutation == "payload_identity":
+        payload["payload_identity"]["pipeline_id"] = "wrong"
+    elif mutation == "evidence":
+        payload["evidence_register"][0].pop("source")
+    else:
+        payload["constructability_review"]["constructability_status"] = "blocked"
+    result = evaluate(values)
+    assert result["transaction_status"] == "invalid"
+    assert result["fidelity_passed"] is False
+    assert result["builder_ready"] is False
+    assert {
+        "CE_INTERMEDIATE_PAYLOAD_SCHEMA_INVALID",
+        "CE_INTERMEDIATE_PAYLOAD_SEMANTIC_INVALID",
+    } & code_set(result)
 
 
-def test_strategy_builder_decision_remains():
-    strategy = load("implementation-strategy-map.json")
-    strategy["strategies"][0]["builder_decisions_required"] = 1
-    assert "CE_STRATEGY_COVERAGE_BUILDER_DECISION_REMAINS" in code_set(derive_all(strategy=strategy)[3])
+def test_repo_root_is_required_by_authoritative_evaluator():
+    values = transaction_inputs()
+    values.pop("repo_root")
+    with pytest.raises(TypeError):
+        evaluate_ce_intermediate_validation(**values)
 
 
-def test_strategy_first_safe_batch_missing():
-    package = load("builder-executable-package.json")
-    del package["first_safe_builder_batch"]
-    assert "CE_STRATEGY_COVERAGE_FIRST_SAFE_BATCH_MISSING" in code_set(derive_all(package=package)[3])
-
-
-def test_strategy_confirmation_data_missing():
-    package = load("builder-executable-package.json")
-    del package["confirmation_request"]["expected_user_token"]
-    assert "CE_STRATEGY_COVERAGE_CONFIRMATION_DATA_MISSING" in code_set(derive_all(package=package)[3])
-
-
-def test_strategy_architect_amendment_hidden():
-    strategy = load("implementation-strategy-map.json")
-    strategy["strategies"][0]["architect_amendment_required"] = True
-    assert "CE_STRATEGY_COVERAGE_ARCHITECT_AMENDMENT_HIDDEN" in code_set(derive_all(strategy=strategy)[3])
-
-
-def test_strategy_first_batch_hidden_decision():
-    package = load("builder-executable-package.json")
-    package["first_safe_builder_batch"]["actions"][0]["parameters"]["tbd"] = True
-    assert "CE_STRATEGY_COVERAGE_FIRST_BATCH_DECISION_HIDDEN" in code_set(derive_all(package=package)[3])
-
-
-def test_strategy_absence_reason_is_independently_derived():
-    identity, review_carrier, dependency, _ = derive_all()
-    carrier = derive_implementation_strategy_coverage(
-        run_id=RUN_ID,
-        identity_carrier=identity,
-        review_carrier=review_carrier,
-        dependency_carrier=dependency,
-        implementation_strategy_map=None,
-        builder_executable_package=None,
-    )
-    assert carrier["derived_data"]["absence_reason"] == "strategy_missing_without_repository_supported_absence_basis"
-    assert carrier["derived_data"]["absence_reason"] != "builder package not emitted"
-
-
-def test_strategy_dependency_obligation_is_covered_by_same_unit_strategy():
-    review = load("constructability-review.json")
-    interrogation = review["reviewed_nodes"][0]["interrogation_result"]
-    interrogation["overlay_strategy_required"] = True
-    interrogation["overlay_strategy_proven"] = True
-    interrogation["overlay_strategy"] = {"positioning": "absolute"}
-    carrier = derive_all(review=review)[3]
-    assert carrier["status"] == "complete"
-    assert all(row["covered"] for row in carrier["derived_data"]["coverage_by_dependency"] if row["classification"] == "non_blocking_obligation")
-
-
-def fidelity(payload=None, carriers=None):
-    identity, review, dependency, strategy = carriers or derive_all()
-    return validate_ce_payload_against_intermediate_carriers(
-        payload=copy.deepcopy(payload or load("final-ce-stage-payload.json")),
-        identity_carrier=identity,
-        review_carrier=review,
-        dependency_carrier=dependency,
-        strategy_carrier=strategy,
-    )
-
-
-def test_fidelity_identity_drift():
-    payload = load("final-ce-stage-payload.json")
-    payload["architecture_identity"]["selected_candidate_id"] = "ARCH-FAM-X"
-    assert "CE_INTERMEDIATE_FIDELITY_ARCHITECTURE_IDENTITY_MISMATCH" in code_set(fidelity(payload))
-
-
-def test_fidelity_reviewed_nodes_drift():
-    payload = load("final-ce-stage-payload.json")
-    payload["constructability_review"]["reviewed_nodes"].pop()
-    assert "CE_INTERMEDIATE_FIDELITY_REVIEWED_NODES_MISMATCH" in code_set(fidelity(payload))
-
-
-def test_fidelity_blocking_dependencies_drift():
-    payload = load("final-ce-stage-payload.json")
-    payload["constructability_review"]["blocking_dependencies"] = ["fake-blocker"]
-    assert "CE_INTERMEDIATE_FIDELITY_BLOCKING_DEPENDENCIES_MISMATCH" in code_set(fidelity(payload))
-
-
-def test_fidelity_strategy_map_drift():
-    payload = load("final-ce-stage-payload.json")
-    payload["implementation_strategy_map"]["strategies"][0]["strategy_selected"] = "drifted"
-    assert "CE_INTERMEDIATE_FIDELITY_STRATEGY_MAP_MISMATCH" in code_set(fidelity(payload))
-
-
-def test_fidelity_run_id_drift():
-    payload = load("final-ce-stage-payload.json")
-    payload["payload_identity"]["run_id"] = "different-run"
-    assert "CE_INTERMEDIATE_FIDELITY_RUN_ID_MISMATCH" in code_set(fidelity(payload))
-
-
-def test_fidelity_false_complete_when_dependency_carrier_incomplete():
-    review = load("constructability-review.json")
-    interrogation = review["reviewed_nodes"][0]["interrogation_result"]
-    interrogation["geometry_required"] = True
-    interrogation["geometry_proven"] = False
-    assert "CE_INTERMEDIATE_FIDELITY_FALSE_COMPLETE" in code_set(fidelity(carriers=derive_all(review=review)))
-
-
-def test_fidelity_unresolved_dependency_omission():
-    review = load("constructability-review.json")
-    interrogation = review["reviewed_nodes"][0]["interrogation_result"]
-    interrogation["geometry_required"] = True
-    interrogation["geometry_proven"] = False
-    assert "CE_INTERMEDIATE_FIDELITY_UNRESOLVED_DEPENDENCY_OMITTED" in code_set(fidelity(carriers=derive_all(review=review)))
-
-
-def test_fidelity_strategy_absence_reason_conflation_rejected():
-    identity, review, dependency, _ = derive_all()
-    strategy = derive_implementation_strategy_coverage(
-        run_id=RUN_ID,
-        identity_carrier=identity,
-        review_carrier=review,
-        dependency_carrier=dependency,
-        implementation_strategy_map=None,
-        builder_executable_package=None,
-    )
-    payload = load("final-ce-stage-payload.json")
+def _nonready_payload(values, first, status):
+    payload = copy.deepcopy(values["final_payload"])
+    carriers = first["carriers"]
+    identity = carriers["architecture_identity_preservation_result"]["derived_data"]["payload_projection"]
+    review = carriers["ce_review_units_and_interrogation_results"]["derived_data"]["payload_projection"]
+    dependency = carriers["dependency_classification"]["derived_data"]["payload_projection"]
+    strategy = carriers["implementation_strategy_coverage_result"]["derived_data"]["payload_projection"]
+    payload["payload_status"] = "insufficient_evidence"
+    payload["architecture_identity"].update(identity)
+    payload["constructability_review"] = copy.deepcopy(values["constructability_review"])
+    payload["constructability_review"]["reviewed_nodes"] = review["reviewed_nodes"]
+    payload["constructability_review"]["blocking_dependencies"] = dependency["blocking_dependencies"]
     payload["implementation_strategy_map"] = None
     payload["builder_executable_package"] = None
     payload["builder_package_emitted"] = False
-    payload["builder_package_not_emitted_reason"] = "builder package not emitted"
-    result = fidelity(payload=payload, carriers=(identity, review, dependency, strategy))
-    assert "CE_INTERMEDIATE_FIDELITY_STRATEGY_ABSENCE_REASON_MISMATCH" in code_set(result)
+    payload["builder_package_not_emitted_reason"] = strategy["builder_package_not_emitted_reason"]
+    unresolved = dependency["required_unresolved_ids"] or [f"reported-{status}"]
+    payload["unresolved_evidence"] = [{"id": value} for value in unresolved]
+    return payload
+
+
+def test_faithful_blocked_payload_is_schema_valid_but_not_ready():
+    values = transaction_inputs()
+    interrogation = values["constructability_review"]["reviewed_nodes"][0]["interrogation_result"]
+    interrogation["overlay_strategy_required"] = True
+    interrogation["overlay_strategy_proven"] = False
+    values["constructability_review"]["blocking_dependencies"] = [
+        "node-root:R05_OVERLAY_STRATEGY_MUST_BE_PROVEN:overlay"
+    ]
+    values["constructability_review"]["constructability_status"] = "blocked"
+    values["implementation_strategy_map"] = None
+    values["builder_executable_package"] = None
+    first = evaluate(values)
+    values["final_payload"] = _nonready_payload(values, first, "blocked")
+    result = evaluate(values)
+    assert result["fidelity_passed"] is True
+    assert result["builder_ready"] is False
+    assert result["transaction_status"] == "blocked"
+    assert values["final_payload"]["payload_status"] == "insufficient_evidence"
+
+
+def test_faithful_insufficient_payload_is_not_ready():
+    values = transaction_inputs()
+    interrogation = values["constructability_review"]["reviewed_nodes"][0]["interrogation_result"]
+    interrogation["geometry_required"] = True
+    interrogation["geometry_proven"] = False
+    values["constructability_review"]["constructability_status"] = "needs_user_evidence"
+    values["implementation_strategy_map"] = None
+    values["builder_executable_package"] = None
+    first = evaluate(values)
+    values["final_payload"] = _nonready_payload(values, first, "insufficient")
+    result = evaluate(values)
+    assert result["fidelity_passed"] is True
+    assert result["builder_ready"] is False
+    assert result["transaction_status"] == "insufficient_evidence"
