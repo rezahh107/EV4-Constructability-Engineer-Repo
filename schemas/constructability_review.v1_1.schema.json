@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ev4.local/schemas/ce/constructability_review.v1_1.schema.json",
+  "title": "EV4 Derived Constructability Review v1.1",
+  "x-ev4-schema-id": "ev4-constructability-review@1.1.0",
+  "x-ev4-schema-version": "1.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "review_id",
+    "architect_package_ref",
+    "selected_candidate_id",
+    "constructability_status",
+    "builder_decisions_required",
+    "blocking_dependencies",
+    "engineer_questions",
+    "logged_assumptions",
+    "reviewed_nodes",
+    "qa_status"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "ev4-constructability-review@1.1.0"
+    },
+    "review_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "architect_package_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selected_candidate_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "constructability_status": {
+      "enum": [
+        "executable_ready",
+        "blocked",
+        "needs_user_evidence",
+        "needs_architect_amendment",
+        "executable_with_logged_assumption"
+      ]
+    },
+    "builder_decisions_required": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "blocking_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "engineer_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "logged_assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "reviewed_nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/node_review"
+      }
+    },
+    "qa_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "production_ready"
+      ],
+      "properties": {
+        "production_ready": {
+          "const": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "proof_carrier": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "evidence_ids"
+      ],
+      "properties": {
+        "evidence_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "interrogation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "geometry_required",
+        "geometry_proven",
+        "geometry_proof",
+        "asset_required",
+        "asset_source_present",
+        "placeholder_policy_present",
+        "overlay_strategy_required",
+        "overlay_strategy_proven",
+        "overlay_strategy",
+        "responsive_behavior",
+        "action_targets_responsive",
+        "interaction_implied",
+        "interaction_approved",
+        "dynamic_loop_implied",
+        "dynamic_loop_approved",
+        "dynamic_loop_binding_map",
+        "accessibility_claimed",
+        "accessibility_evidenced",
+        "exact_ui_control_path_used",
+        "ui_control_evidence_present",
+        "ui_control_evidence",
+        "reversible_if_wrong",
+        "requires_class_change",
+        "requires_structure_change",
+        "architect_decomposition_permission"
+      ],
+      "properties": {
+        "geometry_required": {
+          "type": "boolean"
+        },
+        "geometry_proven": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "geometry_proof": {
+          "$ref": "#/$defs/proof_carrier"
+        },
+        "asset_required": {
+          "type": "boolean"
+        },
+        "asset_source_present": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "placeholder_policy_present": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "overlay_strategy_required": {
+          "type": "boolean"
+        },
+        "overlay_strategy_proven": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "overlay_strategy": {
+          "$ref": "#/$defs/proof_carrier"
+        },
+        "responsive_behavior": {
+          "enum": [
+            "not_applicable",
+            "blocked",
+            "evidence_backed",
+            "unknown"
+          ]
+        },
+        "action_targets_responsive": {
+          "type": "boolean"
+        },
+        "interaction_implied": {
+          "type": "boolean"
+        },
+        "interaction_approved": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dynamic_loop_implied": {
+          "type": "boolean"
+        },
+        "dynamic_loop_approved": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dynamic_loop_binding_map": {
+          "$ref": "#/$defs/proof_carrier"
+        },
+        "accessibility_claimed": {
+          "type": "boolean"
+        },
+        "accessibility_evidenced": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "exact_ui_control_path_used": {
+          "type": "boolean"
+        },
+        "ui_control_evidence_present": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ui_control_evidence": {
+          "$ref": "#/$defs/proof_carrier"
+        },
+        "reversible_if_wrong": {
+          "type": "boolean"
+        },
+        "requires_class_change": {
+          "type": "boolean"
+        },
+        "requires_structure_change": {
+          "type": "boolean"
+        },
+        "architect_decomposition_permission": {
+          "type": "boolean"
+        }
+      }
+    },
+    "node_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "node_type",
+        "action_proposed",
+        "node_status",
+        "blocking_reason",
+        "engineering_rationale",
+        "interrogation_result"
+      ],
+      "properties": {
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_proposed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node_status": {
+          "enum": [
+            "executable_ready",
+            "blocked",
+            "needs_user_evidence",
+            "needs_architect_amendment",
+            "executable_with_logged_assumption"
+          ]
+        },
+        "blocking_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "engineering_rationale": {
+          "type": "string"
+        },
+        "interrogation_result": {
+          "$ref": "#/$defs/interrogation_result"
+        }
+      }
+    }
+  }
+}

@@ -38,8 +38,30 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
-      - name: Run repository regression suite
-        run: pytest -q
+      - name: Proof objects then exporters
+        run: |
+          pytest -q \
+            tests/test_proof_objects.py \
+            tests/test_project_gate_exporter.py \
+            tests/test_project_gate_exporter_cleanup_state.py \
+            tests/test_project_gate_exporter_post_merge_audit.py
+
+      - name: Producer adoption then exporters
+        run: |
+          pytest -q \
+            tests/test_project_gate_producer_adoption.py \
+            tests/test_project_gate_exporter.py \
+            tests/test_project_gate_exporter_cleanup_state.py \
+            tests/test_project_gate_exporter_post_merge_audit.py
+
+      - name: Full P interaction set
+        run: |
+          pytest -q \
+            tests/test_proof_objects.py \
+            tests/test_project_gate_producer_adoption.py \
+            tests/test_project_gate_exporter.py \
+            tests/test_project_gate_exporter_cleanup_state.py \
+            tests/test_project_gate_exporter_post_merge_audit.py
 
       - name: Validate behavioral and role boundaries
         run: |

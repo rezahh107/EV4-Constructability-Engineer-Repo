@@ -106,7 +106,6 @@ def test_payload_mutation_after_snapshot_fails_before_publication(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -132,7 +131,6 @@ def test_output_path_cannot_alias_transaction_input(tmp_path: Path) -> None:
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=payload_path,
             overwrite=True,
         )
@@ -154,7 +152,6 @@ def test_overwrite_refuses_unowned_existing_target(tmp_path: Path) -> None:
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
             overwrite=True,
         )
@@ -166,7 +163,7 @@ def test_overwrite_refuses_unowned_existing_target(tmp_path: Path) -> None:
         _cleanup(output_path)
 
 
-def test_failed_overwrite_restores_prior_valid_owned_artifact(
+def test_failed_overwrite_restores_prior_valid_owned_preview_artifact(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -180,10 +177,10 @@ def test_failed_overwrite_restores_prior_valid_owned_artifact(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
-        assert first.status == "successful", first.as_dict()
+        assert first.status == "blocked", first.as_dict()
+        assert first.handoff_allowed is False
         prior_bytes = output_path.read_bytes()
 
         def reject_post_write(repo_root: Path, bundle: dict) -> None:
@@ -201,7 +198,6 @@ def test_failed_overwrite_restores_prior_valid_owned_artifact(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
             overwrite=True,
         )
@@ -210,7 +206,7 @@ def test_failed_overwrite_restores_prior_valid_owned_artifact(
         assert second.summary["artifact_state"] == "prior_valid_artifact_restored"
         assert second.summary["prior_artifact_preserved"] is True
         assert output_path.read_bytes() == prior_bytes
-        assert load_json(output_path)["handoff"]["allowed"] is True
+        assert load_json(output_path)["handoff"]["allowed"] is False
     finally:
         _cleanup(output_path)
 
@@ -228,10 +224,10 @@ def test_caller_authored_allowed_handoff_is_rejected_by_recomputation(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
-        assert result.status == "successful", result.as_dict()
+        assert result.status == "blocked", result.as_dict()
+        assert result.handoff_allowed is False
         forged = load_json(output_path)
         forged["final_stage_bundle"]["payload"]["data"]["unresolved_evidence"] = [
             {"unresolved_id": "forged-blocker"}
@@ -264,7 +260,6 @@ def test_integrity_valid_blocked_artifact_is_not_promoted_to_authorized(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "blocked"

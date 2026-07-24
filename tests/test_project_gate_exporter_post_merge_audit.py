@@ -38,7 +38,7 @@ def _prepare_export(tmp_path: Path, name: str) -> tuple[Path, Path, Path, Path]:
 
 def _cleanup_output(output_path: Path) -> None:
     output_path.unlink(missing_ok=True)
-    if output_path.parent.exists():
+    if output_path.parent.exists() and not any(output_path.parent.iterdir()):
         output_path.parent.rmdir()
 
 
@@ -78,7 +78,6 @@ def test_source_bundle_change_after_official_validation_fails_closed(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -92,7 +91,7 @@ def test_source_bundle_change_after_official_validation_fails_closed(
         _cleanup_output(output_path)
 
 
-def test_source_bundle_aba_change_during_official_validation_fails_or_uses_private_snapshot(
+def test_source_bundle_aba_change_uses_private_snapshot_without_authorizing_legacy_payload(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -142,12 +141,11 @@ def test_source_bundle_aba_change_during_official_validation_fails_or_uses_priva
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
-        assert result.status == "successful", result.as_dict()
+        assert result.status == "blocked", result.as_dict()
         assert result.output_written is True
-        assert result.handoff_allowed is True
+        assert result.handoff_allowed is False
         assert observed["source_path"] != source_path
         assert observed["source_bytes"] == original_bytes
         assert observed["source_bytes"] != mutated_bytes
@@ -159,12 +157,13 @@ def test_source_bundle_aba_change_during_official_validation_fails_or_uses_priva
         assert result.summary["source_bundle_hash"] == orchestration_module._json_hash(
             expected_source_bundle
         )
+        assert result.summary["official_builder_authorization"] is False
     finally:
         source_path.write_bytes(original_bytes)
         _cleanup_output(output_path)
 
 
-def test_source_intake_aba_change_during_official_validation_uses_private_snapshot(
+def test_source_intake_aba_change_uses_private_snapshot_without_authorizing_legacy_payload(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -207,12 +206,11 @@ def test_source_intake_aba_change_during_official_validation_uses_private_snapsh
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
-        assert result.status == "successful", result.as_dict()
+        assert result.status == "blocked", result.as_dict()
         assert result.output_written is True
-        assert result.handoff_allowed is True
+        assert result.handoff_allowed is False
         assert observed["intake_path"] != intake_path
         assert observed["intake_bytes"] == original_bytes
         assert observed["intake_bytes"] != mutated_bytes
@@ -220,6 +218,7 @@ def test_source_intake_aba_change_during_official_validation_uses_private_snapsh
         assert isinstance(snapshot_directory, Path)
         assert snapshot_directory != output_path.parent
         assert not snapshot_directory.exists()
+        assert result.summary["official_builder_authorization"] is False
     finally:
         intake_path.write_bytes(original_bytes)
         _cleanup_output(output_path)
@@ -260,7 +259,6 @@ def test_private_validation_snapshots_are_removed_when_validation_fails(
         payload_path=payload_path,
         source_intake_path=intake_path,
         source_bundle_path=source_path,
-        intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
         output_path=output_path,
     )
     assert result.status == "invalid"
@@ -293,7 +291,6 @@ def test_private_validation_snapshot_cleanup_failure_is_structured(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -337,7 +334,6 @@ def test_source_bundle_second_read_failure_is_structured_and_writes_no_output(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
-            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -372,8 +368,6 @@ def test_cli_refuses_existing_leaf_symlink_with_structured_json(
                 str(tmp_path / "unused-intake.json"),
                 "--source-bundle",
                 str(tmp_path / "unused-bundle.json"),
-                "--intermediate-inputs",
-                str(Path(tmp_path / "unused-intake.json").with_name("ce-intermediate-export-inputs.json")),
                 "--output",
                 str(output_path),
             ]
@@ -415,8 +409,6 @@ def test_cli_rejects_output_directory_even_with_overwrite(
                 str(tmp_path / "unused-intake.json"),
                 "--source-bundle",
                 str(tmp_path / "unused-bundle.json"),
-                "--intermediate-inputs",
-                str(Path(tmp_path / "unused-intake.json").with_name("ce-intermediate-export-inputs.json")),
                 "--output",
                 str(output_path),
                 "--overwrite",
@@ -485,8 +477,6 @@ def test_cli_path_resolution_failures_are_structured_and_write_no_output(
             str(intake_path),
             "--source-bundle",
             str(source_path),
-            "--intermediate-inputs",
-            str(Path(intake_path).with_name("ce-intermediate-export-inputs.json")),
             "--output",
             str(output_path),
         ]
