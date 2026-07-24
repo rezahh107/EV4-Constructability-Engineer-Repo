@@ -42,6 +42,26 @@ PR_45_MAIN_RECONCILIATION:
   production_ready: false
 ```
 
+## Preserved Lean Runtime Truth
+
+This compatibility block remains part of the live status contract consumed by the repository bootstrap validator.
+
+```yaml
+CE_LEAN_PERSONAL_RUNTIME:
+  contract: ev4-ce-conversation-bootstrap@1.1.0
+  ce_runtime_mode:
+    exact_start_authorization_gate: removed
+    active_run_ticket_gate: removed
+  input_policy:
+    source_bundle_policy: conditional_correctness_evidence
+    extra_irrelevant_files: warning_only
+    multiple_valid_inputs: blocked_ambiguous_input
+  correctness:
+    builder_readiness_guards: preserved
+    deterministic_export_guards: preserved
+  production_ready: false
+```
+
 ## Current Functional Contract
 
 ```yaml
