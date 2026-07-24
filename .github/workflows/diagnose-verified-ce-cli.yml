@@ -1,0 +1,36 @@
+name: diagnose-verified-ce-cli
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/validate-verified-ce-cli.py'
+      - '.github/workflows/validate-verified-ce-cli.yml'
+      - '.github/workflows/diagnose-verified-ce-cli.yml'
+      - 'validator/**'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      EXACT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Run concise official CLI diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repo >/dev/null
+          git -C repo remote add origin https://github.com/${{ github.repository }}.git
+          git -C repo fetch --depth=1 origin "$EXACT_HEAD_SHA" >/dev/null 2>&1
+          git -C repo checkout -B ce-cli-validation FETCH_HEAD >/dev/null 2>&1
+          test "$(git -C repo rev-parse HEAD)" = "$EXACT_HEAD_SHA"
+          cd repo
+          python -m pip install -q -e '.[dev]' >/dev/null 2>&1
+          set +e
+          python scripts/validate-verified-ce-cli.py > /tmp/cli.out 2>&1
+          status=$?
+          set -e
+          cat /tmp/cli.out
+          exit "$status"
