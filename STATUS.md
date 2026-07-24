@@ -1,50 +1,59 @@
 # STATUS — EV4 Constructability Engineer Repo
 
-Version: 0.5.0  
-Status: pr45_main_reconciliation_implemented_exact_head_ci_verified  
+Version: 0.5.1  
+Status: pr45_merged_main_documentation_reconciled  
 Date: 2026-07-24  
 Authority role: canonical mutable repository status
 
-Conflict order:
+## Authority order
 
 ```text
-live default-branch and pull-request evidence
-→ current schemas, validators, fixtures, tests, and CI
+live default-branch schemas, validators, contracts, fixtures, tests, and CI
 → STATUS.md
-→ README orientation
-→ historical PR descriptions and archived status notes
+→ README.md and active docs
+→ merged PR descriptions and reconciliation notes
+→ archived historical status records
 ```
 
-## Live PR #45 Reconciliation
+Historical text cannot override the live implementation.
+
+## Merged PR #45 runtime
 
 ```yaml
-PR_45_MAIN_RECONCILIATION:
+PR_45_MERGED_RUNTIME:
   repository: rezahh107/EV4-Constructability-Engineer-Repo
   pull_request: 45
+  pull_request_state: merged
   base_branch: main
-  verified_live_base_sha: d039c32629fe1535af98eb975bdcf441cb0f3df2
-  starting_pr_head_sha: a6694f0e6ab507bbcc1a1da4706c960c2f6ec2b0
-  merge_commit_sha: 197b5867f73ece06845af49532e14afe0e8a2af7
-  branch: agent/verified-constructability-proof-runtime
+  feature_branch: agent/verified-constructability-proof-runtime
+  validated_pr_head_sha: 0608d9d47f6054fc2e1070c6cbeda6ddea87580c
+  implementation_merge_commit_sha: 3b681f190e81782887af4d8ee7670010e3666ea5
+  merged_at: 2026-07-24T15:34:38Z
+  main_reconciliation_commit_on_feature_branch: 197b5867f73ece06845af49532e14afe0e8a2af7
   integration_strategy: merge_main_then_semantic_reconciliation
-  canonical_runtime: PR_45_verified_runtime
+  canonical_runtime: verified_review_draft_runtime
   canonical_evaluator: validator.payload_fidelity.evaluate_ce_transaction
   canonical_evaluator_count: 1
   official_cli: validator.verified_project_gate_exporter:main
+  official_cli_input: ev4-ce-review-draft@1.0.0
   legacy_payload_authorization: false
   parallel_authority_created: false
   dirty_git_state_authoritative: false
-  temporary_branch_workflow_triggers_removed: true
   implementation_complete: true
-  exact_head_ci: confirmed
+  implementation_merged: true
+  documentation_reconciled_on_main: true
+  exact_pr_head_ci: confirmed
+  exact_merged_main_ci: not_observed
   fresh_independent_review: not_observed
-  merge_ready: false
+  findings_closed: false
   production_ready: false
 ```
 
-## Preserved Lean Runtime Truth
+The absence of a separate workflow run on the merge commit does not erase the exact-Head CI evidence, but it must not be reported as exact merged-main CI.
 
-This compatibility block remains part of the live status contract consumed by the repository bootstrap validator.
+## Preserved lean runtime truth
+
+This compatibility block remains part of the live status orientation.
 
 ```yaml
 CE_LEAN_PERSONAL_RUNTIME:
@@ -62,13 +71,14 @@ CE_LEAN_PERSONAL_RUNTIME:
   production_ready: false
 ```
 
-## Current Functional Contract
+## Current functional contract
 
 ```yaml
 runtime:
   architect_intake: ev4-ce-architect-stage-intake@1.1.0
   review_draft: ev4-ce-review-draft@1.0.0
   verified_payload: ev4-ce-stage-payload@1.1.0
+  constructability_review: ev4-constructability-review@1.1.0
   builder_package: ev4-builder-executable-package@1.0.0
   explicit_authoritative_inputs:
     - review_draft
@@ -90,19 +100,21 @@ runtime:
     reporting_metadata: true
 ```
 
-## Lifecycle Boundary
+## Canonical lifecycle
 
 ```text
 verified Architect intake
 + verified source bundle
 + CE Review Draft
-→ normalize Builder Action IR
-→ derive action effects and claim-specific facts
-→ run supported repository evaluators when an implemented target exists
-→ otherwise emit explicit downstream runtime obligations
-→ evaluate through validator.payload_fidelity.evaluate_ce_transaction
+→ normalize Builder proposals into closed Action IR
+→ derive class, structure, permission, review-unit, and phase-aware claim requirements
+→ evaluate pre-Builder static and capability claims
+→ create complete downstream obligations for post-Builder runtime claims
+→ validator.payload_fidelity.evaluate_ce_transaction
 → assemble and independently replay one verified CE Payload
 → publish one deterministic Project Gate export
+→ Builder handoff when all pre-Builder conditions pass
+→ Final Project Gate only after runtime obligations close
 ```
 
 ```yaml
@@ -110,36 +122,95 @@ lifecycle:
   ce_stage_completion: distinct
   builder_readiness: distinct
   runtime_validation: may_be_pending
-  final_project_gate: blocked_while_runtime_obligations_open
+  complete_required_runtime_obligation_blocks_builder: false
+  missing_or_incomplete_runtime_obligation_blocks_builder: true
+  open_runtime_obligation_blocks_final_project_gate: true
   production_ready: false
 ```
 
-## Validation State
+No Browser, Elementor, accessibility, interaction, or QA runner currently exists in this repository. Runtime-only outcomes therefore remain explicit downstream obligations unless a repository-owned supported runner is added and produces a bound result.
 
-The exact current PR Head must retain attached successful checks for this block to remain authoritative.
+## Canonical exporter boundary
+
+```yaml
+verified_exporter:
+  entry_point: validator.verified_project_gate_exporter:main
+  cli_options:
+    - --review-draft
+    - --source-intake
+    - --source-bundle
+    - --output
+    - --repo-root
+    - --overwrite
+  authoritative_intermediate_carrier_input: false
+  sibling_file_discovery: false
+  legacy_payload_route:
+    validation_preview: allowed
+    builder_authorization: forbidden
+    project_gate_authorization: forbidden
+```
+
+The historical `validator.project_gate_exporter` and `scripts/export-ce-project-gate.py` path is not equivalent to the verified Review Draft exporter.
+
+## Validation evidence
+
+The exact repaired PR Head `0608d9d47f6054fc2e1070c6cbeda6ddea87580c` passed:
 
 ```yaml
 validation:
   focused_validation: passed
   full_validation: passed
-  documented_cli: passed
+  documented_verified_cli: passed
   clean_cli_status: successful
   dirty_cli_status: successful
   clean_cli_handoff_allowed: true
   dirty_cli_handoff_allowed: true
   clean_cli_authorization_valid: true
   dirty_cli_authorization_valid: true
-  validate_ce_runtime: confirmed_exact_head
-  validate_fixtures: confirmed_exact_head
-  verify_project_gate_contract: confirmed_exact_head
-  validate_verified_ce_cli: confirmed_exact_head
+  validate_ce_runtime:
+    run_id: 30097426571
+    conclusion: success
+  validate_fixtures:
+    run_id: 30097426521
+    conclusion: success
+  verify_project_gate_contract:
+    run_id: 30097426992
+    conclusion: success
+  validate_verified_ce_cli:
+    run_id: 30097426558
+    conclusion: success
+  exact_merged_main_ci: not_observed
   fresh_independent_review: not_observed
   findings_closed: false
 ```
 
-## Preserved Intake Contract History
+The post-merge documentation reconciliation changed Markdown files only. No new runtime, Schema, contract-envelope, fixture, workflow, or test behavior is claimed from those documentation commits.
 
-These identifiers are retained as historical compatibility records only. They do not override the live v1.1 runtime above.
+## Documentation reconciliation
+
+The following active documents were synchronized with the merged implementation:
+
+```text
+STATUS.md
+docs/CE_PROJECT_GATE_EXPORTER.md
+docs/CE_PR45_MAIN_RECONCILIATION.md
+docs/CE_REVIEW_DRAFT_MIGRATION_V1_1.md
+contracts/CE_DETERMINISTIC_CONSTRUCTABILITY_EVALUATION_V1_1.md
+contracts/CE_PHASE_AWARE_BUILDER_LIFECYCLE_V1_1.md
+```
+
+Key corrections:
+
+- PR #45 is recorded as merged rather than open or pending merge;
+- the official exporter uses `--review-draft`, not the legacy authoritative `--payload` route;
+- dirty Git state is metadata only;
+- complete open runtime obligations may permit Builder handoff while blocking Final Project Gate;
+- caller-authored runtime-result mappings are not execution authority;
+- the intermediate Carrier implementation from PR #46 is not retained as a parallel authority path.
+
+## Preserved intake contract history
+
+These identifiers are compatibility records. They do not override the live v1.1 runtime above.
 
 ```yaml
 CE_ARCHITECT_STAGE_INTAKE_V1:
@@ -156,91 +227,39 @@ CE_ARCHITECT_STAGE_INTAKE_V1_1:
   fixture_classification: synthetic
 ```
 
-## Historical Compatibility Status
+## Historical compatibility status
 
-The following blocks are immutable historical facts retained for repository regression compatibility. They do not override `PR_45_MAIN_RECONCILIATION`.
+The following records are historical facts only.
 
 ```yaml
 project_status:
   role: implementation_strategy_gate
   repository_profile: personal_single_operator
   fail_closed_default: true
-  ce_project_gate_exporter_command: implemented_merged_pending_fresh_independent_rereview
-  ce_project_gate_exporter_post_merge_audit: repair_merged_content_equivalent_review_not_observed
-  ce_project_gate_exporter_exact_pr_head_validation: confirmed
-  ce_project_gate_exporter_exact_merged_main_ci: not_observed
-  ce_project_gate_exporter_post_merge_content_verification: confirmed_content_equivalent
-  ce_project_gate_exporter_fresh_independent_review: not_observed
-  ce_project_gate_exporter_findings_closed: false
+  historical_ce_project_gate_exporter_command: merged_then_superseded_by_verified_review_draft_exporter
+  historical_ce_project_gate_exporter_fresh_independent_review: not_observed
+  historical_ce_project_gate_exporter_findings_closed: false
   production_ready: false
-```
-
-```yaml
-CE_02_POST_MERGE_EXPORTER_AUDIT:
-  prompt_id: P-004
-  task_id: CE-02
-  audited_default_branch: main
-  audited_main_commit: ebc73c28a154123b4c76f340ff0913934833789d
-  merged_pull_request: 36
-  merged_head_sha: 1804705c1ad86b4e414b2e5a40294bb8d1a9727a
-  merge_commit_content_delta_from_validated_head: none
-  repair_branch: audit/ce-02-exporter-audit-repair
-  exact_head_validation: pending
-  independent_repair_review: pending
-  repair_merged: false
-  project_gate_runtime_acceptance: unverified
-  cross_repository_e2e: unverified
-  builder_acceptance: unverified
 ```
 
 ```yaml
 CE_02_POST_MERGE_STATUS_RECONCILIATION:
   task: PR_37_STATUS_RECONCILIATION
-  reconciliation_date: 2026-07-21
   pull_request: 37
   pull_request_state: merged
   merged_at: 2026-07-17T16:19:23Z
-  validated_pr_base_sha: ebc73c28a154123b4c76f340ff0913934833789d
   validated_head_sha: 677ff32edc8bca3e4c4156031d72b89a9c0a26d5
   merge_commit_sha: 6650c31304e5a0472b276c36018c1df8f42ac983
-  current_main_sha_at_reconciliation: 6650c31304e5a0472b276c36018c1df8f42ac983
-  current_main_relationship_to_merge_commit: identical
-  merge_commit_file_delta_from_validated_head: none
-  exact_pr_head_validation:
-    validate_fixtures:
-      run_id: 29563815214
-      conclusion: success
-    verify_project_gate_contract:
-      run_id: 29563815485
-      conclusion: success
-    pytest:
-      tests: 287
-      failures: 0
-      errors: 0
-      skipped: 0
-  exact_merged_main_ci: not_observed
-  implementation_merged: true
-  repair_merged: true
-  post_merge_content_verification: confirmed
-  status_memory_synchronized: true
-  fresh_independent_review_on_repaired_head: not_observed
-  independent_review: insufficient_evidence
-  findings_closed: false
-  project_gate_runtime_acceptance: unverified
-  real_non_synthetic_cross_repository_handoff: unverified
-  cross_repository_e2e: unverified
-  builder_acceptance: unverified
-  responsive_completion: unverified
-  deployment: unverified
-  reconciliation_result: implementation_merged_content_equivalent_review_gap_retained
+  historical_record: true
+  production_ready: false
 ```
 
-## Historical Evidence
+## Historical evidence
 
-The previous complete `STATUS.md` snapshot is also preserved at:
+The complete pre-PR45 status snapshot remains preserved at:
 
 ```text
 docs/status/STATUS_PRE_PR45_MAIN_RECONCILIATION.md
 ```
 
-That file and the compatibility blocks above are historical evidence only. They cannot override this live reconciliation state.
+That archive and older PR descriptions cannot override this live status.
