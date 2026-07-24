@@ -32,8 +32,8 @@ jobs:
           cd "$(find /tmp/repo -mindepth 1 -maxdepth 1 -type d | head -n 1)"
           python -m pip install -q -e '.[dev]' >/dev/null 2>&1
           set +e
-          pytest -q --tb=short > /tmp/ce46-pytest.log 2>&1
+          pytest -q --tb=no > /tmp/ce46-pytest.log 2>&1
           status=$?
           set -e
-          tail -n 160 /tmp/ce46-pytest.log
+          tail -n 55 /tmp/ce46-pytest.log
           exit "$status"
