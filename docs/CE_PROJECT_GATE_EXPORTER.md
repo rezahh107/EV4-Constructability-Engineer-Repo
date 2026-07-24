@@ -1,155 +1,214 @@
 # CE Project Gate Exporter
 
-Status: `implemented_pending_fresh_independent_rereview`
+Status: active verified exporter merged through `PR #45` and available on `main`.
 
 ## Purpose
 
-This repository owns the operator-facing CE export command for the manual JSON handoff:
+This repository owns the CE-side producer command for the Project Gate handoff:
 
 ```text
-accepted Architect→CE intake
-→ completed CE Stage Payload
-→ CE-owned Gate-ready export
+verified Architect intake
++ verified Architect source bundle
++ CE Review Draft
+→ canonical CE evaluation
+→ verified CE Stage Payload
+→ deterministic CE Stage Bundle and Producer Gate Export
 → EV4 Project Gate
 ```
 
-The command creates one complete `ce-project-gate.json`. It does not create a Project Gate receipt, a final Builder Context Package, Builder runtime authorization, or a downstream execution claim.
+The command creates one complete `ce-project-gate.json`. It does not create a Project Gate receipt, a final Builder Context Package, downstream runtime evidence, deployment evidence, or production-readiness evidence.
 
-## Official command
+## Official entry point
 
-Install the repository in editable mode, then run:
+The installed command is defined by `pyproject.toml`:
+
+```text
+ev4-ce-project-gate-export = validator.verified_project_gate_exporter:main
+```
+
+Install and run:
 
 ```bash
 python -m pip install -e '.[dev]'
 
 ev4-ce-project-gate-export \
-  --payload path/to/ce-stage-payload.json \
-  --source-intake path/to/ce-input.json \
-  --source-bundle path/to/architect-stage-bundle.json \
+  --review-draft path/to/ce-review-draft.json \
+  --source-intake path/to/architect-ce-intake.json \
+  --source-bundle path/to/architect-source-bundle.json \
   --output ce-project-gate.json
 ```
 
-Equivalent repository-native script:
+Equivalent module invocation:
 
 ```bash
-python scripts/export-ce-project-gate.py \
-  --payload path/to/ce-stage-payload.json \
-  --source-intake path/to/ce-input.json \
-  --source-bundle path/to/architect-stage-bundle.json \
+python -m validator.verified_project_gate_exporter \
+  --review-draft path/to/ce-review-draft.json \
+  --source-intake path/to/architect-ce-intake.json \
+  --source-bundle path/to/architect-source-bundle.json \
   --output ce-project-gate.json
 ```
 
-`--source-bundle` must point to the actual source bundle object whose canonical JSON hash is declared by `project_gate_transition.source_bundle_hash`. A metadata wrapper around the bundle is not accepted as the source bundle itself.
-
-The command refuses to replace an existing output unless `--overwrite` is supplied explicitly.
-
-## Reused active contracts
+Optional arguments:
 
 ```text
+--repo-root <repository path>
+--overwrite
+```
+
+All authoritative inputs are explicit. No sibling filename, directory adjacency, repository scan, `--intermediate-inputs`, or silent fallback participates in authority.
+
+The output path must remain inside the CE repository. An existing output is replaced only when `--overwrite` is supplied and the existing artifact is recognized as CE-owned.
+
+## Canonical runtime
+
+The official command converges on the single canonical evaluator:
+
+```text
+validator.payload_fidelity.evaluate_ce_transaction
+```
+
+The flow is:
+
+```text
+CE Review Draft
+→ mandatory review units and phase-aware claim derivation
+→ closed Builder Action IR
+→ claim-specific evaluation and runtime-obligation derivation
+→ four internal deterministic results
+→ validator.payload_assembler
+→ verified ev4-ce-stage-payload@1.1.0
+→ independent fidelity replay
+→ verified Project Gate export
+```
+
+The four intermediate results are internal deterministic evaluation products. They are not operator-supplied Carrier files and do not create a parallel authority path.
+
+## Active contracts
+
+```text
+ev4-ce-review-draft@1.0.0
 ev4-ce-architect-stage-intake@1.1.0
-ev4-ce-stage-payload@1.0.0
+ev4-ce-stage-payload@1.1.0
+ev4-constructability-review@1.1.0
 ev4-builder-executable-package@1.0.0
 stage-evidence-bundle.v1@1.0.0
 producer-gate-export.v1@1.0.0
 ```
 
-The common Project Gate contracts remain owned by `rezahh107/EV4-Project-Gate`. CE vendors exact pinned bytes only; the local copies are non-authoritative.
+The common Project Gate envelope contracts remain owned by `rezahh107/EV4-Project-Gate`. CE consumes the pinned local copies and verifies their exact expected bytes and hashes.
 
-## Validation order
+## Validation and publication order
 
 ```text
-protected repository-root and operator-input path resolution
-→ live repository, origin, branch, HEAD, and dirty-state inspection
-→ source-intake byte snapshot and JSON parsing
-→ source-bundle byte snapshot and JSON parsing
-→ private temporary files containing the exact captured bytes
-→ official CE Architect-intake and source-bundle validation against those private files
-→ private snapshot cleanup
-→ source-intake byte-stability verification against the original operator path
-→ source-bundle byte-stability verification against the original operator path
-→ source-bundle identity and hash verification
-→ CE Stage Payload schema validation
-→ official CE constructability semantic validation
-→ accepted architecture identity preservation
-→ Builder Executable Package validation when emitted
+repository-root resolution
+→ explicit Review Draft, intake, source-bundle, and output path handling
+→ strict JSON read of every authoritative input
+→ exact-byte snapshots
+→ output/input alias rejection
+→ prior CE-owned output capture when replacement is requested
+→ Git provenance inspection for reporting
+→ Architect intake and source-bundle identity/binding verification
+→ canonical evaluate_ce_transaction execution
+→ verified Payload Schema, semantic, authority, and fidelity validation
+→ Builder-package eligibility validation when emitted
 → Stage Evidence Bundle construction and validation
 → Producer Gate Export construction and validation
-→ deterministic identity self-check
+→ deterministic export-identity self-check
+→ authoritative input byte-stability checks
 → atomic write
-→ post-write re-read and validation
-→ invalid-output removal or explicit persistence reporting
+→ persisted-byte re-read
+→ post-write Stage Bundle, Schema, semantic, transaction, and identity validation
+→ retain valid output, or restore/remove on failure
 ```
 
-Invalid semantic input, source-binding mismatch, source read failure, private-snapshot preparation or cleanup failure, or persistent mutation of either the intake or source bundle produces no output.
+Strict JSON behavior includes:
 
-A valid but blocked, insufficient-evidence, synthetic, or dirty-checkout run may produce a diagnostic Gate-ready artifact, but `handoff.allowed` remains `false`.
+```yaml
+duplicate_object_keys: rejected
+invalid_utf8: rejected
+non_json_constants: rejected
+object_root_required: true
+```
 
-## Provenance and determinism
+A missing, malformed, mismatched, mutated, or semantically invalid authoritative input produces a structured invalid result and no newly consumable artifact.
 
-The public/operator `export_file` path always derives repository identity, named Git ref, exact `HEAD`, and dirty state from the live checkout. It has no caller-supplied provenance parameter, environment override, or alternate operator bypass. An unknown repository, wrong `origin`, detached `HEAD`, missing Git metadata, or dirty checkout fails closed or blocks handoff according to the documented policy.
+## Phase-aware Builder boundary
 
-The source intake and source bundle are each parsed from one captured byte snapshot. The exporter writes those exact captured bytes to private temporary files and invokes the official intake/source-bundle validator only against the private files. Export construction and hashing continue from the originally captured in-memory objects.
+Pre-Builder static and capability claims must be satisfied before handoff.
 
-This binds validator consumption to exporter construction even during an `A → B → A` mutation of an operator-supplied shared path: the validator consumes private snapshot `A`, not transient shared-path bytes `B`. The existing second-read equality checks against the original paths remain in place to reject persistent mutation during the export window.
+A mandatory `post_builder_runtime` claim must carry a complete deterministic runtime obligation. A missing or incomplete obligation blocks Builder handoff. A complete obligation with `status: required` may permit Builder handoff, but keeps `final_project_gate: blocked` until an actual repository-owned downstream runner records an accepted pass or explicit non-applicability.
 
-Private validation snapshots use unique temporary paths separate from the requested output path. They are removed before export construction can proceed. Preparation failures return `CE_EXPORT_VALIDATION_SNAPSHOT_PREPARATION_FAILED`; cleanup failures return `CE_EXPORT_VALIDATION_SNAPSHOT_CLEANUP_FAILED`. Both are structured, fail closed, and write no output artifact.
+An obligation is not execution evidence. Caller-authored `observed`, `passed`, `execution_status`, `exit_code`, `captured_result`, or similar fields cannot create `VERIFIED_TOOL_EXECUTION`.
 
-Source-intake read failures are returned as `CE_EXPORT_SOURCE_INTAKE_READ_FAILED`; mutation is returned as `CE_EXPORT_SOURCE_INTAKE_CHANGED_DURING_EXPORT`. Source-bundle read failures are returned as `CE_EXPORT_SOURCE_BUNDLE_READ_FAILED`; mutation is returned as `CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT`. These conditions are structured, fail closed, and write no output artifact.
+## Git provenance and dirty state
 
-The exporter reuses repository canonical JSON rules: UTF-8, sorted keys, compact separators, and rejection of `NaN`/`Infinity`. Content hashes exclude the final newline. The written file is canonical JSON followed by one newline.
+Repository identity, ref, commit, dirty state, and dirty paths are observed for reporting.
 
-`run_id` remains part of export identity, so independent CE executions are not collapsed merely because their semantic payloads match.
+Dirty worktree state is not functional authority. It does not change:
 
-## Path safety and structured diagnostics
+```text
+claim resolution
+Payload fidelity
+Builder readiness
+handoff.allowed
+exporter status
+exit code
+```
 
-Repository-root resolution occurs inside the exporter boundary. `OSError` or `RuntimeError` while inspecting that path returns `CE_EXPORT_REPOSITORY_PATH_INSPECTION_FAILED` with `repair_owner: repository_owner`.
+When present, it remains visible only in result metadata:
 
-Payload, source-intake, and source-bundle resolution also occurs inside the exporter boundary. Inspection failures return `CE_EXPORT_INPUT_PATH_INSPECTION_FAILED`, identify the failing path, and write no output. The CLI passes raw `Path` arguments into this protected boundary rather than resolving them beforehand.
+```yaml
+repository_dirty: true | false
+dirty_paths: []
+```
 
-The output must remain inside the live CE repository. An existing leaf symbolic link is rejected before path resolution, so the exporter cannot silently replace the symlink target. An existing directory is rejected with `CE_EXPORT_OUTPUT_IS_DIRECTORY`, including when `--overwrite` is supplied. Output-path inspection failures, including resolution loops and operating-system errors, return `CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED` instead of a traceback.
+`CE_EXPORT_DIRTY_WORKTREE_BLOCKS_HANDOFF` is excluded from the authoritative handoff path.
 
-These guards do not overclaim elimination of every filesystem race. A filesystem actor that changes or replaces a validated path after inspection but before the later atomic replacement remains outside the process-local guarantees of this command. Consumers must still rely on emitted identity, post-write validation, repository provenance, and normal operating-system access controls.
+## Determinism and path safety
+
+The exporter preserves:
+
+- UTF-8 canonical JSON with sorted keys and compact separators;
+- rejection of `NaN` and `Infinity`;
+- one trailing newline in the written artifact;
+- deterministic export and bundle identities;
+- exact source and selected-candidate/class binding;
+- output/input alias protection;
+- symlink, directory, and out-of-repository output rejection;
+- synthetic-evidence handoff blocking;
+- atomic replacement;
+- post-write recomputation and validation;
+- no silent fallback.
+
+These controls establish repository-level functional correctness. They do not claim elimination of every operating-system filesystem race or hostile in-process mutation.
 
 ## Post-write failure state
 
-If post-write revalidation rejects the artifact, the exporter first attempts to remove it.
+If a new output fails post-write validation, it is removed. If a prior CE-owned output was being replaced, its exact captured bytes are restored.
 
-Successful cleanup is reported as:
-
-```yaml
-status: invalid
-output_written: false
-output_valid: false
-output_cleanup_failed: false
-artifact_state: invalid_artifact_removed
-artifact_must_not_be_consumed: true
-handoff_allowed: false
-```
-
-If cleanup fails, the invalid artifact is not treated as an intentional blocked export. The result preserves the original validation diagnostic, adds the blocking `CE_EXPORT_POST_WRITE_CLEANUP_FAILED` diagnostic, returns exit code `1`, and reports:
+A failure result marks the candidate as non-consumable:
 
 ```yaml
 status: invalid
-output_written: true
 output_valid: false
-output_cleanup_failed: true
-artifact_state: invalid_artifact_persisted
 artifact_must_not_be_consumed: true
 handoff_allowed: false
+authorization_valid: false
 ```
 
-A cleanup-failed artifact may still contain pre-failure content and must not be consumed, dispatched, or interpreted as authorized handoff evidence.
+If cleanup or restoration itself fails, the result adds `CE_EXPORT_POST_WRITE_CLEANUP_FAILED` and reports the observed artifact state. The target must not be consumed.
 
 ## Result output
 
-The command prints structured JSON containing, when applicable:
+The command prints structured JSON containing the result envelope and summary. Fields may include:
 
 ```text
 status
 output_path
 output_written
+handoff_allowed
+diagnostics
 output_valid
-output_cleanup_failed
 artifact_state
 artifact_must_not_be_consumed
 export_id
@@ -158,32 +217,48 @@ source_bundle_hash
 ce_payload_hash
 builder_executable_package_hash
 bundle_hash
+export_identity_hash
 export_hash
 producer_commit
 producer_ref
+repository_dirty
+dirty_paths
 handoff_target
-handoff_allowed
+authorization_valid
+verified_payload_schema
 ```
 
 ## Exit codes
 
 ```text
 0  valid export with allowed Builder handoff
-1  invalid input, contract, provenance, path, source read, mutation, private-snapshot lifecycle, or post-write validation; inspect artifact_state before touching the output path
-2  valid diagnostic export written with handoff blocked or insufficient_evidence
+1  invalid input, path, contract, authority, snapshot, publication, or post-write validation
+2  valid export whose Builder handoff remains blocked
 ```
 
-Expected operational failures produce structured JSON and do not emit a traceback.
+Expected operational failures return structured JSON rather than an unhandled traceback.
+
+## Legacy raw-Payload route
+
+The historical command path based on `validator.project_gate_exporter` and `--payload` is not the official successor exporter. It remains validation and migration-preview compatibility only.
+
+A raw `ev4-ce-stage-payload@1.0.0` cannot authorize Builder handoff or Project Gate transition and is bounded by:
+
+```text
+CE_EXPORT_LEGACY_PAYLOAD_AUTHORIZATION_FORBIDDEN
+```
+
+Do not describe `scripts/export-ce-project-gate.py` as equivalent to the verified Review Draft command.
 
 ## Boundaries
 
 CE does not:
 
 - generate a final Builder Context Package;
-- reproduce the Project Gate CE→Builder adapter;
+- reproduce the Project Gate CE-to-Builder adapter;
 - issue transition receipts;
-- claim Builder acceptance or runtime execution;
-- claim Responsive completion or production readiness;
+- fabricate runtime execution evidence;
+- claim real Browser, Elementor, Responsive, accessibility, interaction, QA, deployment, or production completion without compatible evidence;
 - silently repair invalid CE facts or fabricate missing evidence.
 
-The bounded repair status is `implemented_pending_fresh_independent_rereview`. This document does not claim that PR Inspector findings are finally closed, that the repair is merged, or that Project Gate runtime acceptance, cross-repository E2E, Builder acceptance, Responsive completion, deployment, or production readiness is complete.
+Merged implementation does not by itself establish production readiness, cross-repository E2E acceptance, or downstream runtime completion.
