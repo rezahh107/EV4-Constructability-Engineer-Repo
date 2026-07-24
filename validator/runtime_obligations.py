@@ -78,10 +78,18 @@ def normalize_runtime_obligation(value: Mapping[str, Any]) -> dict[str, Any]:
     result["expected_assertions"] = [
         str(item) for item in result.get("expected_assertions") or [] if str(item)
     ]
-    expected_id = f"ce-runtime-obligation-{sha256_json({key: result[key] for key in (
-        'claim_id', 'subject_ref', 'required_runner', 'target_identity',
-        'required_inputs', 'expected_assertions'
-    )})[:24]}"
+    identity_seed = {
+        key: result[key]
+        for key in (
+            "claim_id",
+            "subject_ref",
+            "required_runner",
+            "target_identity",
+            "required_inputs",
+            "expected_assertions",
+        )
+    }
+    expected_id = f"ce-runtime-obligation-{sha256_json(identity_seed)[:24]}"
     if result["obligation_id"] != expected_id:
         raise RuntimeObligationError("Runtime obligation identity is not deterministic")
     return json.loads(canonical_bytes(result))
