@@ -74,6 +74,7 @@ def test_restoration_write_failure_reports_persisted_candidate_truthfully(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert first.status == "successful", first.as_dict()
@@ -122,6 +123,8 @@ def test_restoration_write_failure_reports_persisted_candidate_truthfully(
                 str(intake_path),
                 "--source-bundle",
                 str(source_path),
+                "--intermediate-inputs",
+                str(Path(intake_path).with_name("ce-intermediate-export-inputs.json")),
                 "--output",
                 str(output_path),
                 "--overwrite",
@@ -167,6 +170,7 @@ def test_nested_synthetic_marker_cannot_be_cleared_by_declared_flag_mutation(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "blocked", result.as_dict()
@@ -216,6 +220,7 @@ def test_successful_overwrite_reports_replacement_not_preservation(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert first.status == "successful", first.as_dict()
@@ -234,6 +239,7 @@ def test_successful_overwrite_reports_replacement_not_preservation(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
             overwrite=True,
         )

@@ -51,13 +51,27 @@ The evaluator never accepts caller-supplied serialized carriers. Any diagnostic 
 
 ## Official producer integration
 
-The authoritative CE producer transaction requires a repository-local pre-export input artifact named:
+The authoritative CE producer transaction requires the operator to supply the independent intermediate artifact explicitly through both public surfaces:
 
-```text
-ce-intermediate-export-inputs.json
+```python
+def export_file(
+    *,
+    repo_root: Path,
+    payload_path: Path,
+    source_intake_path: Path,
+    source_bundle_path: Path,
+    intermediate_inputs_path: Path,
+    output_path: Path,
+    overwrite: bool = False,
+) -> ExportResult:
+    ...
 ```
 
-It is resolved beside the accepted Architect intake and has this repository-owned identity:
+```text
+--intermediate-inputs path/to/current-ce-intermediate-inputs.json
+```
+
+No sibling filename, intake-directory adjacency, alternate search path, or silent fallback participates in authority. The supplied artifact retains this repository-owned identity:
 
 ```yaml
 schema_id: ev4-ce-intermediate-export-inputs@1.0.0
@@ -70,16 +84,17 @@ builder_executable_package: {} | null
 
 These values must be independent CE runtime outputs. The producer must not reconstruct them from the final Payload immediately before evaluation.
 
-The producer snapshots the exact bytes of the final Payload, intake, source bundle, and independent intermediate input artifact. Before Stage Manifest construction it:
+The exporter resolves all four public inputs once, protects the output from aliasing any of them, snapshots their exact bytes independently, and rechecks byte stability before publication. Before Stage Manifest construction it:
 
 1. verifies the source intake and source bundle;
-2. runs `evaluate_ce_intermediate_validation(...)`;
-3. requires successful fidelity;
-4. runs the existing official final CE validation transaction;
-5. derives intermediate Stage Manifest status and output hashes from the internally derived carriers;
-6. permits Builder handoff only when the composite result is Builder-ready and all existing export gates pass.
+2. validates the explicit intermediate artifact and run identity;
+3. runs `evaluate_ce_intermediate_validation(...)`;
+4. requires successful fidelity;
+5. runs the existing official final CE validation transaction;
+6. derives intermediate Stage Manifest status and output hashes from internally derived carriers;
+7. permits Builder handoff only when the composite result is Builder-ready and all functional export gates pass.
 
-A missing, changed, malformed, run-mismatched, or Payload-inconsistent intermediate input artifact fails closed before publication.
+A missing, changed, malformed, run-mismatched, or Payload-inconsistent intermediate input artifact fails closed before publication. Git dirty state is retained only in result metadata and never authorizes or blocks the transaction.
 
 ## Common carrier envelope
 

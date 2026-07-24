@@ -40,6 +40,7 @@ def _export(tmp_path: Path, *, payload: dict | None = None):
         payload_path=payload_path,
         source_intake_path=intake_path,
         source_bundle_path=source_path,
+        intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
         output_path=output_path,
     )
     return result, output_path, intake_path
@@ -63,6 +64,7 @@ def test_authoritative_export_requires_independent_intermediate_input_artifact(
         payload_path=payload_path,
         source_intake_path=intake_path,
         source_bundle_path=source_path,
+        intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
         output_path=output_path,
     )
 
@@ -91,6 +93,7 @@ def test_final_payload_cannot_override_independent_review(tmp_path: Path) -> Non
         payload_path=payload_path,
         source_intake_path=intake_path,
         source_bundle_path=source_path,
+        intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
         output_path=output_path,
     )
 
@@ -148,6 +151,7 @@ def test_identical_invalid_builder_packages_cannot_authorize_export(
         payload_path=payload_path,
         source_intake_path=intake_path,
         source_bundle_path=source_path,
+        intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
         output_path=output_path,
     )
 

@@ -106,6 +106,7 @@ def test_payload_mutation_after_snapshot_fails_before_publication(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "invalid"
@@ -131,6 +132,7 @@ def test_output_path_cannot_alias_transaction_input(tmp_path: Path) -> None:
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=payload_path,
             overwrite=True,
         )
@@ -152,6 +154,7 @@ def test_overwrite_refuses_unowned_existing_target(tmp_path: Path) -> None:
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
             overwrite=True,
         )
@@ -177,6 +180,7 @@ def test_failed_overwrite_restores_prior_valid_owned_artifact(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert first.status == "successful", first.as_dict()
@@ -197,6 +201,7 @@ def test_failed_overwrite_restores_prior_valid_owned_artifact(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
             overwrite=True,
         )
@@ -223,6 +228,7 @@ def test_caller_authored_allowed_handoff_is_rejected_by_recomputation(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "successful", result.as_dict()
@@ -258,6 +264,7 @@ def test_integrity_valid_blocked_artifact_is_not_promoted_to_authorized(
             payload_path=payload_path,
             source_intake_path=intake_path,
             source_bundle_path=source_path,
+            intermediate_inputs_path=Path(intake_path).with_name("ce-intermediate-export-inputs.json"),
             output_path=output_path,
         )
         assert result.status == "blocked"

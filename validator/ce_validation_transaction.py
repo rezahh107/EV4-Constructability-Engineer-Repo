@@ -45,7 +45,6 @@ from .project_gate_exporter_validation import (
     verify_export_identity,
 )
 
-INTERMEDIATE_INPUTS_FILENAME = "ce-intermediate-export-inputs.json"
 INTERMEDIATE_INPUTS_SCHEMA_ID = "ev4-ce-intermediate-export-inputs@1.0.0"
 
 
@@ -280,10 +279,6 @@ def _synchronize_intake_stage_status(
     first["unknowns"] = list(unknowns) if isinstance(unknowns, list) else []
 
 
-def _intermediate_inputs_path(source_intake_path: Path) -> Path:
-    return source_intake_path.with_name(INTERMEDIATE_INPUTS_FILENAME)
-
-
 def _validate_intermediate_inputs(
     value: dict[str, Any],
     *,
@@ -488,25 +483,14 @@ def secure_build_export(
     payload_path: Path,
     source_intake_path: Path,
     source_bundle_path: Path,
+    intermediate_inputs_path: Path,
     output_path: Path,
     provenance: GitProvenance,
 ) -> tuple[dict[str, Any], dict[str, Any], tuple[ExportDiagnostic, ...]]:
-    intermediate_path = _intermediate_inputs_path(source_intake_path)
-    if output_path.resolve(strict=False) == intermediate_path.resolve(strict=False):
-        raise ExporterError(
-            ExportDiagnostic(
-                "CE_EXPORT_OUTPUT_ALIASES_INPUT",
-                "output_safety",
-                "Output path must not alias the intermediate input artifact.",
-                str(output_path),
-                "repository_owner",
-            )
-        )
-
     payload_snapshot = capture_json_snapshot(payload_path, label="CE Stage Payload", read_error_code="CE_EXPORT_PAYLOAD_READ_FAILED", changed_error_code="CE_EXPORT_PAYLOAD_CHANGED_DURING_EXPORT")
     intake_snapshot = capture_json_snapshot(source_intake_path, label="source Architect intake", read_error_code="CE_EXPORT_SOURCE_INTAKE_READ_FAILED", changed_error_code="CE_EXPORT_SOURCE_INTAKE_CHANGED_DURING_EXPORT")
     bundle_snapshot = capture_json_snapshot(source_bundle_path, label="source Architect bundle", read_error_code="CE_EXPORT_SOURCE_BUNDLE_READ_FAILED", changed_error_code="CE_EXPORT_SOURCE_BUNDLE_CHANGED_DURING_EXPORT")
-    intermediate_snapshot = capture_json_snapshot(intermediate_path, label="independent CE intermediate inputs", read_error_code="CE_EXPORT_INTERMEDIATE_INPUTS_READ_FAILED", changed_error_code="CE_EXPORT_INTERMEDIATE_INPUTS_CHANGED_DURING_EXPORT")
+    intermediate_snapshot = capture_json_snapshot(intermediate_inputs_path, label="independent CE intermediate inputs", read_error_code="CE_EXPORT_INTERMEDIATE_INPUTS_READ_FAILED", changed_error_code="CE_EXPORT_INTERMEDIATE_INPUTS_CHANGED_DURING_EXPORT")
 
     payload = payload_snapshot.value
     intake = intake_snapshot.value
@@ -515,7 +499,7 @@ def secure_build_export(
     review, strategy, raw_package = _validate_intermediate_inputs(
         intermediate_snapshot.value,
         expected_run_id=run_id,
-        path=intermediate_path,
+        path=intermediate_inputs_path,
         repo_root=repo_root,
     )
 
@@ -571,7 +555,7 @@ def secure_build_export(
     validate_payload_and_ce_semantics(repo_root, payload)
     validate_identity_preservation(payload, intake)
     builder_package_hash = validate_builder_package(payload)
-    handoff_diagnostics = _handoff_diagnostics(payload, intake, source_bundle, provenance)
+    handoff_diagnostics = _handoff_diagnostics(payload, intake, source_bundle)
     if not intermediate_result.get("builder_ready") and not handoff_diagnostics:
         handoff_diagnostics.append(
             ExportDiagnostic(

@@ -26,6 +26,7 @@ ev4-ce-project-gate-export \
   --payload path/to/ce-stage-payload.json \
   --source-intake path/to/ce-input.json \
   --source-bundle path/to/architect-stage-bundle.json \
+  --intermediate-inputs path/to/ce-intermediate-export-inputs.json \
   --output ce-project-gate.json
 ```
 
@@ -36,10 +37,11 @@ python scripts/export-ce-project-gate.py \
   --payload path/to/ce-stage-payload.json \
   --source-intake path/to/ce-input.json \
   --source-bundle path/to/architect-stage-bundle.json \
+  --intermediate-inputs path/to/ce-intermediate-export-inputs.json \
   --output ce-project-gate.json
 ```
 
-`--source-bundle` must point to the actual source bundle object whose canonical JSON hash is declared by `project_gate_transition.source_bundle_hash`. A metadata wrapper around the bundle is not accepted as the source bundle itself.
+`--source-bundle` must point to the actual source bundle object whose canonical JSON hash is declared by `project_gate_transition.source_bundle_hash`. A metadata wrapper around the bundle is not accepted as the source bundle itself. `--intermediate-inputs` is a required explicit path; no sibling filename or directory convention is used as authority.
 
 The command refuses to replace an existing output unless `--overwrite` is supplied explicitly.
 
@@ -58,35 +60,29 @@ The common Project Gate contracts remain owned by `rezahh107/EV4-Project-Gate`. 
 ## Validation order
 
 ```text
-protected repository-root and operator-input path resolution
-→ live repository, origin, branch, HEAD, and dirty-state inspection
-→ source-intake byte snapshot and JSON parsing
-→ source-bundle byte snapshot and JSON parsing
-→ private temporary files containing the exact captured bytes
-→ official CE Architect-intake and source-bundle validation against those private files
-→ private snapshot cleanup
-→ source-intake byte-stability verification against the original operator path
-→ source-bundle byte-stability verification against the original operator path
-→ source-bundle identity and hash verification
-→ CE Stage Payload schema validation
-→ official CE constructability semantic validation
-→ accepted architecture identity preservation
-→ Builder Executable Package validation when emitted
-→ Stage Evidence Bundle construction and validation
-→ Producer Gate Export construction and validation
-→ deterministic identity self-check
+protected repository and operator-input path resolution
+→ explicit intermediate-input path resolution
+→ optional Git metadata inspection
+→ exact snapshots of Payload, intake, source bundle, and intermediate inputs
+→ private temporary copies of the captured intake and source-bundle bytes
+→ official Architect-intake and source-bundle validation
+→ intermediate-input Schema and run-ID validation
+→ authoritative composite Carrier evaluation
+→ official final CE validation
+→ Carrier-derived Stage Manifest construction
+→ deterministic Producer Gate Export validation
 → atomic write
-→ post-write re-read and validation
+→ post-write byte, Schema, semantic, transaction, and identity revalidation
 → invalid-output removal or explicit persistence reporting
 ```
 
-Invalid semantic input, source-binding mismatch, source read failure, private-snapshot preparation or cleanup failure, or persistent mutation of either the intake or source bundle produces no output.
+Invalid semantic input, source-binding mismatch, input read failure, malformed or mismatched intermediate input, private-snapshot lifecycle failure, or mutation of any captured transaction input produces no new output.
 
-A valid but blocked, insufficient-evidence, synthetic, or dirty-checkout run may produce a diagnostic Gate-ready artifact, but `handoff.allowed` remains `false`.
+A valid but blocked, insufficient-evidence, or synthetic run may produce a diagnostic Gate-ready artifact with `handoff.allowed: false`. A dirty checkout is reported as metadata and does not affect functional authorization.
 
 ## Provenance and determinism
 
-The public/operator `export_file` path always derives repository identity, named Git ref, exact `HEAD`, and dirty state from the live checkout. It has no caller-supplied provenance parameter, environment override, or alternate operator bypass. An unknown repository, wrong `origin`, detached `HEAD`, missing Git metadata, or dirty checkout fails closed or blocks handoff according to the documented policy.
+The public/operator `export_file` path derives repository identity, named Git ref, exact `HEAD`, and dirty state from the live checkout for reporting. It has no caller-supplied provenance parameter. Dirty state is metadata only: it does not change fidelity, Builder readiness, `handoff.allowed`, exporter status, or exit code. Existing repository identity and Git availability checks remain reporting-boundary prerequisites in this bounded repair.
 
 The source intake and source bundle are each parsed from one captured byte snapshot. The exporter writes those exact captured bytes to private temporary files and invokes the official intake/source-bundle validator only against the private files. Export construction and hashing continue from the originally captured in-memory objects.
 
@@ -104,7 +100,7 @@ The exporter reuses repository canonical JSON rules: UTF-8, sorted keys, compact
 
 Repository-root resolution occurs inside the exporter boundary. `OSError` or `RuntimeError` while inspecting that path returns `CE_EXPORT_REPOSITORY_PATH_INSPECTION_FAILED` with `repair_owner: repository_owner`.
 
-Payload, source-intake, and source-bundle resolution also occurs inside the exporter boundary. Inspection failures return `CE_EXPORT_INPUT_PATH_INSPECTION_FAILED`, identify the failing path, and write no output. The CLI passes raw `Path` arguments into this protected boundary rather than resolving them beforehand.
+Payload, source-intake, source-bundle, and intermediate-input resolution also occurs inside the exporter boundary. Inspection failures return `CE_EXPORT_INPUT_PATH_INSPECTION_FAILED`, identify the failing path, and write no output. The CLI passes raw `Path` arguments into this protected boundary rather than resolving them beforehand.
 
 The output must remain inside the live CE repository. An existing leaf symbolic link is rejected before path resolution, so the exporter cannot silently replace the symlink target. An existing directory is rejected with `CE_EXPORT_OUTPUT_IS_DIRECTORY`, including when `--overwrite` is supplied. Output-path inspection failures, including resolution loops and operating-system errors, return `CE_EXPORT_OUTPUT_PATH_INSPECTION_FAILED` instead of a traceback.
 
@@ -161,6 +157,8 @@ bundle_hash
 export_hash
 producer_commit
 producer_ref
+repository_dirty
+dirty_paths
 handoff_target
 handoff_allowed
 ```

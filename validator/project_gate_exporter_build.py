@@ -351,7 +351,6 @@ def _handoff_diagnostics(
     payload: dict[str, Any],
     intake: dict[str, Any],
     source_bundle: dict[str, Any],
-    provenance: GitProvenance,
 ) -> list[ExportDiagnostic]:
     diagnostics: list[ExportDiagnostic] = []
     review = (
@@ -418,16 +417,6 @@ def _handoff_diagnostics(
                 "handoff_gate",
                 "Synthetic evidence cannot authorize Builder handoff.",
                 "$.final_stage_bundle.synthetic",
-            )
-        )
-    if provenance.dirty:
-        diagnostics.append(
-            ExportDiagnostic(
-                "CE_EXPORT_DIRTY_WORKTREE_BLOCKS_HANDOFF",
-                "git_provenance",
-                "Dirty repository state blocks an allowed handoff.",
-                "$.producer.commit_sha",
-                "repository_owner",
             )
         )
     return diagnostics
