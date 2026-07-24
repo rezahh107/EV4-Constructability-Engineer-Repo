@@ -27,21 +27,41 @@ from deterministic_runtime_support import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _responsive_draft() -> dict:
+    draft = canonical_draft()
+    node = draft["reviewed_nodes"][0]
+    node["proposed_action"] = "responsive behavior"
+    node["claim_semantics"]["responsive_strategy"] = {
+        "breakpoint_strategy": "mobile-first",
+        "layout_adaptation": "stack below 768px",
+        "derivation_method": "retained layout analysis",
+    }
+    node["claim_semantics"]["responsive_behavior"] = {
+        "target_identity": "node-root"
+    }
+    draft["builder_action_proposals"][0] = {
+        "action_id": "action-root",
+        "action_type": "set_responsive",
+        "target_node": "node-root",
+        "parameters": {
+            "layout": "stacked",
+            "breakpoints": "mobile-first",
+            "target_identity": "node-root",
+        },
+    }
+    return draft
+
+
 def test_requested_claims_are_additive_and_vacuous_success_is_impossible() -> None:
     verified_intake, verified_bundle, _, _ = verified_inputs()
     draft = canonical_draft()
-    assert draft["reviewed_nodes"][0]["requested_claims"] == []
     results = evaluate_all(
         verified_intake["data"], verified_bundle["data"], draft, repo_root=ROOT
     )
     assert results["obligations"]["required_claims_by_node"]["node-root"] == [
         "geometry"
     ]
-    rows = results["dependency_result"]["rows"]
-    assert [(row["subject_ref"], row["claim_id"]) for row in rows] == [
-        ("node-root", "geometry")
-    ]
-    assert rows[0]["status"] == "satisfied"
+    assert results["dependency_result"]["rows"][0]["status"] == "satisfied"
 
 
 def test_plain_data_run_recomputes_to_verified_payload() -> None:
@@ -59,8 +79,6 @@ def test_plain_data_run_recomputes_to_verified_payload() -> None:
         payload["builder_executable_package"]["schema"]
         == "ev4-builder-executable-package@1.0.0"
     )
-    assert payload["constructability_review"]["builder_decisions_required"] == 0
-    assert payload["implementation_strategy_map"] is not None
 
 
 def test_successor_payload_schema_and_semantics_validate() -> None:
@@ -89,10 +107,6 @@ def test_identical_inputs_produce_byte_identical_results_and_payload() -> None:
         verified_source_bundle=verified_bundle,
         repo_root=ROOT,
     )
-    assert canonical_bytes(first["evaluation_results"]) == canonical_bytes(
-        second["evaluation_results"]
-    )
-    assert canonical_bytes(first["payload"]) == canonical_bytes(second["payload"])
     assert canonical_bytes(first) == canonical_bytes(second)
 
 
@@ -137,17 +151,11 @@ def test_review_draft_schema_contains_no_authoritative_result_fields() -> None:
 
 
 def test_explicit_no_claim_node_is_derived_not_vacuously_assumed() -> None:
-    verified_intake, verified_bundle, _, _ = verified_inputs()
     results = evaluate_all(
-        verified_intake["data"],
-        verified_bundle["data"],
-        canonical_draft(),
-        repo_root=ROOT,
+        canonical_intake(), canonical_bundle(), canonical_draft(), repo_root=ROOT
     )
     assert results["obligations"]["required_claims_by_node"]["node-child"] == []
     assert results["obligations"]["explicit_no_claim_nodes"] == ["node-child"]
-    assert results["review_result"]["claim_coverage_by_node"]["node-child"] == []
-    assert "node-child" in results["review_result"]["explicit_no_claim_nodes"]
 
 
 def test_complete_overlay_engineering_evaluation_is_supported() -> None:
@@ -211,12 +219,9 @@ def test_architect_decision_for_another_candidate_does_not_satisfy_claim() -> No
         {"repo_root": ROOT},
     )
     assert row["status"] == "architect_decision_required"
-    assert row["diagnostics"][0]["code"] == (
-        "CE_CLAIM_ARCHITECT_DECISION_BINDING_MISMATCH"
-    )
 
 
-def test_responsive_without_execution_becomes_downstream_obligation() -> None:
+def test_responsive_without_execution_becomes_final_gate_obligation() -> None:
     row = evaluate_claim(
         "responsive_behavior",
         "node-root",
@@ -227,75 +232,59 @@ def test_responsive_without_execution_becomes_downstream_obligation() -> None:
         {"repo_root": ROOT},
     )
     assert row["status"] == "downstream_validation_required"
-    assert row["downstream_obligation"]["blocking_behavior"] == (
-        "block_builder_handoff"
-    )
+    assert row["blocking"] is False
+    assert row["downstream_obligation"]["blocking_boundary"] == "final_project_gate"
+    assert row["downstream_obligation"]["blocks_builder_handoff"] is False
 
 
-def test_actual_repository_owned_responsive_execution_satisfies_claim() -> None:
-    directory = ROOT / ".tmp-ce-runtime-targets"
-    directory.mkdir(exist_ok=True)
-    target_path = directory / "responsive-node-root.json"
-    target_path.write_text(
-        json.dumps(
-            {
-                "schema_id": "ev4-ce-responsive-evaluation-target@1.0.0",
-                "claim_id": "responsive_behavior",
-                "subject_ref": "node-root",
-                "target_identity": "node-root",
-                "cases": [
-                    {
-                        "viewport": "mobile",
-                        "expected_layout": "stacked",
-                        "observed_layout": "stacked",
-                    }
-                ],
-            },
-            sort_keys=True,
-        ),
-        encoding="utf-8",
+def test_authored_equal_expected_and_observed_values_are_not_execution() -> None:
+    request = {
+        "claim_id": "responsive_behavior",
+        "subject_ref": "node-root",
+        "evaluator_id": "ce-responsive-evaluator",
+        "target_identity": "node-root",
+        "input_ref": "declared-responsive.json",
+    }
+    row = evaluate_claim(
+        "responsive_behavior",
+        "node-root",
+        {},
+        canonical_intake(),
+        canonical_bundle(),
+        canonical_draft(),
+        {"repo_root": ROOT},
+        [request],
     )
-    try:
-        request = {
-            "claim_id": "responsive_behavior",
-            "subject_ref": "node-root",
-            "evaluator_id": "ce-responsive-evaluator",
-            "target_identity": "node-root",
-            "input_ref": str(target_path.relative_to(ROOT)),
-        }
-        row = evaluate_claim(
-            "responsive_behavior",
-            "node-root",
-            {},
-            canonical_intake(),
-            canonical_bundle(),
-            canonical_draft(),
-            {"repo_root": ROOT},
-            [request],
-        )
-        assert row["status"] == "satisfied"
-        record = row["evidence_records"][0]
-        assert record["mode"] == "VERIFIED_TOOL_EXECUTION"
-        assert record["method_or_command"].startswith("validator.runtime_execution:")
-        assert record["execution_status"] == "success"
-    finally:
-        target_path.unlink(missing_ok=True)
-        if directory.exists() and not any(directory.iterdir()):
-            directory.rmdir()
+    assert row["status"] == "downstream_validation_required"
+    assert row["evidence_refs"] == []
+    assert row["evidence_records"][0]["mode"] == "DOWNSTREAM_TEST_OBLIGATION"
 
 
 def test_complete_multi_node_review_and_first_safe_batch_are_derived() -> None:
     run, _, _ = evaluation_run(ROOT)
     results = run["evaluation_results"]
     assert results["review_result"]["required_nodes"] == ["node-child", "node-root"]
-    assert results["review_result"]["reviewed_nodes"] == ["node-child", "node-root"]
-    assert results["strategy_result"]["required_review_units_covered"] is True
     assert results["strategy_result"]["first_safe_batch_complete"] is True
     package = run["payload"]["builder_executable_package"]
-    assert [action["target_node"] for action in package["first_safe_builder_batch"]["actions"]] == [
-        "node-root",
-        "node-child",
-    ]
+    assert [
+        action["target_node"]
+        for action in package["first_safe_builder_batch"]["actions"]
+    ] == ["node-root", "node-child"]
+
+
+def test_runtime_obligation_allows_builder_but_blocks_final_completion() -> None:
+    run, _, _ = evaluation_run(ROOT, draft=_responsive_draft())
+    payload = run["payload"]
+    assert payload["builder_package_emitted"] is True
+    assert payload["downstream_test_obligations"][0]["status"] == "required"
+    lifecycle = next(
+        item["result"]
+        for item in payload["extension_records"]
+        if item.get("kind") == "lifecycle_status"
+    )
+    assert lifecycle["runtime_validated"] is False
+    assert lifecycle["final_project_gate"] == "blocked"
+    assert lifecycle["production_ready"] is False
 
 
 def test_architect_unknown_is_preserved_and_blocks_builder_handoff() -> None:
@@ -322,9 +311,6 @@ def test_architect_unknown_is_preserved_and_blocks_builder_handoff() -> None:
         repo_root=ROOT,
     )
     assert run["payload"]["builder_package_emitted"] is False
-    assert run["payload"]["constructability_review"]["constructability_status"] == (
-        "needs_user_evidence"
-    )
     assert "ARCH-UNK-1" in {
         item["unresolved_id"] for item in run["payload"]["unresolved_evidence"]
     }

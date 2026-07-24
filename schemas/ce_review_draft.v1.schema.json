@@ -212,10 +212,31 @@
         "mode": {
           "enum": [
             "VERIFIED_ARTIFACT",
+            "ORIGINAL_SOURCE",
             "VERIFIED_ARCHITECT_DECISION"
           ]
         },
         "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "original_source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_type": {
+          "enum": [
+            "json",
+            "html",
+            "css",
+            "svg"
+          ]
+        },
+        "source_bytes_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "cached_extract_ref": {
           "type": "string",
           "minLength": 1
         },
@@ -233,13 +254,28 @@
           "if": {
             "properties": {
               "mode": {
-                "const": "VERIFIED_ARTIFACT"
+                "enum": [
+                  "VERIFIED_ARTIFACT",
+                  "ORIGINAL_SOURCE"
+                ]
               }
-            }
+            },
+            "required": [
+              "mode"
+            ]
           },
           "then": {
-            "required": [
-              "source_ref"
+            "anyOf": [
+              {
+                "required": [
+                  "source_ref"
+                ]
+              },
+              {
+                "required": [
+                  "original_source_ref"
+                ]
+              }
             ]
           }
         },
@@ -249,7 +285,10 @@
               "mode": {
                 "const": "VERIFIED_ARCHITECT_DECISION"
               }
-            }
+            },
+            "required": [
+              "mode"
+            ]
           },
           "then": {
             "required": [

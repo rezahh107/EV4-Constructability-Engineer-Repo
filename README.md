@@ -42,13 +42,16 @@ maintenance evidence does not substitute for project evidence.
 verified Architect intake
 + verified source bundle
 + Lean CE Review Draft
-→ derive required review units and claims
-→ claim-specific deterministic evaluators
+→ normalize every Builder proposal into closed Action IR
+→ derive required review units and phase-aware claims
+→ evaluate pre-Builder static and capability claims
+→ emit complete post-Builder runtime obligations
 → four intermediate results
 → one CE Stage Payload assembler
 → independent recomputation and comparison
-→ existing Project Gate transaction
-→ Builder handoff only when every functional condition passes
+→ Builder handoff when CE Builder-ready
+→ actual downstream runtime validation
+→ Final Project Gate only after obligation closure
 ```
 
 Runtime states:
@@ -116,33 +119,94 @@ accessibility consequences, Builder execution requirements, and applicable CE ru
 An unknown action fails closed. An empty required-claim set is valid only when a repository rule
 explicitly establishes non-applicability for every action.
 
-## Claim-specific evaluation
+## Phase-aware claim evaluation
 
-The single canonical registry is `validator/claim_policy_registry.py`. It distinguishes:
+The single canonical registry is `validator/claim_policy_registry.py`. Every claim declares its
+`lifecycle_phase`, evaluator kind, allowed evidence modes, Builder-handoff effect, and
+final-completion effect.
 
-- `VERIFIED_ARTIFACT`;
-- `VERIFIED_TOOL_EXECUTION`;
-- `VERIFIED_ARCHITECT_DECISION`;
-- `ATTRIBUTED_ENGINEERING_JUDGMENT`;
-- `DOWNSTREAM_TEST_OBLIGATION`.
+```text
+pre_builder_static
+pre_builder_capability
+post_builder_runtime
+```
+
+The runtime separates strategy from outcome:
+
+```text
+responsive_strategy != responsive_behavior
+accessibility_strategy != accessibility runtime validation
+interaction_approval != interaction_validation
+```
 
 Important distinctions:
 
 ```text
-attributed engineering judgment != tool execution
-source integrity != claim correctness
-runtime-only claim != editor configuration assertion
-non-empty object != proven claim
+CE Builder-ready != runtime validated
+CE Builder-ready != production ready
+runtime obligation != execution proof
+attributed engineering judgment != verified artifact
+source digest != source-derived semantic fact
 ```
 
-A file path and SHA-256 prove file identity and integrity only. Claim-specific evaluators must parse
-or adapt the exact source, derive required semantic facts, and bind the result to the exact node,
-candidate, Architect intake, and source bundle.
+CE-owned geometry, overlay, responsive-strategy, accessibility-strategy, and placeholder decisions
+may use `ATTRIBUTED_ENGINEERING_JUDGMENT` when the policy permits it. Architect-owned interaction and
+Dynamic Loop approval must come from canonical Architect input.
 
-Runtime-only responsive, accessibility, and QA claims require actual captured execution from a known
-repository-supported evaluator. Without it, the runtime emits a downstream obligation that remains
-visible and blocks Builder handoff. Architect-owned interaction and Dynamic Loop decisions must be
-present in canonical Architect input; CE cannot self-approve them.
+Capability evidence starts from an original JSON, HTML, CSS, or SVG source. A claim-specific
+repository parser reads the original bytes, derives facts, records parser identity and digest, and
+compares those facts with the required semantics. A pre-authored `facts` envelope cannot become
+`VERIFIED_ARTIFACT`. A cached extract is accepted only when the same parser regenerates identical
+facts from the original source.
+
+No real Browser, Elementor, accessibility, interaction, or QA runner currently exists in this
+repository. Therefore authored `observed`, `passed`, `execution_status`, `exit_code`, or similar
+fields are declarations and are rejected as runtime evidence. The CE stage emits deterministic
+post-Builder obligations instead of fabricating `VERIFIED_TOOL_EXECUTION`.
+
+## Closed Action IR
+
+`validator/action_contract_registry.py` is the one canonical Builder-action vocabulary.
+`validator/action_ir.py` rejects unknown actions, unknown parameters, effect-bearing parameters
+under the wrong action, ambiguous aliases, conflicting combinations, and unresolved hidden choices.
+Supported aliases are normalized exactly once.
+
+Every accepted action becomes:
+
+```yaml
+action_id:
+action_type:
+target_node:
+normalized_parameters:
+derived_effects:
+required_claims:
+required_permissions:
+decision_state:
+source_draft_path:
+```
+
+Builder package actions are projected only from this Action IR. Raw Draft parameters are never
+copied into an authority-bearing package. Class, structure, decision, permission, and
+`forbidden_work` effects are derived from the closed registry and canonical Architect inputs.
+
+## Runtime obligations
+
+Every mandatory `post_builder_runtime` claim receives a complete obligation containing the exact
+claim, subject, target identity, required runner, required inputs, assertions, completion criteria,
+status, and blocking boundary.
+
+Normal pre-Builder state:
+
+```yaml
+status: required
+blocking_boundary: final_project_gate
+blocks_builder_handoff: false
+blocks_final_completion: true
+```
+
+A complete open obligation permits Builder handoff when every pre-Builder condition passes. It
+remains visible through Payload assembly, Builder package projection, export, and fidelity replay.
+It blocks Final Project Gate until an actual downstream runner returns an accepted bound pass.
 
 ## Four intermediate results
 
@@ -162,16 +226,19 @@ Builder-ready is impossible unless all of these are true:
 ```text
 architecture identity result is complete
 review-unit coverage is complete
-every required dependency is satisfied or explicitly non-applicable
-no unresolved blocking evidence remains
+every pre-Builder dependency is satisfied or explicitly non-applicable
+every mandatory post-Builder claim has a complete runtime obligation
+no unresolved pre-Builder evidence remains
 strategy coverage is complete
 no hidden Builder decision remains
 no hidden Architect amendment remains
 Builder package is valid against ev4-builder-executable-package@1.0.0
 ```
 
-The assembler does not use `all(...)` over an unproven empty requirement set. CE does not claim
-production readiness.
+The assembler does not use `all(...)` over an unproven empty requirement set. `payload_status=complete`
+means the CE stage is complete and Builder-ready; it does not mean runtime-validated or
+production-ready. Lifecycle carriers keep `final_project_gate=blocked` while runtime obligations are
+open.
 
 ## Deterministic Payload and export
 
@@ -188,6 +255,8 @@ Key artifacts:
 schemas/ce_review_draft.v1.schema.json
 schemas/constructability_review.v1_1.schema.json
 schemas/ce_stage_payload.v1_1.schema.json
+validator/action_contract_registry.py
+validator/action_ir.py
 validator/claim_policy_registry.py
 validator/review_obligations.py
 validator/claim_evaluators.py
@@ -236,9 +305,11 @@ responsive, accessibility, deployment, or production completion without compatib
 1. Load `release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md`.
 2. Supply the valid Architect intake and exact source bundle.
 3. Produce an `ev4-ce-review-draft@1.0.0` containing analysis and proposals only.
-4. Let the runtime derive obligations and run claim-specific evaluators.
-5. Keep unavailable runtime evidence as explicit downstream obligations.
-6. Export only through `ev4-ce-project-gate-export` and the successor deterministic path.
+4. Let the runtime normalize Action IR and evaluate pre-Builder claims.
+5. Carry mandatory post-Builder outcomes as explicit runtime obligations.
+6. Hand the decision-free normalized package to Builder.
+7. Close runtime obligations only through actual downstream execution.
+8. Export only through `ev4-ce-project-gate-export` and the canonical deterministic path.
 
 ## Validation
 

@@ -6,6 +6,8 @@ on:
       - 'AGENTS.md'
       - 'README.md'
       - 'STATUS.md'
+      - 'contracts/CE_PHASE_AWARE_BUILDER_LIFECYCLE_V1_1.md'
+      - 'docs/CE_R4_MIGRATION.md'
       - 'manifests/ce-conversation-bootstrap.v1.json'
       - 'manifests/ce_pipeline_manifest.v1.json'
       - 'schemas/ce-conversation-bootstrap.v1.schema.json'
@@ -34,6 +36,7 @@ on:
       - 'tests/test_verified_constructability_runtime.py'
       - 'tests/test_ce_claim_policy_and_model_reduction.py'
       - 'tests/test_ce_r2_root_cause_repairs.py'
+      - 'tests/test_ce_r4_phase_aware.py'
       - 'validator/**'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/EV4_FIRST_RUN_GUIDE.md'
@@ -101,7 +104,8 @@ jobs:
             tests/test_ce_authority_mutation_harness.py \
             tests/test_verified_constructability_runtime.py \
             tests/test_ce_claim_policy_and_model_reduction.py \
-            tests/test_ce_r2_root_cause_repairs.py
+            tests/test_ce_r2_root_cause_repairs.py \
+            tests/test_ce_r4_phase_aware.py
           python scripts/report-ce-model-trust-field-reduction.py
 
       - name: Verify workflow policy
