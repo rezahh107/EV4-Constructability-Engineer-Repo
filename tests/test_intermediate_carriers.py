@@ -318,10 +318,22 @@ def test_raw_builder_package_requires_complete_official_schema(mutation):
         package["visual_parity_build"] = True
         package.pop("reference_paradigm_lock", None)
         package.pop("paradigm_to_structure_map", None)
-    values["final_payload"]["builder_executable_package"] = copy.deepcopy(package)
     result = evaluate(values)
     assert result["builder_ready"] is False
     assert "CE_STRATEGY_COVERAGE_PACKAGE_SCHEMA_VALIDATION_FAILED" in code_set(result)
+
+
+def test_same_invalid_package_in_raw_and_payload_hits_official_payload_validation():
+    values = transaction_inputs()
+    values["builder_executable_package"].pop("package_id")
+    values["final_payload"]["builder_executable_package"] = copy.deepcopy(
+        values["builder_executable_package"]
+    )
+    result = evaluate(values)
+    assert result["transaction_status"] == "invalid"
+    assert result["fidelity_passed"] is False
+    assert result["builder_ready"] is False
+    assert "CE_INTERMEDIATE_PAYLOAD_SCHEMA_INVALID" in code_set(result)
 
 
 @pytest.mark.parametrize(
@@ -427,6 +439,7 @@ def test_faithful_blocked_payload_is_schema_valid_but_not_ready():
         "node-root:R05_OVERLAY_STRATEGY_MUST_BE_PROVEN:overlay"
     ]
     values["constructability_review"]["constructability_status"] = "blocked"
+    values["constructability_review"]["reviewed_nodes"][0]["node_status"] = "blocked"
     values["implementation_strategy_map"] = None
     values["builder_executable_package"] = None
     first = evaluate(values)
@@ -444,6 +457,7 @@ def test_faithful_insufficient_payload_is_not_ready():
     interrogation["geometry_required"] = True
     interrogation["geometry_proven"] = False
     values["constructability_review"]["constructability_status"] = "needs_user_evidence"
+    values["constructability_review"]["reviewed_nodes"][0]["node_status"] = "needs_user_evidence"
     values["implementation_strategy_map"] = None
     values["builder_executable_package"] = None
     first = evaluate(values)

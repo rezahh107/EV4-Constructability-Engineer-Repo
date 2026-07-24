@@ -150,7 +150,7 @@ def test_semantic_violation_outside_carrier_projection_is_rejected():
         "parameters",
     ],
 )
-def test_same_invalid_package_in_raw_and_payload_is_not_builder_ready(mutation):
+def test_raw_invalid_package_is_not_builder_ready(mutation):
     values = transaction_inputs()
     package = values["builder_executable_package"]
     if mutation in {"package_id", "review_ref", "batch_id"}:
@@ -172,10 +172,22 @@ def test_same_invalid_package_in_raw_and_payload_is_not_builder_ready(mutation):
         package["first_safe_builder_batch"]["actions"][0].pop("target_node")
     else:
         package["first_safe_builder_batch"]["actions"][0]["parameters"] = []
-    values["final_payload"]["builder_executable_package"] = copy.deepcopy(package)
     result = evaluate_ce_intermediate_validation(**values)
     assert result["builder_ready"] is False
     assert "CE_STRATEGY_COVERAGE_PACKAGE_SCHEMA_VALIDATION_FAILED" in codes(result)
+
+
+def test_same_invalid_package_in_raw_and_payload_uses_official_payload_diagnostic():
+    values = transaction_inputs()
+    values["builder_executable_package"].pop("package_id")
+    values["final_payload"]["builder_executable_package"] = copy.deepcopy(
+        values["builder_executable_package"]
+    )
+    result = evaluate_ce_intermediate_validation(**values)
+    assert result["transaction_status"] == "invalid"
+    assert result["fidelity_passed"] is False
+    assert result["builder_ready"] is False
+    assert "CE_INTERMEDIATE_PAYLOAD_SCHEMA_INVALID" in codes(result)
 
 
 def test_repo_root_omission_is_a_call_error_not_a_validation_bypass():
