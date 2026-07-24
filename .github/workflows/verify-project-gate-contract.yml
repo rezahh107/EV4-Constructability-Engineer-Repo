@@ -1,9 +1,6 @@
 name: verify-project-gate-contract
 
 on:
-  push:
-    branches:
-      - 'agent/verified-constructability-proof-runtime'
   pull_request:
 
 permissions:
