@@ -39,10 +39,10 @@ if source.count(old) != 1:
 dirty_test.write_text(source.replace(old, new, 1), encoding="utf-8")
 
 argument_pattern = re.compile(
-    r'intermediate_inputs_path=([A-Za-z_][A-Za-z0-9_]*)\.with_name\("ce-intermediate-export-inputs\.json"\),'
+    r'intermediate_inputs_path=(.+)\.with_name\("ce-intermediate-export-inputs\.json"\),'
 )
 cli_pattern = re.compile(
-    r'str\(([A-Za-z_][A-Za-z0-9_]*)\.with_name\("ce-intermediate-export-inputs\.json"\)\)'
+    r'str\((.+)\.with_name\("ce-intermediate-export-inputs\.json"\)\)'
 )
 for path in sorted((root / "tests").glob("test_*.py")):
     current = path.read_text(encoding="utf-8")
