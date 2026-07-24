@@ -46,21 +46,8 @@ jobs:
 
           path = Path('tests/test_ce_exporter_explicit_inputs.py')
           text = path.read_text(encoding='utf-8')
-          old = '''    def fake_run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-        assert command == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]
-        return subprocess.CompletedProcess(command, 0, "feature/explicit-inputs\\n", "")
-
-    monkeypatch.setattr(core_module, "_git", fake_git)
-'''
-          new = '''    original_run = core_module._run
-
-    def fake_run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-        if command == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]:
-            return subprocess.CompletedProcess(command, 0, "feature/explicit-inputs\\n", "")
-        return original_run(command, cwd)
-
-    monkeypatch.setattr(core_module, "_git", fake_git)
-'''
+          old = '    def fake_run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:\n        assert command == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]\n        return subprocess.CompletedProcess(command, 0, "feature/explicit-inputs\\n", "")\n\n    monkeypatch.setattr(core_module, "_git", fake_git)\n'
+          new = '    original_run = core_module._run\n\n    def fake_run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:\n        if command == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]:\n            return subprocess.CompletedProcess(command, 0, "feature/explicit-inputs\\n", "")\n        return original_run(command, cwd)\n\n    monkeypatch.setattr(core_module, "_git", fake_git)\n'
           if text.count(old) != 1:
               raise SystemExit('expected dirty metadata test mock was not found exactly once')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
