@@ -80,6 +80,7 @@ def _write_real_authorized_inputs(workspace: Path, review: Path) -> tuple[Path, 
 
     _write_json(intake_path, intake)
     _write_json(bundle_path, source)
+    review.parent.mkdir(parents=True, exist_ok=True)
     _write_json(review, _geometry_draft(intake_path))
     return intake_path, bundle_path
 
