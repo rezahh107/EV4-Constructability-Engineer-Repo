@@ -100,4 +100,9 @@ jobs:
         run: npm run test:reference-paradigm-lock
 
       - name: Run repository regression suite
-        run: pytest -q
+        run: |
+          set +e
+          pytest -q --tb=short > /tmp/ce46-pytest.log 2>&1
+          status=$?
+          tail -n 180 /tmp/ce46-pytest.log
+          exit "$status"
