@@ -90,6 +90,10 @@ def main() -> int:
     if executable is None:
         raise AssertionError("Installed official CLI entry point was not found")
 
+    # Editable installation creates untracked package metadata. Remove that test-environment
+    # artifact so the first invocation represents an otherwise clean repository checkout.
+    shutil.rmtree(ROOT / "ev4_constructability_engineer.egg-info", ignore_errors=True)
+
     workspace = ROOT / ".tmp-ce-cli-validation"
     review = workspace / "custom-review-location" / "review-any-name.json"
     output = workspace / "verified-project-gate-export.json"
