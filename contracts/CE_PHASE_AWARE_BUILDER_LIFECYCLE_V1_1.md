@@ -2,7 +2,8 @@
 
 ## Status
 
-Local successor contract for the unmerged `ev4-ce-stage-payload@1.1.0` implementation in PR #45.
+Active local successor contract merged through `PR #45` into `main`.
+
 It does not modify the public Builder package or Project Gate envelope contracts.
 
 ## Lifecycle
@@ -29,19 +30,17 @@ Runtime validated
 Production ready
 ```
 
-`payload_status=complete` means the CE stage is complete and an eligible Builder package may be
-emitted. It does not mean that post-Builder runtime claims passed and never means production-ready.
+`payload_status=complete` means the CE stage is complete and an eligible Builder package may be emitted. It does not mean that post-Builder runtime claims passed and never means production-ready.
 
 ## Claim phases
 
 Every canonical claim declares exactly one phase:
 
-- `pre_builder_static`: CE/Architect decisions required before Builder handoff.
-- `pre_builder_capability`: original-source or bounded capability evidence required before handoff.
-- `post_builder_runtime`: an implemented target is required; CE emits an obligation.
+- `pre_builder_static`: CE or Architect decisions required before Builder handoff;
+- `pre_builder_capability`: original-source or bounded capability evidence required before handoff;
+- `post_builder_runtime`: an implemented target is required and CE carries a deterministic obligation until an actual runner can validate it.
 
-A mandatory runtime claim with no complete obligation blocks Builder handoff. A complete obligation
-with `status=required` does not block Builder, but blocks Final Project Gate.
+A mandatory runtime claim with no complete obligation blocks Builder handoff. A complete obligation with `status=required` does not block Builder, but blocks Final Project Gate.
 
 ## Runtime obligation
 
@@ -63,16 +62,15 @@ blocks_final_completion: true
 
 An obligation is a required future validation transaction. It is not execution evidence.
 
+The obligation identity, claim, subject, runner, target, required inputs, and assertions must be deterministic and complete. A missing, malformed, duplicate, or incorrectly bound obligation is a pre-Builder correctness failure.
+
 ## Runtime evidence boundary
 
-A JSON document containing `observed`, `observed_layout`, `accessible_name`, `passed`,
-`execution_status`, `exit_code`, or similar authored results is a declaration and cannot produce
-`VERIFIED_TOOL_EXECUTION`.
+A JSON document containing `observed`, `observed_layout`, `accessible_name`, `passed`, `execution_status`, `exit_code`, `captured_result`, or similar authored result fields is a declaration and cannot produce `VERIFIED_TOOL_EXECUTION`.
 
-A runtime claim may become executed only when a repository-owned runner invokes a real command/tool,
-generates observations internally, binds the result to the exact implemented target, and returns an
-accepted pass. No such Browser/Elementor/accessibility/QA runner exists in this repository today, so
-these claims remain downstream obligations.
+A runtime claim may become executed only when a repository-owned runner invokes a real command or tool, generates observations internally, binds the result to the exact implemented target and current transaction, and returns an accepted pass.
+
+No Browser, Elementor, accessibility, interaction, or QA runner currently exists in this repository. These claims therefore remain downstream obligations during normal CE-to-Builder handoff.
 
 ## Original-source evidence boundary
 
@@ -85,14 +83,11 @@ original source bytes
 → semantic comparison
 ```
 
-Supported local source types are JSON, HTML, CSS, and SVG. A `facts` envelope is not an original
-source. A cached extract is accepted only when the repository parser regenerates identical facts
-from the original source.
+Supported local source types are JSON, HTML, CSS, and SVG. A caller-authored `facts` envelope is not an original source. A cached extract is accepted only when the repository parser regenerates identical facts from the original source.
 
 ## Action IR
 
-The one Action Contract Registry defines accepted actions, parameters, aliases, effects, claims, and
-permissions. Every accepted proposal is normalized into:
+The single Action Contract Registry defines accepted actions, parameters, aliases, effects, claims, and permissions. Every accepted proposal is normalized into:
 
 ```yaml
 action_id:
@@ -106,8 +101,18 @@ decision_state:
 source_draft_path:
 ```
 
-Raw Draft parameters are not exported. Builder package actions are a projection of normalized Action
-IR only.
+Raw Draft parameters are not exported. Builder package actions are projected from normalized Action IR only.
+
+## Canonical evaluation and export
+
+```text
+validator.payload_fidelity.evaluate_ce_transaction
+→ validator.payload_assembler
+→ verified ev4-ce-stage-payload@1.1.0
+→ validator.verified_project_gate_exporter
+```
+
+The historical raw `ev4-ce-stage-payload@1.0.0` route remains validation and migration-preview only and cannot authorize Builder handoff.
 
 ## Compatibility
 
@@ -122,5 +127,4 @@ legacy_payload_authorization_supported: false
 
 ## Threat-model boundary
 
-This contract addresses functional correctness. Cryptographic attestation, hostile in-process caller
-resistance, privilege tokens, plugin sandboxing, and production deployment are outside scope.
+This contract addresses functional correctness. Cryptographic attestation, hostile in-process caller resistance, privilege tokens, plugin sandboxing, and production deployment are outside scope.
