@@ -23,7 +23,7 @@ PR_45_MAIN_RECONCILIATION:
   pull_request: 45
   base_branch: main
   verified_live_base_sha: d039c32629fe1535af98eb975bdcf441cb0f3df2
-  starting_pr_head_sha: cc2e36749db068a3e89575a96a46ef29df6f6d83
+  starting_pr_head_sha: a6694f0e6ab507bbcc1a1da4706c960c2f6ec2b0
   merge_commit_sha: 197b5867f73ece06845af49532e14afe0e8a2af7
   branch: agent/verified-constructability-proof-runtime
   integration_strategy: merge_main_then_semantic_reconciliation
@@ -148,12 +148,91 @@ CE_ARCHITECT_STAGE_INTAKE_V1_1:
   fixture_classification: synthetic
 ```
 
+## Historical Compatibility Status
+
+The following blocks are immutable historical facts retained for repository regression compatibility. They do not override `PR_45_MAIN_RECONCILIATION`.
+
+```yaml
+project_status:
+  role: implementation_strategy_gate
+  repository_profile: personal_single_operator
+  fail_closed_default: true
+  ce_project_gate_exporter_command: implemented_merged_pending_fresh_independent_rereview
+  ce_project_gate_exporter_post_merge_audit: repair_merged_content_equivalent_review_not_observed
+  ce_project_gate_exporter_exact_pr_head_validation: confirmed
+  ce_project_gate_exporter_exact_merged_main_ci: not_observed
+  ce_project_gate_exporter_post_merge_content_verification: confirmed_content_equivalent
+  ce_project_gate_exporter_fresh_independent_review: not_observed
+  ce_project_gate_exporter_findings_closed: false
+  production_ready: false
+```
+
+```yaml
+CE_02_POST_MERGE_EXPORTER_AUDIT:
+  prompt_id: P-004
+  task_id: CE-02
+  audited_default_branch: main
+  audited_main_commit: ebc73c28a154123b4c76f340ff0913934833789d
+  merged_pull_request: 36
+  merged_head_sha: 1804705c1ad86b4e414b2e5a40294bb8d1a9727a
+  merge_commit_content_delta_from_validated_head: none
+  repair_branch: audit/ce-02-exporter-audit-repair
+  exact_head_validation: pending
+  independent_repair_review: pending
+  repair_merged: false
+  project_gate_runtime_acceptance: unverified
+  cross_repository_e2e: unverified
+  builder_acceptance: unverified
+```
+
+```yaml
+CE_02_POST_MERGE_STATUS_RECONCILIATION:
+  task: PR_37_STATUS_RECONCILIATION
+  reconciliation_date: 2026-07-21
+  pull_request: 37
+  pull_request_state: merged
+  merged_at: 2026-07-17T16:19:23Z
+  validated_pr_base_sha: ebc73c28a154123b4c76f340ff0913934833789d
+  validated_head_sha: 677ff32edc8bca3e4c4156031d72b89a9c0a26d5
+  merge_commit_sha: 6650c31304e5a0472b276c36018c1df8f42ac983
+  current_main_sha_at_reconciliation: 6650c31304e5a0472b276c36018c1df8f42ac983
+  current_main_relationship_to_merge_commit: identical
+  merge_commit_file_delta_from_validated_head: none
+  exact_pr_head_validation:
+    validate_fixtures:
+      run_id: 29563815214
+      conclusion: success
+    verify_project_gate_contract:
+      run_id: 29563815485
+      conclusion: success
+    pytest:
+      tests: 287
+      failures: 0
+      errors: 0
+      skipped: 0
+  exact_merged_main_ci: not_observed
+  implementation_merged: true
+  repair_merged: true
+  post_merge_content_verification: confirmed
+  status_memory_synchronized: true
+  fresh_independent_review_on_repaired_head: not_observed
+  independent_review: insufficient_evidence
+  findings_closed: false
+  project_gate_runtime_acceptance: unverified
+  real_non_synthetic_cross_repository_handoff: unverified
+  cross_repository_e2e: unverified
+  builder_acceptance: unverified
+  responsive_completion: unverified
+  deployment: unverified
+  reconciliation_result: implementation_merged_content_equivalent_review_gap_retained
+```
+
 ## Historical Evidence
 
-The previous complete `STATUS.md` snapshot is preserved at:
+The previous complete `STATUS.md` snapshot is also preserved at:
 
 ```text
 docs/status/STATUS_PRE_PR45_MAIN_RECONCILIATION.md
 ```
 
-That file is historical evidence only. It cannot override this live reconciliation state.
+That file and the compatibility blocks above are historical evidence only. They cannot override this live reconciliation state.
