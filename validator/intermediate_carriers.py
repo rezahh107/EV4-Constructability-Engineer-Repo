@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from .engine import validate_document
 from .intermediate_carriers_common import (
     CARRIER_KINDS,
     DEPENDENCY_RULES,
@@ -24,11 +25,11 @@ from .intermediate_carriers_dependency import derive_dependency_classification
 from .intermediate_carriers_fidelity import (
     _compare_ce_payload_with_derived_carriers,
     validate_carrier,
-    validate_ce_payload_against_intermediate_carriers,
 )
 from .intermediate_carriers_identity import derive_architecture_identity_preservation
 from .intermediate_carriers_review import derive_review_units_and_interrogation_results
 from .intermediate_carriers_strategy import derive_implementation_strategy_coverage
+from .project_gate_export import validate_ce_stage_payload
 
 
 def _transaction_status(
@@ -50,6 +51,117 @@ def _carrier_map(carriers: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     }
 
 
+def _resolve_repo_root(repo_root: str | Path) -> tuple[Path | None, list[dict[str, Any]]]:
+    kind = "ce_intermediate_validation_transaction"
+    try:
+        root = Path(repo_root).resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        diagnostic = _diag(
+            "CE_INTERMEDIATE_REPOSITORY_ROOT_INVALID",
+            kind,
+            "invalid",
+            f"Authoritative repository root cannot be resolved: {exc}",
+            "$.repo_root",
+            repair_owner="repository_owner",
+        )
+        return None, [diagnostic.as_dict()]
+    required = (
+        root / "schemas/ce_stage_payload.v1.schema.json",
+        root / "schemas/ce_intermediate_validation_carriers.v1.schema.json",
+        root / "schemas/builder_executable_package.schema.json",
+    )
+    missing = [path.as_posix() for path in required if not path.is_file()]
+    if missing:
+        diagnostic = _diag(
+            "CE_INTERMEDIATE_REPOSITORY_ROOT_INCOMPLETE",
+            kind,
+            "invalid",
+            "Authoritative repository root is missing required validation schemas.",
+            "$.repo_root",
+            repair_owner="repository_owner",
+            related_ids=missing,
+        )
+        return None, [diagnostic.as_dict()]
+    return root, []
+
+
+def _official_payload_diagnostics(
+    final_payload: dict[str, Any],
+    repo_root: Path,
+) -> list[dict[str, Any]]:
+    kind = "ce_intermediate_validation_transaction"
+    diagnostics: list[dict[str, Any]] = []
+    for item in validate_ce_stage_payload(repo_root, final_payload):
+        diagnostics.append(
+            _diag(
+                "CE_INTERMEDIATE_PAYLOAD_SCHEMA_INVALID",
+                kind,
+                "invalid",
+                f"{item.code}: {item.message}",
+                str(item.path or "$"),
+                related_ids=[item.code],
+            ).as_dict()
+        )
+
+    semantic = validate_document(final_payload, repo_root=repo_root, mode="full")
+    for error in sorted(str(value) for value in semantic.get("schema_errors") or []):
+        path = error.split(":", 1)[0] if ":" in error else "$"
+        diagnostics.append(
+            _diag(
+                "CE_INTERMEDIATE_PAYLOAD_SCHEMA_INVALID",
+                kind,
+                "invalid",
+                error,
+                path,
+            ).as_dict()
+        )
+    violations = [
+        item for item in semantic.get("violations") or [] if isinstance(item, dict)
+    ]
+    violations.sort(
+        key=lambda item: (
+            str(item.get("location") or "$"),
+            str(item.get("rule_id") or ""),
+            str(item.get("message") or ""),
+        )
+    )
+    for item in violations:
+        rule_id = str(item.get("rule_id") or "CE_SEMANTIC_VALIDATION_FAILED")
+        diagnostics.append(
+            _diag(
+                "CE_INTERMEDIATE_PAYLOAD_SEMANTIC_INVALID",
+                kind,
+                "invalid",
+                str(item.get("message") or "Official CE semantic validation failed."),
+                str(item.get("location") or "$"),
+                related_ids=[rule_id],
+            ).as_dict()
+        )
+    if not semantic.get("passed") and not diagnostics:
+        diagnostics.append(
+            _diag(
+                "CE_INTERMEDIATE_PAYLOAD_SEMANTIC_INVALID",
+                kind,
+                "invalid",
+                "Official CE Stage Payload validation failed without structured details.",
+                "$",
+            ).as_dict()
+        )
+    return sorted(diagnostics, key=_diagnostic_key)
+
+
+def _invalid_transaction(diagnostics: list[dict[str, Any]]) -> dict[str, Any]:
+    ordered = sorted(diagnostics, key=_diagnostic_key)
+    return {
+        "transaction_status": "invalid",
+        "fidelity_passed": False,
+        "builder_ready": False,
+        "carrier_statuses": {},
+        "carriers": {},
+        "diagnostics": ordered,
+    }
+
+
 def evaluate_ce_intermediate_validation(
     *,
     run_id: str,
@@ -59,14 +171,22 @@ def evaluate_ce_intermediate_validation(
     implementation_strategy_map: dict[str, Any] | None,
     builder_executable_package: dict[str, Any] | None,
     final_payload: dict[str, Any],
-    repo_root: str | Path | None = None,
+    repo_root: str | Path,
 ) -> dict[str, Any]:
-    """Run the authoritative raw-input CE intermediate validation transaction.
+    """Run the sole authoritative raw-input intermediate validation transaction.
 
-    Serialized carrier dictionaries are outputs only. This API deliberately
-    accepts no caller-supplied carriers, so the final fidelity decision always
-    uses carriers rederived in this function execution.
+    Serialized carriers are observational outputs only. The final Payload first
+    passes the official CE Schema and semantic validators, then all four carriers
+    are rederived from independent raw inputs in this same execution.
     """
+
+    root, root_diagnostics = _resolve_repo_root(repo_root)
+    if root is None:
+        return _invalid_transaction(root_diagnostics)
+
+    payload_diagnostics = _official_payload_diagnostics(final_payload, root)
+    if payload_diagnostics:
+        return _invalid_transaction(payload_diagnostics)
 
     carrier_validation_diagnostics: list[dict[str, Any]] = []
 
@@ -77,7 +197,7 @@ def evaluate_ce_intermediate_validation(
         constructability_review=constructability_review,
     )
     carrier_validation_diagnostics.extend(
-        validate_carrier(identity_carrier, repo_root=repo_root)
+        validate_carrier(identity_carrier, repo_root=root)
     )
 
     review_carrier = derive_review_units_and_interrogation_results(
@@ -86,7 +206,7 @@ def evaluate_ce_intermediate_validation(
         constructability_review=constructability_review,
     )
     carrier_validation_diagnostics.extend(
-        validate_carrier(review_carrier, repo_root=repo_root)
+        validate_carrier(review_carrier, repo_root=root)
     )
 
     dependency_carrier = derive_dependency_classification(
@@ -95,7 +215,7 @@ def evaluate_ce_intermediate_validation(
         constructability_review=constructability_review,
     )
     carrier_validation_diagnostics.extend(
-        validate_carrier(dependency_carrier, repo_root=repo_root)
+        validate_carrier(dependency_carrier, repo_root=root)
     )
 
     strategy_carrier = derive_implementation_strategy_coverage(
@@ -103,11 +223,13 @@ def evaluate_ce_intermediate_validation(
         identity_carrier=identity_carrier,
         review_carrier=review_carrier,
         dependency_carrier=dependency_carrier,
+        constructability_review=constructability_review,
         implementation_strategy_map=implementation_strategy_map,
         builder_executable_package=builder_executable_package,
+        repo_root=root,
     )
     carrier_validation_diagnostics.extend(
-        validate_carrier(strategy_carrier, repo_root=repo_root)
+        validate_carrier(strategy_carrier, repo_root=root)
     )
 
     carriers = [
@@ -163,7 +285,6 @@ def evaluate_ce_intermediate_validation(
     builder_ready = (
         fidelity_passed
         and all(status == "complete" for status in carrier_statuses.values())
-        and strategy_carrier.get("status") == "complete"
         and isinstance(builder_executable_package, dict)
     )
 

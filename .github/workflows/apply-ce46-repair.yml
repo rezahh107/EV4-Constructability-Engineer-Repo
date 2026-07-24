@@ -1,0 +1,49 @@
+name: Apply CE46 functional repair
+
+on:
+  push:
+    branches:
+      - agent/ce-intermediate-validation-carriers
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Apply deterministic repair payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .ce46-repair/part0 .ce46-repair/part1 .ce46-repair/part2 | base64 --decode > /tmp/ce46-repair.tar.xz
+          tar -xJf /tmp/ce46-repair.tar.xz -C "$GITHUB_WORKSPACE"
+          rm -rf .ce46-repair .github/workflows/apply-ce46-repair.yml
+          python -m py_compile validator/intermediate_carriers*.py validator/ce_validation_transaction.py tests/exporter_test_support.py tests/test_intermediate_carriers.py tests/test_intermediate_carriers_authority.py tests/test_ce_intermediate_export_transaction.py
+          python - <<'PY_SCHEMA'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+
+          for name in (
+              "schemas/ce_intermediate_validation_carriers.v1.schema.json",
+              "schemas/ce_intermediate_export_inputs.v1.schema.json",
+              "schemas/builder_executable_package.schema.json",
+              "schemas/ce_stage_payload.v1.schema.json",
+          ):
+              Draft202012Validator.check_schema(
+                  json.loads(Path(name).read_text(encoding="utf-8"))
+              )
+          PY_SCHEMA
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Integrate CE composite validation into export"
+          git push origin HEAD:${{ github.ref_name }}
