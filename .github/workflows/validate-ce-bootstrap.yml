@@ -12,7 +12,7 @@ jobs:
   diagnose-full-validation:
     runs-on: ubuntu-latest
     steps:
-      - name: Reproduce final validation concisely
+      - name: Run concise diagnostic
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -21,64 +21,4 @@ jobs:
             "https://x-access-token:${GH_TOKEN}@github.com/rezahh107/EV4-Constructability-Engineer-Repo.git" repo
           cd repo
           git fetch --quiet origin main:refs/remotes/origin/main
-          python - <<'PY'
-          from pathlib import Path
-
-          text = Path('.github/workflows/ce46-explicit-runtime-input-repair.yml').read_text(encoding='utf-8')
-          marker = "          python - <<'PY'\n"
-          start = text.index(marker) + len(marker)
-          end = text.index("\n          PY", start)
-          lines = text[start:end].splitlines()
-          script = "\n".join(
-              line[10:] if line.startswith("          ") else line
-              for line in lines
-          ) + "\n"
-          Path('/tmp/ce46_apply_repair.py').write_text(script, encoding='utf-8')
-          PY
-          python /tmp/ce46_apply_repair.py
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          dirty_test = Path('tests/test_ce_exporter_explicit_inputs.py')
-          text = dirty_test.read_text(encoding='utf-8')
-          old = '    def fake_run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:\n        assert command == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]\n        return subprocess.CompletedProcess(command, 0, "feature/explicit-inputs\\n", "")\n\n    monkeypatch.setattr(core_module, "_git", fake_git)\n'
-          new = '    original_run = core_module._run\n\n    def fake_run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:\n        if command == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]:\n            return subprocess.CompletedProcess(command, 0, "feature/explicit-inputs\\n", "")\n        return original_run(command, cwd)\n\n    monkeypatch.setattr(core_module, "_git", fake_git)\n'
-          dirty_test.write_text(text.replace(old, new, 1), encoding='utf-8')
-          argument_pattern = re.compile(r'intermediate_inputs_path=([A-Za-z_][A-Za-z0-9_]*)\.with_name\("ce-intermediate-export-inputs\.json"\),')
-          cli_pattern = re.compile(r'str\(([A-Za-z_][A-Za-z0-9_]*)\.with_name\("ce-intermediate-export-inputs\.json"\)\)')
-          for path in sorted(Path('tests').glob('test_*.py')):
-              source = path.read_text(encoding='utf-8')
-              updated = argument_pattern.sub(r'intermediate_inputs_path=Path(\1).with_name("ce-intermediate-export-inputs.json"),', source)
-              updated = cli_pattern.sub(r'str(Path(\1).with_name("ce-intermediate-export-inputs.json"))', updated)
-              if updated != source and 'from pathlib import Path' not in updated:
-                  anchor = 'from __future__ import annotations\n'
-                  updated = updated.replace(anchor, anchor + '\nfrom pathlib import Path\n', 1)
-              path.write_text(updated, encoding='utf-8')
-          PY
-          git checkout origin/main -- .github/workflows/validate-ce-bootstrap.yml
-          rm .github/workflows/ce46-explicit-runtime-input-repair.yml
-          rm .github/workflows/ce46-explicit-runtime-input-repair-pr.yml
-          python -m pip install -q -e '.[dev]' >/dev/null 2>&1
-          npm install --ignore-scripts --silent >/dev/null 2>&1
-
-          run_check() {
-            label="$1"
-            shift
-            set +e
-            "$@" > "/tmp/${label}.log" 2>&1
-            status=$?
-            set -e
-            if [ "$status" -ne 0 ]; then
-              echo "FAILED_CHECK=${label}"
-              tail -n 120 "/tmp/${label}.log"
-              exit "$status"
-            fi
-            echo "PASSED_CHECK=${label}"
-          }
-
-          run_check pytest pytest -q --tb=no
-          run_check behavioral python scripts/validate-behavioral-rule-coverage.py
-          run_check role_alignment python scripts/validate-role-alignment-fixtures.py
-          run_check producer_adoption python scripts/validate-project-gate-producer-adoption.py
-          run_check reference_lock npm run test:reference-paradigm-lock
+          python .github/ce46-full-diagnostic.py
