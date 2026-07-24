@@ -5,15 +5,32 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+from .artifact_adapters import (
+    ArtifactAdapterError,
+    ArtifactBinding,
+    evaluate_artifact_source,
+)
 from .claim_policy_registry import CLAIM_POLICIES, policy_projection
+from .runtime_execution import (
+    RuntimeExecutionBatch,
+    RuntimeExecutionBoundaryError,
+    execute_runtime_requests,
+    execution_transaction_id,
+    select_execution_result,
+)
 
 
 class ClaimEvaluationError(ValueError):
-    """Raised when evaluator inputs are malformed rather than merely insufficient."""
+    """Raised when evaluator inputs are malformed rather than insufficient."""
 
 
 def canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
 
 def sha256_json(value: Any) -> str:
@@ -62,14 +79,17 @@ def _base_evaluation(
         "claim_id": claim_id,
         "subject_ref": subject_ref,
         "status": status,
-        "blocking": bool(policy["blocking"]) and status not in {"satisfied", "not_applicable"},
+        "blocking": bool(policy["blocking"])
+        and status not in {"satisfied", "not_applicable"},
         "authority_owner": policy["authority_owner"],
         "applicable_rule": policy["applicable_rule"],
         "facts": dict(facts or {}),
         "evidence_refs": sorted(str(value) for value in evidence_refs),
         "limitations": [str(value) for value in limitations],
         "diagnostics": [dict(value) for value in diagnostics],
-        "downstream_obligation": dict(downstream_obligation) if downstream_obligation else None,
+        "downstream_obligation": (
+            dict(downstream_obligation) if downstream_obligation else None
+        ),
         "evidence_records": [dict(value) for value in evidence_records],
         "policy": policy_projection(claim_id),
     }
@@ -77,7 +97,11 @@ def _base_evaluation(
 
 def _semantic_missing(claim_id: str, semantics: Mapping[str, Any]) -> list[str]:
     required = CLAIM_POLICIES[claim_id]["required_semantics"]
-    return [str(key) for key in required if semantics.get(key) in (None, "", [], {})]
+    return [
+        str(key)
+        for key in required
+        if semantics.get(key) in (None, "", [], {})
+    ]
 
 
 def _attributed_evaluation(
@@ -88,9 +112,13 @@ def _attributed_evaluation(
 ) -> dict[str, Any]:
     missing = _semantic_missing(claim_id, semantics)
     rationale = str(node.get("engineering_rationale") or "").strip()
-    assumptions = [str(item) for item in node.get("assumptions") or [] if str(item).strip()]
+    assumptions = [
+        str(item)
+        for item in node.get("assumptions") or []
+        if str(item).strip()
+    ]
     if missing or not rationale or not assumptions:
-        details = []
+        details: list[str] = []
         if missing:
             details.append(f"missing semantics: {', '.join(missing)}")
         if not rationale:
@@ -108,21 +136,23 @@ def _attributed_evaluation(
         "mode": "ATTRIBUTED_ENGINEERING_JUDGMENT",
         "claim_id": claim_id,
         "subject_ref": subject_ref,
-        "reviewer_identity": str(node.get("reviewer_identity") or "constructability_engineer"),
+        "reviewer_identity": str(
+            node.get("reviewer_identity") or "constructability_engineer"
+        ),
         "premises": assumptions,
         "derivation_method": rationale,
         "semantic_facts": dict(semantics),
         "limitations": [str(item) for item in node.get("limitations") or []],
     }
-    digest = sha256_json(record)
+    evidence_id = sha256_json(record)
     return _base_evaluation(
         claim_id,
         subject_ref,
         status="satisfied",
         facts=semantics,
-        evidence_refs=[digest],
+        evidence_refs=[evidence_id],
         limitations=record["limitations"],
-        evidence_records=[{**record, "evidence_id": digest}],
+        evidence_records=[{**record, "evidence_id": evidence_id}],
     )
 
 
@@ -130,24 +160,14 @@ def _resolve_repo_path(repo_root: Path, source_ref: str) -> Path:
     root = repo_root.resolve(strict=True)
     candidate = Path(source_ref)
     path = candidate if candidate.is_absolute() else root / candidate
-    resolved = path.resolve(strict=True)
     try:
+        resolved = path.resolve(strict=True)
         resolved.relative_to(root)
-    except ValueError as exc:
-        raise ClaimEvaluationError("Repository source escaped repo root") from exc
+    except (OSError, ValueError) as exc:
+        raise ClaimEvaluationError("Repository source escaped repo root or is unavailable") from exc
     if not resolved.is_file():
         raise ClaimEvaluationError("Repository source is not a file")
     return resolved
-
-
-def _load_semantic_source(path: Path) -> tuple[Any, str, bytes]:
-    raw = path.read_bytes()
-    text = raw.decode("utf-8", errors="replace")
-    try:
-        parsed: Any = json.loads(text)
-    except json.JSONDecodeError:
-        parsed = text
-    return parsed, text, raw
 
 
 def _artifact_source_evaluation(
@@ -156,7 +176,8 @@ def _artifact_source_evaluation(
     node: Mapping[str, Any],
     semantics: Mapping[str, Any],
     repo_root: Path,
-    semantic_check: Callable[[Any, str, Mapping[str, Any]], tuple[bool, dict[str, Any], str]],
+    architect_intake: Mapping[str, Any],
+    source_bundle: Mapping[str, Any],
 ) -> dict[str, Any]:
     candidates = _candidate_sources(node, claim_id)
     if not candidates:
@@ -167,28 +188,41 @@ def _artifact_source_evaluation(
             limitations=["No exact repository source was supplied."],
             diagnostics=[{"code": "CE_CLAIM_SOURCE_REQUIRED"}],
         )
+    candidate_id = architect_intake.get("selected_architecture", {}).get(
+        "selected_candidate_id"
+    )
+    bundle_id = source_bundle.get("bundle_id")
+    if not isinstance(candidate_id, str) or not isinstance(bundle_id, str):
+        raise ClaimEvaluationError("Canonical artifact binding identity is incomplete")
+    binding = ArtifactBinding(
+        claim_id=claim_id,
+        subject_ref=subject_ref,
+        selected_candidate_id=candidate_id,
+        source_bundle_id=bundle_id,
+        intake_digest=sha256_json(architect_intake),
+    )
     diagnostics: list[dict[str, Any]] = []
     limitations: list[str] = []
     for source in candidates:
-        if source.get("mode") != "VERIFIED_ARTIFACT" or not isinstance(source.get("source_ref"), str):
+        if source.get("mode") != "VERIFIED_ARTIFACT" or not isinstance(
+            source.get("source_ref"), str
+        ):
             diagnostics.append({"code": "CE_CLAIM_SOURCE_MODE_INVALID"})
             continue
         try:
             path = _resolve_repo_path(repo_root, str(source["source_ref"]))
-            parsed, text, raw = _load_semantic_source(path)
-        except (OSError, ClaimEvaluationError) as exc:
+            facts, adapter_metadata = evaluate_artifact_source(
+                claim_id=claim_id,
+                path=path,
+                semantics=semantics,
+                binding=binding,
+            )
+        except (OSError, ClaimEvaluationError, ArtifactAdapterError) as exc:
             limitations.append(str(exc))
-            diagnostics.append({"code": "CE_CLAIM_SOURCE_UNAVAILABLE"})
-            continue
-        supported, facts, reason = semantic_check(parsed, text, semantics)
-        source_digest = hashlib.sha256(raw).hexdigest()
-        if not supported:
-            limitations.append(reason)
             diagnostics.append(
                 {
-                    "code": "CE_CLAIM_FILE_INTEGRITY_WITHOUT_SEMANTIC_SUPPORT",
-                    "source_ref": str(source["source_ref"]),
-                    "source_bytes_sha256": source_digest,
+                    "code": "CE_CLAIM_STRUCTURED_ARTIFACT_UNSUPPORTED_OR_MISMATCHED",
+                    "source_ref": str(source.get("source_ref") or ""),
                 }
             )
             continue
@@ -197,10 +231,15 @@ def _artifact_source_evaluation(
             "claim_id": claim_id,
             "subject_ref": subject_ref,
             "source_ref": str(source["source_ref"]),
-            "source_identity": str(source.get("source_identity") or source["source_ref"]),
-            "source_bytes_sha256": source_digest,
+            "source_identity": str(
+                source.get("source_identity") or source["source_ref"]
+            ),
+            "source_bytes_sha256": adapter_metadata["source_bytes_sha256"],
+            "source_schema_id": adapter_metadata["schema_id"],
+            "source_role": adapter_metadata["source_role"],
+            "adapter_id": adapter_metadata["adapter_id"],
             "semantic_facts": facts,
-            "verification": "claim_specific_semantic_parse",
+            "verification": "source_type_specific_structured_adapter",
         }
         evidence_id = sha256_json(record)
         return _base_evaluation(
@@ -215,68 +254,10 @@ def _artifact_source_evaluation(
         claim_id,
         subject_ref,
         status="insufficient_evidence",
-        limitations=limitations or ["No candidate source semantically supported the claim."],
+        limitations=limitations
+        or ["No supported structured source semantically established the claim."],
         diagnostics=diagnostics,
     )
-
-
-def _semantic_tokens(value: Any) -> list[str]:
-    tokens: list[str] = []
-    if isinstance(value, Mapping):
-        for child in value.values():
-            tokens.extend(_semantic_tokens(child))
-    elif isinstance(value, list):
-        for child in value:
-            tokens.extend(_semantic_tokens(child))
-    elif isinstance(value, (str, int, float)) and str(value).strip():
-        tokens.append(str(value))
-    return tokens
-
-
-def _geometry_source_check(parsed: Any, text: str, semantics: Mapping[str, Any]) -> tuple[bool, dict[str, Any], str]:
-    missing = _semantic_missing("geometry", semantics)
-    if missing:
-        return False, {}, f"Geometry semantics are incomplete: {', '.join(missing)}"
-    binding_tokens = _semantic_tokens(semantics.get("anchor_model"))
-    subject_token = semantics.get("subject_token")
-    if isinstance(subject_token, str) and subject_token:
-        binding_tokens.append(subject_token)
-    if not binding_tokens or not any(token in text for token in binding_tokens):
-        return False, {}, "Source file does not contain the claimed geometry subject/anchor semantics."
-    return True, dict(semantics), ""
-
-
-def _overlay_source_check(parsed: Any, text: str, semantics: Mapping[str, Any]) -> tuple[bool, dict[str, Any], str]:
-    missing = _semantic_missing("overlay_strategy", semantics)
-    if missing:
-        return False, {}, f"Overlay semantics are incomplete: {', '.join(missing)}"
-    tokens = [
-        str(semantics["containment_model"]),
-        str(semantics["positioning_model"]),
-        str(semantics["stacking_model"]),
-    ]
-    if not all(token in text for token in tokens):
-        return False, {}, "Source lacks containment, positioning, or stacking semantics."
-    return True, dict(semantics), ""
-
-
-def _ui_source_check(parsed: Any, text: str, semantics: Mapping[str, Any]) -> tuple[bool, dict[str, Any], str]:
-    control_path = semantics.get("control_path")
-    if not isinstance(control_path, str) or not control_path:
-        return False, {}, "Exact UI control path is missing from claim semantics."
-    if control_path not in text:
-        return False, {}, "Repository file exists but does not contain the claimed UI control path."
-    return True, {"control_path": control_path}, ""
-
-
-def _asset_source_check(parsed: Any, text: str, semantics: Mapping[str, Any]) -> tuple[bool, dict[str, Any], str]:
-    suitability = semantics.get("subject_suitability")
-    subject_token = semantics.get("subject_token")
-    if not isinstance(suitability, str) or not suitability:
-        return False, {}, "Asset suitability rationale is missing."
-    if isinstance(subject_token, str) and subject_token and subject_token not in text:
-        return False, {}, "Asset source exists but is not bound to the claimed subject."
-    return True, {"subject_suitability": suitability, "subject_token": subject_token}, ""
 
 
 def evaluate_geometry(context: Mapping[str, Any]) -> dict[str, Any]:
@@ -285,7 +266,13 @@ def evaluate_geometry(context: Mapping[str, Any]) -> dict[str, Any]:
     semantics = _semantics(node, claim_id)
     if _candidate_sources(node, claim_id):
         return _artifact_source_evaluation(
-            claim_id, context["subject_ref"], node, semantics, context["repo_root"], _geometry_source_check
+            claim_id,
+            context["subject_ref"],
+            node,
+            semantics,
+            context["repo_root"],
+            context["architect_intake"],
+            context["source_bundle"],
         )
     return _attributed_evaluation(claim_id, context["subject_ref"], node, semantics)
 
@@ -296,7 +283,13 @@ def evaluate_overlay_strategy(context: Mapping[str, Any]) -> dict[str, Any]:
     semantics = _semantics(node, claim_id)
     if _candidate_sources(node, claim_id):
         return _artifact_source_evaluation(
-            claim_id, context["subject_ref"], node, semantics, context["repo_root"], _overlay_source_check
+            claim_id,
+            context["subject_ref"],
+            node,
+            semantics,
+            context["repo_root"],
+            context["architect_intake"],
+            context["source_bundle"],
         )
     return _attributed_evaluation(claim_id, context["subject_ref"], node, semantics)
 
@@ -310,7 +303,8 @@ def evaluate_ui_control_path(context: Mapping[str, Any]) -> dict[str, Any]:
         node,
         _semantics(node, claim_id),
         context["repo_root"],
-        _ui_source_check,
+        context["architect_intake"],
+        context["source_bundle"],
     )
 
 
@@ -323,7 +317,8 @@ def evaluate_asset_source(context: Mapping[str, Any]) -> dict[str, Any]:
         node,
         _semantics(node, claim_id),
         context["repo_root"],
-        _asset_source_check,
+        context["architect_intake"],
+        context["source_bundle"],
     )
 
 
@@ -334,7 +329,9 @@ def evaluate_placeholder_policy(context: Mapping[str, Any]) -> dict[str, Any]:
     if "premises" not in semantics:
         semantics["premises"] = list(node.get("assumptions") or [])
     if "derivation_method" not in semantics:
-        semantics["derivation_method"] = str(node.get("engineering_rationale") or "")
+        semantics["derivation_method"] = str(
+            node.get("engineering_rationale") or ""
+        )
     return _attributed_evaluation(claim_id, context["subject_ref"], node, semantics)
 
 
@@ -384,7 +381,7 @@ def evaluate_architect_decision(context: Mapping[str, Any]) -> dict[str, Any]:
             context["subject_ref"],
             status="architect_decision_required",
             limitations=[
-                "Canonical Architect approval is absent or is bound to another candidate or subject."
+                "Canonical Architect approval is absent or bound to another candidate or subject."
             ],
             diagnostics=[{"code": diagnostic}],
         )
@@ -408,70 +405,47 @@ def evaluate_architect_decision(context: Mapping[str, Any]) -> dict[str, Any]:
 
 
 KNOWN_RUNTIME_EVALUATORS = {
-    "responsive_behavior": {"ce-responsive-evaluator", "browser-responsive-check"},
-    "accessibility": {"ce-accessibility-evaluator", "axe-core"},
-    "QA": {"ce-qa-evaluator", "pytest", "playwright"},
+    "responsive_behavior": {"ce-responsive-evaluator"},
+    "accessibility": {"ce-accessibility-evaluator"},
+    "QA": {"ce-qa-evaluator"},
 }
 
 
 def _runtime_evaluation(context: Mapping[str, Any]) -> dict[str, Any]:
     claim_id = str(context["claim_id"])
     subject_ref = str(context["subject_ref"])
-    expected_target = str(
-        _semantics(_draft_node(context["review_draft"], subject_ref), claim_id).get("target_identity")
-        or subject_ref
+    semantics = _semantics(_draft_node(context["review_draft"], subject_ref), claim_id)
+    expected_target = str(semantics.get("target_identity") or subject_ref)
+    transaction_id = str(context["execution_transaction_id"])
+    result = select_execution_result(
+        context.get("execution_batch"),
+        transaction_id=transaction_id,
+        claim_id=claim_id,
+        subject_ref=subject_ref,
     )
-    matching = [
-        dict(item)
-        for item in context.get("runtime_results") or []
-        if isinstance(item, Mapping)
-        and item.get("claim_id") == claim_id
-        and item.get("subject_ref") == subject_ref
-    ]
-    for result in matching:
-        captured = result.get("captured_result")
-        digest = result.get("result_digest")
-        evaluator_id = result.get("evaluator_id")
-        method = result.get("method_or_command")
-        execution_status = result.get("execution_status")
-        exit_code = result.get("exit_code")
-        target = result.get("target_identity")
-        limitations = result.get("limitations")
-        structurally_actual = (
-            evaluator_id in KNOWN_RUNTIME_EVALUATORS[claim_id]
-            and isinstance(method, str)
-            and bool(method)
-            and execution_status == "success"
-            and exit_code == 0
-            and target == expected_target
-            and isinstance(captured, Mapping)
-            and isinstance(digest, str)
-            and digest == sha256_json(captured)
-            and isinstance(limitations, list)
-        )
-        if not structurally_actual:
-            continue
+    if (
+        result is not None
+        and result.target_identity == expected_target
+        and result.execution_status == "success"
+        and result.exit_code == 0
+        and result.result_digest == sha256_json(result.captured_result)
+    ):
         record = {
             "mode": "VERIFIED_TOOL_EXECUTION",
-            "claim_id": claim_id,
-            "subject_ref": subject_ref,
-            "evaluator_id": evaluator_id,
-            "method_or_command": method,
-            "target_identity": target,
-            "execution_status": execution_status,
-            "exit_code": exit_code,
-            "result_digest": digest,
-            "captured_result": dict(captured),
-            "limitations": list(limitations),
+            **result.as_dict(),
         }
         evidence_id = sha256_json(record)
         return _base_evaluation(
             claim_id,
             subject_ref,
             status="satisfied",
-            facts={"target_identity": target, "result_digest": digest},
+            facts={
+                "target_identity": result.target_identity,
+                "result_digest": result.result_digest,
+                "transaction_id": result.transaction_id,
+            },
             evidence_refs=[evidence_id],
-            limitations=record["limitations"],
+            limitations=result.limitations,
             evidence_records=[{**record, "evidence_id": evidence_id}],
         )
 
@@ -479,16 +453,29 @@ def _runtime_evaluation(context: Mapping[str, Any]) -> dict[str, Any]:
         "claim_id": claim_id,
         "subject_ref": subject_ref,
         "consumer_stage": "responsive_or_builder_runtime",
-        "required_test": f"Execute the repository-supported {claim_id} evaluator for {subject_ref}.",
+        "required_test": (
+            f"Execute the repository-owned {claim_id} adapter for {subject_ref} "
+            "inside the current CE evaluation transaction."
+        ),
         "blocking_behavior": "block_builder_handoff",
-        "completion_criteria": "A known evaluator returns success for the exact target with captured result digest.",
+        "completion_criteria": (
+            "The repository-owned adapter executes successfully for the exact claim, "
+            "subject, target, and transaction."
+        ),
     }
+    diagnostic = (
+        "CE_CLAIM_RUNTIME_EXECUTION_FAILED"
+        if result is not None
+        else "CE_CLAIM_RUNTIME_EXECUTION_REQUIRED"
+    )
     return _base_evaluation(
         claim_id,
         subject_ref,
         status="downstream_validation_required",
-        limitations=["No actual repository-supported execution result was captured."],
-        diagnostics=[{"code": "CE_CLAIM_RUNTIME_EXECUTION_REQUIRED"}],
+        limitations=[
+            "No successful repository-owned execution result exists in this evaluation transaction."
+        ],
+        diagnostics=[{"code": diagnostic}],
         downstream_obligation=obligation,
         evidence_records=[
             {
@@ -536,13 +523,47 @@ def evaluate_claim(
     source_bundle: Mapping[str, Any],
     review_draft: Mapping[str, Any],
     repository_sources: Mapping[str, Any],
-    runtime_results: Sequence[Mapping[str, Any]] = (),
+    runtime_execution_requests: Sequence[Mapping[str, Any]] = (),
+    *,
+    execution_batch: RuntimeExecutionBatch | None = None,
+    execution_transaction_id_override: str | None = None,
 ) -> dict[str, Any]:
     if claim_id not in CLAIM_POLICIES or claim_id not in EVALUATORS:
         raise ClaimEvaluationError(f"Unknown claim evaluator: {claim_id}")
     repo_root = repository_sources.get("repo_root")
     if not isinstance(repo_root, Path):
         repo_root = Path(str(repo_root))
+    transaction_id = execution_transaction_id_override or execution_transaction_id(
+        architect_intake=architect_intake,
+        source_bundle=source_bundle,
+        review_draft=review_draft,
+        requests=runtime_execution_requests,
+    )
+    if execution_batch is None and runtime_execution_requests:
+        try:
+            execution_batch = execute_runtime_requests(
+                repo_root=repo_root,
+                transaction_id=transaction_id,
+                requests=runtime_execution_requests,
+            )
+        except RuntimeExecutionBoundaryError as exc:
+            if claim_id in KNOWN_RUNTIME_EVALUATORS:
+                return _base_evaluation(
+                    claim_id,
+                    subject,
+                    status="downstream_validation_required",
+                    limitations=[str(exc)],
+                    diagnostics=[{"code": "CE_CLAIM_RUNTIME_REQUEST_REJECTED"}],
+                    downstream_obligation={
+                        "claim_id": claim_id,
+                        "subject_ref": subject,
+                        "consumer_stage": "responsive_or_builder_runtime",
+                        "required_test": "Provide a valid repository-owned execution request.",
+                        "blocking_behavior": "block_builder_handoff",
+                        "completion_criteria": "Repository adapter executes successfully in the current transaction.",
+                    },
+                )
+            raise ClaimEvaluationError(str(exc)) from exc
     context = {
         "claim_id": claim_id,
         "subject_ref": subject,
@@ -551,6 +572,17 @@ def evaluate_claim(
         "source_bundle": source_bundle,
         "review_draft": review_draft,
         "repo_root": repo_root,
-        "runtime_results": list(runtime_results),
+        "execution_batch": execution_batch,
+        "execution_transaction_id": transaction_id,
     }
     return EVALUATORS[claim_id](context)
+
+
+__all__ = [
+    "ClaimEvaluationError",
+    "EVALUATORS",
+    "KNOWN_RUNTIME_EVALUATORS",
+    "canonical_bytes",
+    "evaluate_claim",
+    "sha256_json",
+]

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -19,7 +18,7 @@ def recompute_expected_payload(
     source_bundle: Mapping[str, Any],
     review_draft: Mapping[str, Any],
     repo_root: Path,
-    runtime_results: Sequence[Mapping[str, Any]] = (),
+    runtime_execution_requests: Sequence[Mapping[str, Any]] = (),
     input_metadata: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     results = evaluate_all(
@@ -27,7 +26,7 @@ def recompute_expected_payload(
         source_bundle,
         review_draft,
         repo_root=repo_root,
-        runtime_results=runtime_results,
+        runtime_execution_requests=runtime_execution_requests,
     )
     payload = assemble_ce_stage_payload(
         results["identity_result"],
@@ -38,7 +37,7 @@ def recompute_expected_payload(
             "architect_intake": architect_intake,
             "source_bundle": source_bundle,
             "review_draft": review_draft,
-            "runtime_results": list(runtime_results),
+            "runtime_execution_requests": [dict(item) for item in runtime_execution_requests],
             "input_metadata": dict(input_metadata or {}),
         },
     )
@@ -64,7 +63,9 @@ def compare_persisted_payload(
         "boundary_assertions",
     )
     for key in surfaces:
-        if canonical_bytes(persisted_payload.get(key)) != canonical_bytes(expected_payload.get(key)):
+        if canonical_bytes(persisted_payload.get(key)) != canonical_bytes(
+            expected_payload.get(key)
+        ):
             diagnostics.append(
                 {
                     "code": "CE_PAYLOAD_FIDELITY_MISMATCH",
@@ -90,7 +91,7 @@ def validate_payload_fidelity(
     source_bundle: Mapping[str, Any],
     review_draft: Mapping[str, Any],
     repo_root: Path,
-    runtime_results: Sequence[Mapping[str, Any]] = (),
+    runtime_execution_requests: Sequence[Mapping[str, Any]] = (),
     input_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     expected, results = recompute_expected_payload(
@@ -98,7 +99,7 @@ def validate_payload_fidelity(
         source_bundle=source_bundle,
         review_draft=review_draft,
         repo_root=repo_root,
-        runtime_results=runtime_results,
+        runtime_execution_requests=runtime_execution_requests,
         input_metadata=input_metadata,
     )
     diagnostics = compare_persisted_payload(persisted_payload, expected)
@@ -110,10 +111,7 @@ def validate_payload_fidelity(
     }
 
 
-def validate_export_fidelity(
-    export: Mapping[str, Any],
-    **kwargs: Any,
-) -> dict[str, Any]:
+def validate_export_fidelity(export: Mapping[str, Any], **kwargs: Any) -> dict[str, Any]:
     payload = (
         export.get("final_stage_bundle", {}).get("payload", {}).get("data")
         if isinstance(export.get("final_stage_bundle"), Mapping)
@@ -137,7 +135,9 @@ def assert_payload_fidelity(*args: Any, **kwargs: Any) -> None:
     report = validate_payload_fidelity(*args, **kwargs)
     if report["diagnostics"]:
         first = report["diagnostics"][0]
-        raise PayloadFidelityError(f"{first['code']} at {first['path']}: {first['message']}")
+        raise PayloadFidelityError(
+            f"{first['code']} at {first['path']}: {first['message']}"
+        )
 
 
 def cloned(value: Mapping[str, Any]) -> dict[str, Any]:

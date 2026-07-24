@@ -33,6 +33,7 @@ on:
       - 'tests/test_ce_authority_mutation_harness.py'
       - 'tests/test_verified_constructability_runtime.py'
       - 'tests/test_ce_claim_policy_and_model_reduction.py'
+      - 'tests/test_ce_r2_root_cause_repairs.py'
       - 'validator/**'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/PROJECT_INSTRUCTIONS.md'
       - 'release/EV4_CE_PROJECT_RELEASE_PACK_v1/EV4_FIRST_RUN_GUIDE.md'
@@ -99,7 +100,8 @@ jobs:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
             tests/test_ce_authority_mutation_harness.py \
             tests/test_verified_constructability_runtime.py \
-            tests/test_ce_claim_policy_and_model_reduction.py
+            tests/test_ce_claim_policy_and_model_reduction.py \
+            tests/test_ce_r2_root_cause_repairs.py
           python scripts/report-ce-model-trust-field-reduction.py
 
       - name: Verify workflow policy

@@ -124,12 +124,18 @@ CLAIM_POLICIES: Final[dict[str, dict[str, Any]]] = {
 }
 
 
-# Small explicit rule matrix for the currently supported Builder action vocabulary.
-# Empty tuples are explicit repository-defined non-applicability, never accidental emptiness.
+# Explicit rule matrix for the supported Builder action vocabulary.
+# Empty tuples are repository-defined non-applicability, never accidental emptiness.
 ACTION_CLAIMS: Final[dict[str, tuple[str, ...]]] = {
     "preserve_existing": (),
     "inspect_only": (),
     "create_element": ("geometry",),
+    "remove_element": ("geometry",),
+    "delete_element": ("geometry",),
+    "reparent_element": ("geometry",),
+    "move_element": ("geometry",),
+    "replace_element": ("geometry",),
+    "rename_node": ("geometry",),
     "configure_layout": ("geometry",),
     "set_style": ("geometry",),
     "apply_class": ("geometry",),
@@ -178,6 +184,5 @@ def derive_action_claims(action_type: str) -> tuple[str, ...] | None:
 
 
 def mutable_claim_policies() -> dict[str, dict[str, Any]]:
-    """Return a detached reporting copy; runtime modules import CLAIM_POLICIES directly."""
-
+    """Return a detached reporting copy; runtime imports CLAIM_POLICIES directly."""
     return copy.deepcopy(CLAIM_POLICIES)
