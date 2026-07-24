@@ -9,6 +9,12 @@
   be the original JSON/HTML/CSS/SVG source, not a CE `facts` extract.
 - `cached_extract_ref` is optional and must regenerate byte-semantically from the original source.
 
+## Canonical evaluation path
+
+Direct Python use, CLI execution, fidelity replay, and the official exporter all resolve through
+`validator.payload_fidelity.evaluate_ce_transaction`. No separate direct-Python authority path is
+supported.
+
 ## Payload consumers
 
 - `payload_status=complete` is CE-stage completion and Builder readiness only.
