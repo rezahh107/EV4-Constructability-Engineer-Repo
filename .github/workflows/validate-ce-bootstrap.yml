@@ -12,16 +12,14 @@ jobs:
   diagnose-repair:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repair branch
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          ref: agent/ce-intermediate-validation-carriers
-          fetch-depth: 1
-          show-progress: false
-          persist-credentials: false
-
-      - name: Extract and run repair script
+      - name: Clone and run repair script
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          git clone --quiet --depth=1 \
+            --branch agent/ce-intermediate-validation-carriers \
+            "https://x-access-token:${GH_TOKEN}@github.com/rezahh107/EV4-Constructability-Engineer-Repo.git" repo
+          cd repo
           python - <<'PY'
           from pathlib import Path
           import textwrap
