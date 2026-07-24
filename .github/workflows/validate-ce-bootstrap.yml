@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/validate-ce-bootstrap.yml'
+      - '.github/ce46-full-diagnostic.py'
 
 permissions:
   contents: read
