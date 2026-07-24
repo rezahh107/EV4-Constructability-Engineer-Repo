@@ -20,6 +20,7 @@ jobs:
             --branch agent/ce-intermediate-validation-carriers \
             "https://x-access-token:${GH_TOKEN}@github.com/rezahh107/EV4-Constructability-Engineer-Repo.git" repo
           cd repo
+          git fetch --quiet origin main:refs/remotes/origin/main
           python - <<'PY'
           from pathlib import Path
 
