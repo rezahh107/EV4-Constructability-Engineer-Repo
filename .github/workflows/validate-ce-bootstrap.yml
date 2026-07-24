@@ -77,8 +77,14 @@ jobs:
       - name: Compile validator A-I
         run: python -m py_compile validator/_*.py validator/[a-i]*.py
 
-      - name: Compile validator J-R
-        run: python -m py_compile validator/[j-r]*.py
+      - name: Compile validator L-O
+        run: python -m py_compile validator/[l-o]*.py
+
+      - name: Compile validator P
+        run: python -m py_compile validator/p*.py
+
+      - name: Compile validator R
+        run: python -m py_compile validator/r*.py
 
       - name: Compile validator S-Z
         run: python -m py_compile validator/[s-z]*.py
