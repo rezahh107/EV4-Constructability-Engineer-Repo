@@ -89,8 +89,11 @@ jobs:
       - name: Compile rules
         run: python -m py_compile validator/rules.py
 
-      - name: Compile runtime modules
-        run: python -m py_compile validator/runtime_execution.py validator/runtime_obligations.py
+      - name: Compile runtime execution
+        run: python -m py_compile validator/runtime_execution.py
+
+      - name: Compile runtime obligations
+        run: python -m py_compile validator/runtime_obligations.py
 
       - name: Compile validator S-Z
         run: python -m py_compile validator/[s-z]*.py
