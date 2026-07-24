@@ -16,7 +16,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Run concise exact-head regression diagnostic
+      - name: Diagnose non-ready CE transaction fidelity
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ github.token }}
@@ -31,9 +31,36 @@ jobs:
           unzip -q /tmp/repo.zip -d /tmp/repo
           cd "$(find /tmp/repo -mindepth 1 -maxdepth 1 -type d | head -n 1)"
           python -m pip install -q -e '.[dev]' >/dev/null 2>&1
-          set +e
-          pytest -q --tb=no > /tmp/ce46-pytest.log 2>&1
-          status=$?
-          set -e
-          tail -n 55 /tmp/ce46-pytest.log
-          exit "$status"
+          python - <<'PY'
+          import json
+          import runpy
+
+          ns = runpy.run_path("tests/test_intermediate_carriers.py")
+          evaluate = ns["evaluate"]
+          transaction_inputs = ns["transaction_inputs"]
+          nonready = ns["_nonready_payload"]
+
+          for scenario in ("blocked", "insufficient"):
+              values = transaction_inputs()
+              interrogation = values["constructability_review"]["reviewed_nodes"][0]["interrogation_result"]
+              if scenario == "blocked":
+                  interrogation["overlay_strategy_required"] = True
+                  interrogation["overlay_strategy_proven"] = False
+                  values["constructability_review"]["blocking_dependencies"] = [
+                      "node-root:R05_OVERLAY_STRATEGY_MUST_BE_PROVEN:overlay"
+                  ]
+                  values["constructability_review"]["constructability_status"] = "blocked"
+              else:
+                  interrogation["geometry_required"] = True
+                  interrogation["geometry_proven"] = False
+                  values["constructability_review"]["constructability_status"] = "needs_user_evidence"
+              values["implementation_strategy_map"] = None
+              values["builder_executable_package"] = None
+              first = evaluate(values)
+              values["final_payload"] = nonready(values, first, scenario)
+              result = evaluate(values)
+              print("SCENARIO", scenario)
+              print("STATUS", result["transaction_status"], result["fidelity_passed"], result["builder_ready"])
+              print(json.dumps(result["diagnostics"], sort_keys=True))
+          PY
+          exit 1
