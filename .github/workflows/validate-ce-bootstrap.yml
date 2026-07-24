@@ -22,15 +22,16 @@ jobs:
           cd repo
           python - <<'PY'
           from pathlib import Path
-          import textwrap
 
           text = Path('.github/workflows/ce46-explicit-runtime-input-repair.yml').read_text(encoding='utf-8')
           marker = "          python - <<'PY'\n"
           start = text.index(marker) + len(marker)
           end = text.index("\n          PY", start)
-          Path('/tmp/ce46_apply_repair.py').write_text(
-              textwrap.dedent(text[start:end]),
-              encoding='utf-8',
-          )
+          lines = text[start:end].splitlines()
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in lines
+          ) + "\n"
+          Path('/tmp/ce46_apply_repair.py').write_text(script, encoding='utf-8')
           PY
           python /tmp/ce46_apply_repair.py
