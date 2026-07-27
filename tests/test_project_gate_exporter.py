@@ -9,7 +9,7 @@ from exporter_test_support import ROOT, _payload, _provenance, _real_source_pair
 from project_gate_exporter_legacy_suite import *  # noqa: F401,F403
 from project_gate_exporter_legacy_suite import _cleanup_output
 from validator.project_gate_export import load_json
-from validator.project_gate_exporter import export_file
+from validator.project_gate_exporter import _safe_output_path, export_file
 
 
 def test_dirty_live_checkout_cannot_authorize_handoff(
@@ -51,3 +51,12 @@ def test_dirty_live_checkout_cannot_authorize_handoff(
         assert "CE_EXPORT_LEGACY_PAYLOAD_AUTHORIZATION_FORBIDDEN" in diagnostic_codes
     finally:
         _cleanup_output(output_path)
+
+
+def test_output_path_must_remain_inside_repository(tmp_path: Path) -> None:
+    """Compatibility name retained while the contract now accepts absolute external outputs."""
+    absolute_external = (tmp_path / "outside.json").resolve()
+    assert _safe_output_path(ROOT, absolute_external, overwrite=False) == absolute_external
+
+    relative = Path(".tmp-test-output/relative-output-contract.json")
+    assert _safe_output_path(ROOT, relative, overwrite=False) == (ROOT / relative).resolve()
