@@ -25,6 +25,14 @@
     "sha256": "00b5e3a1b3490f9b81ef8e81fc1b51b8899f2dd6ba5ba416b38a47a270488461",
     "local_copy_authoritative": false
   },
+  "producer": {
+    "repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+    "source_stage": "CONSTRUCTABILITY_ENGINEER",
+    "consumer_stage": "BUILDER_ASSISTANT",
+    "carrier_path": "builder_executable_package.continuation_assurance",
+    "emission_enabled": false,
+    "caller_override_allowed": false
+  },
   "vendored": {
     "root": "contracts/pcvp/vendor/decision-kernel/v1.0.0",
     "local_copy_authoritative": false
