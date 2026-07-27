@@ -159,7 +159,7 @@ def test_exact_sources_must_be_bytes() -> None:
 
 def test_invalid_review_draft_fails_closed() -> None:
     draft = canonical_draft()
-    draft.pop("architecture_echo")
+    draft.pop("review_id")
     with pytest.raises(
         producer.PCVPDormantProducerError,
         match="Authoritative CE replay failed closed",
