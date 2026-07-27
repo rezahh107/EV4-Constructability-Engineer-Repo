@@ -65,14 +65,16 @@ def _owned_output(path: Path) -> bool:
 def safe_output_path(repo_root: Path, output_path: Path, overwrite: bool, *, protected_inputs: Iterable[Path]=()) -> Path:
     try:
         root = repo_root.resolve(strict=True)
-        candidate = output_path if output_path.is_absolute() else root / output_path
+        output_is_absolute = output_path.is_absolute()
+        candidate = output_path if output_is_absolute else root / output_path
         if candidate.is_symlink():
             raise ExporterError(ExportDiagnostic('CE_EXPORT_OUTPUT_SYMLINK_FORBIDDEN', 'output_safety', 'Refusing to write through a symbolic link.', str(candidate), 'repository_owner'))
         resolved = candidate.resolve(strict=False)
-        try:
-            resolved.relative_to(root)
-        except ValueError as exc:
-            raise ExporterError(ExportDiagnostic('CE_EXPORT_OUTPUT_OUTSIDE_REPOSITORY', 'output_safety', 'Output path must remain inside the CE repository.', str(output_path), 'repository_owner')) from exc
+        if not output_is_absolute:
+            try:
+                resolved.relative_to(root)
+            except ValueError as exc:
+                raise ExporterError(ExportDiagnostic('CE_EXPORT_OUTPUT_OUTSIDE_REPOSITORY', 'output_safety', 'Relative output path must remain inside the CE repository.', str(output_path), 'repository_owner')) from exc
         if resolved == root or resolved.is_dir():
             raise ExporterError(ExportDiagnostic('CE_EXPORT_OUTPUT_IS_DIRECTORY', 'output_safety', 'Output path cannot be the repository root or a directory.', str(resolved), 'repository_owner'))
         for protected in protected_inputs:
@@ -102,7 +104,7 @@ def _synchronize_intake_stage_status(stage_manifest: list[dict[str, Any]], intak
     first['unknowns'] = list(unknowns) if isinstance(unknowns, list) else []
 
 def _transaction_authorization_diagnostics(repo_root: Path, export: dict[str, Any]) -> list[ExportDiagnostic]:
-    diagnostics: list[ExportDiagnostic] = []
+    diagnostics = []
     handoff = export.get('handoff') if isinstance(export.get('handoff'), dict) else {}
     bundle = export.get('final_stage_bundle') if isinstance(export.get('final_stage_bundle'), dict) else {}
     declared_synthetic = bundle.get('synthetic')
