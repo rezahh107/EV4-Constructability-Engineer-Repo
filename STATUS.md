@@ -285,6 +285,24 @@ project_status:
 ```
 
 ```yaml
+CE_02_POST_MERGE_EXPORTER_AUDIT:
+  prompt_id: P-004
+  task_id: CE-02
+  audited_default_branch: main
+  audited_main_commit: ebc73c28a154123b4c76f340ff0913934833789d
+  merged_pull_request: 36
+  merged_head_sha: 1804705c1ad86b4e414b2e5a40294bb8d1a9727a
+  merge_commit_content_delta_from_validated_head: none
+  repair_branch: audit/ce-02-exporter-audit-repair
+  exact_head_validation: pending
+  independent_repair_review: pending
+  repair_merged: false
+  project_gate_runtime_acceptance: unverified
+  cross_repository_e2e: unverified
+  builder_acceptance: unverified
+```
+
+```yaml
 CE_02_POST_MERGE_STATUS_RECONCILIATION:
   task: PR_37_STATUS_RECONCILIATION
   pull_request: 37
