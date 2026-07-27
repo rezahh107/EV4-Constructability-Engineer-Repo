@@ -1,19 +1,52 @@
 from __future__ import annotations
 
 import copy
+import importlib.util
+import sys
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
-from . import _pcvp_carrier_impl as _impl
-from .pcvp_identity import (
-    ARCHITECTURE_LOCK_ID,
-    CANONICAL_COMMIT,
-    CANONICAL_REPOSITORY,
-    POLICY_ID,
-    POLICY_VERSION,
-    PCVPIdentityError,
-    load_pcvp_resources,
-)
+
+def _load_standalone_sibling(module_name: str, filename: str) -> ModuleType:
+    existing = sys.modules.get(module_name)
+    if existing is not None:
+        return existing
+    module_path = Path(__file__).resolve().with_name(filename)
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load PCVP sibling module: {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise
+    return module
+
+
+if __package__:
+    from . import _pcvp_carrier_impl as _impl
+    from .pcvp_identity import (
+        ARCHITECTURE_LOCK_ID,
+        CANONICAL_COMMIT,
+        CANONICAL_REPOSITORY,
+        POLICY_ID,
+        POLICY_VERSION,
+        PCVPIdentityError,
+        load_pcvp_resources,
+    )
+else:
+    _impl = _load_standalone_sibling("_ce_pcvp_carrier_impl", "_pcvp_carrier_impl.py")
+    _identity = _load_standalone_sibling("_ce_pcvp_identity", "pcvp_identity.py")
+    ARCHITECTURE_LOCK_ID = _identity.ARCHITECTURE_LOCK_ID
+    CANONICAL_COMMIT = _identity.CANONICAL_COMMIT
+    CANONICAL_REPOSITORY = _identity.CANONICAL_REPOSITORY
+    POLICY_ID = _identity.POLICY_ID
+    POLICY_VERSION = _identity.POLICY_VERSION
+    PCVPIdentityError = _identity.PCVPIdentityError
+    load_pcvp_resources = _identity.load_pcvp_resources
 
 Diagnostic = _impl.Diagnostic
 Severity = _impl.Severity
