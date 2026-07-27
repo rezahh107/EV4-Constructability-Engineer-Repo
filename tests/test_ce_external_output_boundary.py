@@ -25,6 +25,7 @@ def _patch_provenance(monkeypatch: pytest.MonkeyPatch, *, dirty: bool = False) -
 
 
 def _write_inputs(tmp_path: Path, *, authorized: bool) -> tuple[Path, Path, Path]:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     intake, source, intake_path, source_path = _real_source_pair(tmp_path)
     if authorized:
         intake["unresolved_evidence"] = []
@@ -103,6 +104,14 @@ def test_absolute_external_output_is_published_directly_with_exit_zero(
     assert report["output_valid"] is True
     assert Path(report["output_path"]).resolve() == output_path
     assert output_path.is_file()
+    artifact = json.loads(output_path.read_text(encoding="utf-8"))
+    assert artifact["validation"] == {
+        "schema_valid": True,
+        "semantic_valid": True,
+        "validator_id": "ev4-producer-gate-export-validator",
+        "validator_version": "1.0.0",
+        "diagnostics": [],
+    }
 
 
 def test_valid_blocked_external_output_preserves_exit_two(
