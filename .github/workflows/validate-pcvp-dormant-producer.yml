@@ -82,11 +82,22 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
+          set -o pipefail
           pytest -p no:cacheprovider -q \
             tests/test_pcvp_dormant_producer.py \
             tests/test_pcvp_tolerant_intake.py \
             tests/test_ce_builder_producer_contract.py \
-            tests/test_verified_constructability_runtime.py
+            tests/test_verified_constructability_runtime.py \
+            2>&1 | tee pcvp-focused.log
+
+      - name: Upload focused pytest evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pcvp-focused-${{ github.event.pull_request.head.sha }}
+          path: pcvp-focused.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Generate replay-derived CE carrier for Builder validation
         env:
