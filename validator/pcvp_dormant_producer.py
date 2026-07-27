@@ -4,208 +4,197 @@ import copy
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, Sequence
 
 from jsonschema import Draft202012Validator
 
-POLICY_ID = "EV4-PCVP"
-POLICY_VERSION = "1.0.0"
-ARCHITECTURE_LOCK_ID = "EV4-PCVP-ROLL-LOCK-20260727-R1"
-CANONICAL_REPOSITORY = "rezahh107/EV4-Decision-Kernel"
-CANONICAL_COMMIT = "069a50fa243b01fa578a7c1bcb8864d9e796d34b"
-SOURCE_STAGE = "CONSTRUCTABILITY_ENGINEER"
-CONSUMER_STAGE = "BUILDER_ASSISTANT"
-PRODUCER_EMISSION_ENABLED = False
-ROOT = Path(__file__).resolve().parents[1]
-LOCK_PATH = Path("contracts/pcvp/pcvp-v1.lock.json")
-PROFILE_PATH = Path("contracts/pcvp/constructability.profile.yaml")
-VENDORED_ROOT = Path("contracts/pcvp/vendor/decision-kernel/v1.0.0")
-SCHEMA_NAMES = (
-    "authorization.schema.json",
-    "claim.schema.json",
-    "effect.schema.json",
-    "handoff.schema.json",
+from .payload_assembler import canonical_bytes, sha256_json
+from .pcvp_identity import (
+    ARCHITECTURE_LOCK_ID,
+    CANONICAL_COMMIT,
+    CANONICAL_REPOSITORY,
+    POLICY_ID,
+    POLICY_VERSION,
+    ROOT,
+    SOURCE_STAGE,
+    PCVPIdentityError,
+    PCVPResources,
+    load_pcvp_resources,
 )
+from .verified_constructability import (
+    DraftValidationError,
+    EvaluationBoundaryError,
+    EvidenceVerificationError,
+    assemble_verified_ce_stage_payload,
+    verified_payload_data,
+    verify_architect_intake,
+    verify_source_bundle,
+)
+
+BUILDER_PACKAGE_SCHEMA_PATH = Path("schemas/builder_executable_package.schema.json")
 
 
 class PCVPDormantProducerError(RuntimeError):
-    """Raised when dormant CE producer identity or derivation fails closed."""
+    """Raised when dormant CE carrier derivation cannot prove its authority inputs."""
 
 
-def _load_json(path: Path) -> Any:
+def _reject_constant(value: str) -> None:
+    raise ValueError(f"non-JSON constant is forbidden: {value}")
+
+
+def _strict_object(raw: bytes, label: str) -> dict[str, Any]:
+    if not isinstance(raw, bytes):
+        raise PCVPDormantProducerError(f"{label} exact bytes must be bytes.")
+    def object_pairs_hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate object key: {key}")
+            result[key] = value
+        return result
+
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, ValueError, TypeError) as exc:
+        parsed = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=object_pairs_hook,
+            parse_constant=_reject_constant,
+        )
+    except (UnicodeError, ValueError, TypeError) as exc:
         raise PCVPDormantProducerError(
-            f"PCVP resource could not be loaded: {path} ({type(exc).__name__})"
+            f"{label} exact bytes are not strict JSON: {exc}"
         ) from exc
+    if not isinstance(parsed, dict):
+        raise PCVPDormantProducerError(f"{label} exact bytes must contain an object.")
+    return parsed
 
 
-def _canonical_bytes(value: Any) -> bytes:
+def _verify_mapping_fidelity(
+    value: Mapping[str, Any],
+    raw: bytes,
+    label: str,
+) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise PCVPDormantProducerError(f"{label} must be an object mapping.")
+    parsed = _strict_object(raw, label)
     try:
-        return json.dumps(
-            value,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode("utf-8")
+        if canonical_bytes(parsed) != canonical_bytes(value):
+            raise PCVPDormantProducerError(
+                f"{label} mapping does not match its exact source bytes."
+            )
     except (TypeError, ValueError) as exc:
+        if isinstance(exc, PCVPDormantProducerError):
+            raise
         raise PCVPDormantProducerError(
-            f"PCVP identity input is not canonical JSON: {exc}"
+            f"{label} cannot be represented as canonical JSON: {exc}"
         ) from exc
-
-
-def _sha256(value: Any) -> str:
-    return hashlib.sha256(_canonical_bytes(value)).hexdigest()
-
-
-def _load_pinned_schemas(
-    repository_root: Path,
-) -> dict[str, dict[str, Any]]:
-    lock = _load_json(repository_root / LOCK_PATH)
-    if not isinstance(lock, dict):
-        raise PCVPDormantProducerError("PCVP lock must be an object.")
-    if (
-        lock.get("schema_version") != "ev4-pcvp-contract-lock.v1"
-        or lock.get("architecture_lock_id") != ARCHITECTURE_LOCK_ID
-        or lock.get("policy")
-        != {
-            "id": POLICY_ID,
-            "version": POLICY_VERSION,
-            "adoption_status": "not_yet_adopted",
-            "activation": "NONE",
-        }
-    ):
-        raise PCVPDormantProducerError(
-            "PCVP policy or architecture lock identity drifted."
-        )
-    canonical = lock.get("canonical")
-    if not isinstance(canonical, dict) or (
-        canonical.get("repository") != CANONICAL_REPOSITORY
-        or canonical.get("commit_sha") != CANONICAL_COMMIT
-    ):
-        raise PCVPDormantProducerError(
-            "PCVP canonical owner or immutable commit drifted."
-        )
-    if lock.get("producer") != {
-        "repository": "rezahh107/EV4-Constructability-Engineer-Repo",
-        "source_stage": SOURCE_STAGE,
-        "consumer_stage": CONSUMER_STAGE,
-        "carrier_path": "builder_executable_package.continuation_assurance",
-        "emission_enabled": False,
-        "caller_override_allowed": False,
-    }:
-        raise PCVPDormantProducerError(
-            "PCVP CE producer must remain hard-disabled without caller override."
-        )
-    if lock.get("verification") != {
-        "byte_equality_required": True,
-        "compare_against_moving_default_branch": False,
-    }:
-        raise PCVPDormantProducerError(
-            "PCVP immutable-byte verification policy drifted."
-        )
-
-    profile = lock.get("profile")
-    if not isinstance(profile, dict) or profile.get("path") != str(PROFILE_PATH):
-        raise PCVPDormantProducerError("PCVP Constructability profile drifted.")
-    try:
-        profile_hash = hashlib.sha256(
-            (repository_root / PROFILE_PATH).read_bytes()
-        ).hexdigest()
-    except OSError as exc:
-        raise PCVPDormantProducerError(
-            f"PCVP profile is unavailable: {type(exc).__name__}"
-        ) from exc
-    if profile.get("sha256") != profile_hash:
-        raise PCVPDormantProducerError("PCVP profile byte identity drifted.")
-
-    entries = lock.get("files")
-    if not isinstance(entries, list) or len(entries) != len(SCHEMA_NAMES):
-        raise PCVPDormantProducerError(
-            "PCVP lock must cover exactly four canonical schemas."
-        )
-    by_name = {
-        entry.get("name"): entry
-        for entry in entries
-        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
-    }
-    if set(by_name) != set(SCHEMA_NAMES):
-        raise PCVPDormantProducerError("PCVP schema lock set drifted.")
-
-    schemas: dict[str, dict[str, Any]] = {}
-    for name in SCHEMA_NAMES:
-        path = repository_root / VENDORED_ROOT / name
-        try:
-            content = path.read_bytes()
-        except OSError as exc:
-            raise PCVPDormantProducerError(
-                f"PCVP schema is unavailable: {name} ({type(exc).__name__})"
-            ) from exc
-        if hashlib.sha256(content).hexdigest() != by_name[name].get("sha256"):
-            raise PCVPDormantProducerError(
-                f"PCVP schema byte identity drifted: {name}"
-            )
-        value = _load_json(path)
-        if not isinstance(value, dict):
-            raise PCVPDormantProducerError(
-                f"PCVP schema must be an object: {name}"
-            )
-        Draft202012Validator.check_schema(value)
-        schemas[name] = value
-    return schemas
+    return copy.deepcopy(parsed)
 
 
 def verify_dormant_producer_resources(
     repository_root: str | Path = ROOT,
 ) -> dict[str, Any]:
-    schemas = _load_pinned_schemas(Path(repository_root))
+    resources = load_pcvp_resources(repository_root)
     return {
-        "architecture_lock_id": ARCHITECTURE_LOCK_ID,
-        "canonical_commit": CANONICAL_COMMIT,
-        "schema_count": len(schemas),
+        "architecture_lock_id": resources.descriptor.architecture_lock_id,
+        "canonical_commit": resources.descriptor.canonical_commit,
+        "schema_count": len(resources.schemas),
         "producer_emission": False,
         "adoption_status": "not_yet_adopted",
         "activation_effect": "NONE",
     }
 
 
-def _validate_carrier(
-    carrier: dict[str, Any],
-    repository_root: str | Path,
-) -> None:
-    schemas = _load_pinned_schemas(Path(repository_root))
-    runtime_schema = copy.deepcopy(schemas["handoff.schema.json"])
-    continuation = runtime_schema["properties"]["continuation_assurance"][
-        "properties"
-    ]
-    continuation["claims"]["items"] = schemas["claim.schema.json"]
-    continuation["effects"]["items"] = schemas["effect.schema.json"]
-    continuation["authorizations"]["items"] = schemas[
-        "authorization.schema.json"
-    ]
-    document = {"continuation_assurance": carrier}
+def _load_builder_schema(repository_root: Path) -> dict[str, Any]:
+    path = repository_root / BUILDER_PACKAGE_SCHEMA_PATH
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError, TypeError) as exc:
+        raise PCVPDormantProducerError(
+            f"Builder package schema is unavailable: {type(exc).__name__}"
+        ) from exc
+    if not isinstance(schema, dict):
+        raise PCVPDormantProducerError("Builder package schema must be an object.")
+    Draft202012Validator.check_schema(schema)
+    return schema
+
+
+def _validate_complete_builder_package(
+    builder_package: Mapping[str, Any],
+    repository_root: Path,
+) -> dict[str, Any]:
+    if not isinstance(builder_package, Mapping):
+        raise PCVPDormantProducerError(
+            "Verified CE payload did not contain a Builder package object."
+        )
+    package = copy.deepcopy(dict(builder_package))
     errors = sorted(
-        Draft202012Validator(runtime_schema).iter_errors(document),
-        key=lambda error: (list(error.absolute_path), error.message),
+        Draft202012Validator(_load_builder_schema(repository_root)).iter_errors(package),
+        key=lambda item: (list(item.absolute_path), item.message),
     )
     if errors:
         first = errors[0]
-        path = ".".join(str(part) for part in first.absolute_path) or "$"
+        path = "$" + "".join(
+            f"[{part}]" if isinstance(part, int) else f".{part}"
+            for part in first.absolute_path
+        )
         raise PCVPDormantProducerError(
-            f"Generated PCVP carrier failed canonical schema at {path}: "
-            f"{first.message}"
+            f"Full Builder package schema failure at {path}: {first.message}"
+        )
+    if (
+        package.get("schema") != "ev4-builder-executable-package@1.0.0"
+        or package.get("builder_package_status") != "executable_ready"
+        or package.get("builder_decisions_required") != 0
+        or package.get("blocking_dependencies") != []
+        or package.get("selected_candidate_locked") is not True
+        or package.get("selected_candidate_id_unchanged") is not True
+        or package.get("approved_class_names_unchanged") is not True
+        or not isinstance(package.get("architect_contract"), Mapping)
+        or not isinstance(package.get("confirmation_request"), Mapping)
+        or not isinstance(package.get("first_safe_builder_batch"), Mapping)
+        or not isinstance(package.get("strategy_map_ref"), str)
+    ):
+        raise PCVPDormantProducerError(
+            "Recomputed CE package is not deterministically Builder-ready."
+        )
+    if "continuation_assurance" in package:
+        raise PCVPDormantProducerError(
+            "Recomputed active CE package unexpectedly contains continuation_assurance."
+        )
+    return package
+
+
+def _validate_carrier(
+    carrier: dict[str, Any],
+    resources: PCVPResources,
+) -> None:
+    runtime_schema = copy.deepcopy(resources.schemas["handoff.schema.json"])
+    continuation = runtime_schema["properties"]["continuation_assurance"]["properties"]
+    continuation["claims"]["items"] = resources.schemas["claim.schema.json"]
+    continuation["effects"]["items"] = resources.schemas["effect.schema.json"]
+    continuation["authorizations"]["items"] = resources.schemas[
+        "authorization.schema.json"
+    ]
+    errors = sorted(
+        Draft202012Validator(runtime_schema).iter_errors(
+            {"continuation_assurance": carrier}
+        ),
+        key=lambda item: (list(item.absolute_path), item.message),
+    )
+    if errors:
+        first = errors[0]
+        path = "$" + "".join(
+            f"[{part}]" if isinstance(part, int) else f".{part}"
+            for part in first.absolute_path
+        )
+        raise PCVPDormantProducerError(
+            f"Generated PCVP carrier failed canonical schema at {path}: {first.message}"
         )
 
     claims = carrier["claims"]
     effect = carrier["effects"][0]
     summary = carrier["stage_summary"]
-    identifiers = [
-        *[claim["claim_id"] for claim in claims],
-        effect["effect_id"],
-    ]
     claim_ids = {claim["claim_id"] for claim in claims}
+    identifiers = [*claim_ids, effect["effect_id"]]
     if (
         carrier["source_stage"] != SOURCE_STAGE
         or len(identifiers) != len(set(identifiers))
@@ -223,39 +212,16 @@ def _validate_carrier(
         )
 
 
-def build_continuation_assurance(
-    builder_package: dict[str, Any],
-    repository_root: str | Path = ROOT,
+def _project_continuation_assurance(
+    builder_package: Mapping[str, Any],
+    resources: PCVPResources,
 ) -> dict[str, Any]:
-    """Derive a bounded CE-to-Builder carrier without granting execution."""
-    if not isinstance(builder_package, dict):
-        raise PCVPDormantProducerError(
-            "Builder executable package must be an object."
-        )
-    if "continuation_assurance" in builder_package:
-        raise PCVPDormantProducerError(
-            "Caller-supplied continuation_assurance is forbidden."
-        )
-    if (
-        builder_package.get("schema")
-        != "ev4-builder-executable-package@1.0.0"
-        or builder_package.get("builder_package_status") != "executable_ready"
-        or builder_package.get("builder_decisions_required") != 0
-        or builder_package.get("blocking_dependencies") != []
-        or builder_package.get("selected_candidate_locked") is not True
-        or not isinstance(builder_package.get("confirmation_request"), dict)
-        or not isinstance(builder_package.get("first_safe_builder_batch"), dict)
-    ):
-        raise PCVPDormantProducerError(
-            "CE package is not deterministically Builder-ready."
-        )
-
-    verify_dormant_producer_resources(repository_root)
-    package_hash = _sha256(builder_package)
+    package = copy.deepcopy(dict(builder_package))
+    package_hash = sha256_json(package)
     suffix = hashlib.sha256(
-        _canonical_bytes(
+        canonical_bytes(
             {
-                "package_id": builder_package.get("package_id"),
+                "package_id": package.get("package_id"),
                 "package_hash": package_hash,
             }
         )
@@ -264,14 +230,13 @@ def build_continuation_assurance(
     downstream_claim_id = f"CLM-CE-DOWNSTREAM-{suffix}"
     effect_id = f"EFF-CE-BUILDER-BATCH-{suffix}"
     batch_id = str(
-        builder_package["first_safe_builder_batch"].get("batch_id")
+        package.get("first_safe_builder_batch", {}).get("batch_id")
         or "unknown-batch"
     )
     permitted_scope = (
         f"Execute only CE first Builder batch {batch_id} after explicit owner "
         "confirmation; no Responsive, deployment, or production claim."
     )
-
     carrier = {
         "policy_id": POLICY_ID,
         "policy_version": POLICY_VERSION,
@@ -310,10 +275,7 @@ def build_continuation_assurance(
             {
                 "effect_id": effect_id,
                 "effect_class": "EXTERNAL_MUTATION",
-                "depends_on_claim_ids": [
-                    package_claim_id,
-                    downstream_claim_id,
-                ],
+                "depends_on_claim_ids": [package_claim_id, downstream_claim_id],
                 "continuation_state": "AUTHORIZATION_REQUIRED",
                 "authorization_ref": None,
                 "blocker_reason": "OWNER_DECISION_REQUIRED",
@@ -326,8 +288,8 @@ def build_continuation_assurance(
                 "id": f"UNRES-CE-OWNER-{suffix}",
                 "class": "OWNER_DECISION_REQUIRED",
                 "statement": (
-                    "The existing Builder confirmation request has not yet "
-                    "been satisfied by the owner."
+                    "The existing Builder confirmation request has not yet been "
+                    "satisfied by the owner."
                 ),
                 "impact": (
                     "The first Builder batch must not execute before explicit "
@@ -341,51 +303,103 @@ def build_continuation_assurance(
                     "Builder, Responsive, deployment, and production outcomes "
                     "have not been verified by their owning authorities."
                 ),
-                "impact": (
-                    "The carrier cannot upgrade downstream completion claims."
-                ),
+                "impact": "The carrier cannot upgrade downstream completion claims.",
             },
         ],
         "stage_summary": {
             "owner_projection": "YELLOW",
             "yellow_substate": "OWNER_CHOICE_REQUIRED",
-            "derived_from_claim_ids": [
-                package_claim_id,
-                downstream_claim_id,
-            ],
+            "derived_from_claim_ids": [package_claim_id, downstream_claim_id],
             "current_effect_id": effect_id,
             "lifecycle_state": "ACTIVE",
             "derivation_reason": (
-                "CE established a bounded Builder-ready package, while the "
-                "external Builder mutation still requires owner confirmation."
+                "CE established a bounded Builder-ready package, while the external "
+                "Builder mutation still requires owner confirmation."
             ),
         },
     }
-    _validate_carrier(carrier, repository_root)
+    _validate_carrier(carrier, resources)
     return copy.deepcopy(carrier)
 
 
-def attach_to_builder_package_if_enabled(
-    builder_package: dict[str, Any],
+def derive_continuation_assurance(
     *,
+    architect_intake: Mapping[str, Any],
+    architect_intake_bytes: bytes,
+    source_bundle: Mapping[str, Any],
+    source_bundle_bytes: bytes,
+    review_draft: Mapping[str, Any],
     repository_root: str | Path = ROOT,
+    architect_intake_ref: str = "architect-intake.json",
+    source_bundle_ref: str = "architect-source-bundle.json",
+    runtime_execution_requests: Sequence[Mapping[str, Any]] = (),
+    **unsupported_authority_inputs: Any,
 ) -> dict[str, Any]:
-    """Attach only after a separate reviewed activation changes the flag."""
-    if not isinstance(builder_package, dict):
+    """Dormantly derive a carrier only by replaying the authoritative CE runtime."""
+    if unsupported_authority_inputs:
+        unsupported = ", ".join(sorted(unsupported_authority_inputs))
         raise PCVPDormantProducerError(
-            "Builder executable package must be an object."
+            f"Unsupported authority inputs are forbidden: {unsupported}"
         )
-    if "continuation_assurance" in builder_package:
+    root = Path(repository_root)
+    try:
+        resources = load_pcvp_resources(root)
+        intake = _verify_mapping_fidelity(
+            architect_intake, architect_intake_bytes, "Architect intake"
+        )
+        bundle = _verify_mapping_fidelity(
+            source_bundle, source_bundle_bytes, "Architect source bundle"
+        )
+        verified_intake = verify_architect_intake(
+            intake=intake,
+            intake_bytes=architect_intake_bytes,
+            source_ref=architect_intake_ref,
+            repo_root=root,
+        )
+        verified_bundle = verify_source_bundle(
+            source_bundle=bundle,
+            source_bundle_bytes=source_bundle_bytes,
+            verified_intake=verified_intake,
+            source_ref=source_bundle_ref,
+        )
+        evaluation_run = assemble_verified_ce_stage_payload(
+            draft=copy.deepcopy(dict(review_draft)),
+            verified_intake=verified_intake,
+            verified_source_bundle=verified_bundle,
+            repo_root=root,
+            runtime_execution_requests=runtime_execution_requests,
+        )
+        payload = verified_payload_data(
+            evaluation_run,
+            repo_root=root,
+            source_intake_bytes=architect_intake_bytes,
+            source_bundle_bytes=source_bundle_bytes,
+        )
+    except PCVPDormantProducerError:
+        raise
+    except (
+        PCVPIdentityError,
+        DraftValidationError,
+        EvaluationBoundaryError,
+        EvidenceVerificationError,
+        TypeError,
+        ValueError,
+    ) as exc:
         raise PCVPDormantProducerError(
-            "Caller-supplied continuation_assurance is forbidden."
+            f"Authoritative CE replay failed closed: {exc}"
+        ) from exc
+
+    if payload.get("payload_status") != "complete" or payload.get(
+        "builder_package_emitted"
+    ) is not True:
+        raise PCVPDormantProducerError(
+            "Authoritative CE replay did not establish Builder readiness."
         )
-    if not PRODUCER_EMISSION_ENABLED:
-        return builder_package
-    builder_package["continuation_assurance"] = build_continuation_assurance(
-        builder_package,
-        repository_root,
+    package = _validate_complete_builder_package(
+        payload.get("builder_executable_package"),
+        root,
     )
-    return builder_package
+    return _project_continuation_assurance(package, resources)
 
 
 __all__ = [
@@ -395,8 +409,6 @@ __all__ = [
     "PCVPDormantProducerError",
     "POLICY_ID",
     "POLICY_VERSION",
-    "PRODUCER_EMISSION_ENABLED",
-    "attach_to_builder_package_if_enabled",
-    "build_continuation_assurance",
+    "derive_continuation_assurance",
     "verify_dormant_producer_resources",
 ]

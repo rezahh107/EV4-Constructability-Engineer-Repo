@@ -29,7 +29,6 @@ from .payload_projection import (
     canonical_bytes,
     sha256_json,
 )
-from .pcvp_dormant_producer import attach_to_builder_package_if_enabled
 
 
 def _effects_by_target(strategy_result: Mapping[str, Any]) -> dict[str, list[dict[str, Any]]]:
@@ -286,7 +285,6 @@ def assemble_ce_stage_payload(
             "logged_assumptions": [],
             "qa_status": {"production_ready": False},
         }
-        attach_to_builder_package_if_enabled(builder_package)
 
     authority_resolution = _authority_resolution(dependency_result)
     unresolved = copy.deepcopy(
