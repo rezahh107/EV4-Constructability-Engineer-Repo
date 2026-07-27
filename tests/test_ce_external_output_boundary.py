@@ -203,10 +203,7 @@ def test_external_output_symlink_is_rejected(tmp_path: Path) -> None:
     target = tmp_path / "target.json"
     target.write_text("{}\n", encoding="utf-8")
     link = tmp_path / "output-link.json"
-    try:
-        link.symlink_to(target)
-    except (OSError, NotImplementedError) as exc:
-        pytest.skip(f"symlink fixture unavailable: {exc}")
+    link.symlink_to(target)
 
     with pytest.raises(ExporterError) as symlink_error:
         safe_output_path(ROOT, link, True)
