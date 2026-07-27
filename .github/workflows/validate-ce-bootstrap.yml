@@ -36,6 +36,7 @@ on:
       - 'tests/test_project_gate_exporter_post_merge_audit.py'
       - 'tests/test_ce_validation_transaction.py'
       - 'tests/test_ce_validation_transaction_rereview.py'
+      - 'tests/test_ce_external_output_boundary.py'
       - 'tests/test_ce_authority_mutation_harness.py'
       - 'tests/test_verified_constructability_runtime.py'
       - 'tests/test_ce_claim_policy_and_model_reduction.py'
@@ -109,6 +110,7 @@ jobs:
             tests/test_verified_constructability_runtime.py \
             tests/test_project_gate_exporter.py \
             tests/test_ce_validation_transaction.py \
+            tests/test_ce_external_output_boundary.py \
             tests/test_ce_pr45_main_reconciliation.py
 
       - name: Validate lean CE runtime contract
@@ -146,6 +148,9 @@ jobs:
 
       - name: Verify CE validation transaction rereview
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_validation_transaction_rereview.py
+
+      - name: Verify CE external output boundary
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_external_output_boundary.py
 
       - name: Verify constructability proof authority
         run: |
