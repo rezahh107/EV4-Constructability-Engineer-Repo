@@ -18,7 +18,7 @@ OFFICIAL_CLI_OPTIONS = (
 # The same verified exporter implementation remains authoritative; this facade
 # only aligns its external envelope with producer-gate-export.v1.
 _impl.VERIFIED_EXPORTER_ID = "ev4-producer-gate-export-validator"
-_impl.VERIFIED_EXPORTER_VERSION = "1.0.0"
+_impl.VERIFIED_EXPORTER_VERSION = "1.1.0"
 
 for _name in dir(_impl):
     if not _name.startswith("__"):
