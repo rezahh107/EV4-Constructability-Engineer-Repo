@@ -175,27 +175,15 @@ jobs:
       - name: Verify reference paradigm lock
         run: npm run test:reference-paradigm-lock
 
-      - name: Run complete repository regression command
-        id: full_pytest
-        continue-on-error: true
-        run: pytest -q
-
-      - name: Reproduce untouched starting-head status baseline
+      - name: Reproduce and repair starting-head status baseline
         env:
           STARTING_HEAD_SHA: 0e7d8756c8452113d42e8f50fc9489b240a01bfe
         run: |
           set -euo pipefail
-          CURRENT_LOG="$RUNNER_TEMP/current-status-baseline.log"
           BASELINE_LOG="$RUNNER_TEMP/starting-status-baseline.log"
           BASELINE_DIR="$RUNNER_TEMP/ce-starting-head"
 
-          set +e
-          pytest -q tests/test_status_pr37_reconciliation.py >"$CURRENT_LOG" 2>&1
-          CURRENT_EXIT=$?
-          set -e
-          test "$CURRENT_EXIT" -eq 1
-          grep -F "test_pr37_status_reconciliation_preserves_history_and_records_live_state" "$CURRENT_LOG"
-          grep -F "1 failed" "$CURRENT_LOG"
+          pytest -q tests/test_status_pr37_reconciliation.py
 
           git fetch --no-tags --depth=1 origin "$STARTING_HEAD_SHA"
           git worktree add --detach "$BASELINE_DIR" "$STARTING_HEAD_SHA"
@@ -211,17 +199,8 @@ jobs:
           grep -F "1 failed" "$BASELINE_LOG"
           git worktree remove --force "$BASELINE_DIR"
 
-          printf 'baseline_status_test=current_and_starting_head_fail_identically\n'
+          printf 'starting_head_status_regression=reproduced\n'
+          printf 'current_head_status_regression=repaired\n'
 
-      - name: Verify all non-baseline repository tests
-        run: |
-          pytest -q \
-            --deselect tests/test_status_pr37_reconciliation.py::test_pr37_status_reconciliation_preserves_history_and_records_live_state
-
-      - name: Assert complete command exposed the reproduced baseline
-        env:
-          FULL_PYTEST_OUTCOME: ${{ steps.full_pytest.outcome }}
-        run: |
-          set -euo pipefail
-          test "$FULL_PYTEST_OUTCOME" = "failure"
-          printf 'full_pytest_outcome=%s\n' "$FULL_PYTEST_OUTCOME"
+      - name: Run repository regression suite
+        run: pytest -q
