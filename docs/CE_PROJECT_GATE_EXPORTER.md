@@ -26,6 +26,8 @@ The installed command is defined by `pyproject.toml`:
 ev4-ce-project-gate-export = validator.verified_project_gate_exporter:main
 ```
 
+The public exporter identity remains `ev4-producer-gate-export-validator`; the public exporter version is `1.1.0`.
+
 Install and run:
 
 ```bash
@@ -57,7 +59,7 @@ Optional arguments:
 
 All authoritative inputs are explicit. No sibling filename, directory adjacency, repository scan, `--intermediate-inputs`, or silent fallback participates in authority.
 
-The output path must remain inside the CE repository. An existing output is replaced only when `--overwrite` is supplied and the existing artifact is recognized as CE-owned.
+A relative `--output` remains rooted inside the CE repository. A caller-selected absolute `--output` may resolve outside the CE checkout and is published directly by the same official CE exporter. An existing output is replaced only when `--overwrite` is supplied and the existing artifact is recognized as CE-owned.
 
 ## Canonical runtime
 
@@ -102,6 +104,7 @@ The common Project Gate envelope contracts remain owned by `rezahh107/EV4-Projec
 ```text
 repository-root resolution
 → explicit Review Draft, intake, source-bundle, and output path handling
+→ relative-output CE-root binding or absolute caller-path resolution
 → strict JSON read of every authoritative input
 → exact-byte snapshots
 → output/input alias rejection
@@ -115,7 +118,7 @@ repository-root resolution
 → Producer Gate Export construction and validation
 → deterministic export-identity self-check
 → authoritative input byte-stability checks
-→ atomic write
+→ atomic write at the resolved output path
 → persisted-byte re-read
 → post-write Stage Bundle, Schema, semantic, transaction, and identity validation
 → retain valid output, or restore/remove on failure
@@ -143,6 +146,8 @@ An obligation is not execution evidence. Caller-authored `observed`, `passed`, `
 ## Git provenance and dirty state
 
 Repository identity, ref, commit, dirty state, and dirty paths are observed for reporting.
+
+Paths outside the CE repository are excluded from CE-relative dirty-path comparison. An external output therefore does not become a CE dirty path merely because it is supplied to the exporter.
 
 Dirty worktree state is not functional authority. It does not change:
 
@@ -174,7 +179,10 @@ The exporter preserves:
 - deterministic export and bundle identities;
 - exact source and selected-candidate/class binding;
 - output/input alias protection;
-- symlink, directory, and out-of-repository output rejection;
+- symlink and directory rejection;
+- CE-root containment for relative outputs;
+- direct safe publication to caller-selected absolute external outputs;
+- existing-output ownership validation and explicit overwrite;
 - synthetic-evidence handoff blocking;
 - atomic replacement;
 - post-write recomputation and validation;
@@ -184,7 +192,7 @@ These controls establish repository-level functional correctness. They do not cl
 
 ## Post-write failure state
 
-If a new output fails post-write validation, it is removed. If a prior CE-owned output was being replaced, its exact captured bytes are restored.
+If a new output fails post-write validation, it is removed. If a prior CE-owned output was being replaced, its exact captured bytes are restored at the same resolved path, including an absolute external path.
 
 A failure result marks the candidate as non-consumable:
 
