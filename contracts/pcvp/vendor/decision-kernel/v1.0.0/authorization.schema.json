@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ev4-pcvp/1.0.0/authorization.schema.json",
+  "title": "EV4 PCVP Authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "authorization_id",
+    "basis",
+    "status",
+    "allowed_effect_ids",
+    "allowed_effect_classes",
+    "bound_unknown_ids",
+    "bound_assumption_ids",
+    "stage_scope",
+    "permitted_scope",
+    "valid_until_events"
+  ],
+  "properties": {
+    "authorization_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "basis": {
+      "enum": [
+        "NOT_REQUIRED",
+        "EXPLICIT_OWNER",
+        "PROFILE_PREAUTHORIZED",
+        "SAFE_REVERSIBLE_DEFAULT"
+      ]
+    },
+    "status": {
+      "enum": [
+        "ACTIVE",
+        "EXPIRED",
+        "REVOKED",
+        "INVALIDATED"
+      ]
+    },
+    "allowed_effect_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "allowed_effect_classes": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "REASONING_ONLY",
+          "DRAFT_ONLY",
+          "REVERSIBLE_LOCAL_CHANGE",
+          "EXTERNAL_MUTATION",
+          "IRREVERSIBLE_OR_AUTHORITY_BEARING"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "bound_unknown_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "bound_assumption_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "stage_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "through"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "through": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "permitted_scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "valid_until_events": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "NEW_MATERIAL_BLOCKER",
+          "OWNER_REVOCATION",
+          "CONTRADICTING_EVIDENCE",
+          "SCOPE_EXPANSION",
+          "AUTHORITY_CHANGE",
+          "SESSION_BOUNDARY_WITHOUT_VALID_HANDOFF"
+        ]
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "properties": {
+        "allowed_effect_ids": {
+          "minItems": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "allowed_effect_classes": {
+          "minItems": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ev4-pcvp/1.0.0/effect.schema.json",
+  "title": "EV4 PCVP Effect",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "effect_id",
+    "effect_class",
+    "depends_on_claim_ids",
+    "continuation_state",
+    "authorization_ref",
+    "blocker_reason",
+    "permitted_scope"
+  ],
+  "properties": {
+    "effect_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "effect_class": {
+      "enum": [
+        "REASONING_ONLY",
+        "DRAFT_ONLY",
+        "REVERSIBLE_LOCAL_CHANGE",
+        "EXTERNAL_MUTATION",
+        "IRREVERSIBLE_OR_AUTHORITY_BEARING"
+      ]
+    },
+    "depends_on_claim_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "continuation_state": {
+      "enum": [
+        "CONTINUE",
+        "AUTHORIZATION_REQUIRED",
+        "BLOCKED"
+      ]
+    },
+    "authorization_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "blocker_reason": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "enum": [
+            "OWNER_DECISION_REQUIRED",
+            "REQUIRED_INPUT_MISSING",
+            "MATERIAL_CONTRADICTION",
+            "EXTERNAL_VERIFICATION_REQUIRED",
+            "FABRICATION_WOULD_BE_REQUIRED",
+            "AUTHORITY_OR_TARGET_IDENTITY_UNKNOWN",
+            "IRREVERSIBLE_EFFECT_NOT_AUTHORIZED",
+            "APPLICABILITY_UNDETERMINED",
+            "AUTHORIZATION_INVALIDATED"
+          ]
+        }
+      ]
+    },
+    "permitted_scope": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "continuation_state": {
+            "const": "CONTINUE"
+          }
+        },
+        "required": [
+          "continuation_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "authorization_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "blocker_reason": {
+            "type": "null"
+          },
+          "permitted_scope": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "continuation_state": {
+            "const": "AUTHORIZATION_REQUIRED"
+          }
+        },
+        "required": [
+          "continuation_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "authorization_ref": {
+            "type": "null"
+          },
+          "blocker_reason": {
+            "enum": [
+              "OWNER_DECISION_REQUIRED",
+              "IRREVERSIBLE_EFFECT_NOT_AUTHORIZED",
+              "AUTHORIZATION_INVALIDATED"
+            ]
+          },
+          "permitted_scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "continuation_state": {
+            "const": "BLOCKED"
+          }
+        },
+        "required": [
+          "continuation_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "authorization_ref": {
+            "type": "null"
+          },
+          "blocker_reason": {
+            "type": "string"
+          },
+          "permitted_scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

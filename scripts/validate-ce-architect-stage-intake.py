@@ -1,11 +1,28 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, copy, hashlib, json
+import argparse, copy, hashlib, importlib.util, json, sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
+
+
+def _load_pcvp_inspector():
+    module_name = "ce_pcvp_carrier"
+    if module_name in sys.modules:
+        return sys.modules[module_name].inspect_optional_pcvp_carrier
+    module_path = Path(__file__).resolve().parents[1] / "validator" / "pcvp_carrier.py"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("PCVP carrier validator load failed")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module.inspect_optional_pcvp_carrier
+
+
+inspect_optional_pcvp_carrier = _load_pcvp_inspector()
 
 Severity = Literal["error","warning","info","insufficient_evidence"]
 ORDER = {"error":0,"insufficient_evidence":1,"warning":2,"info":3}
@@ -176,7 +193,23 @@ class CEArchitectStageIntakeValidator:
         schema_diags = [_schema_diagnostic(e, value) for e in sorted(validator.iter_errors(value), key=lambda e:(jp(list(e.path)), e.validator, jp(list(e.schema_path))))]
         if schema_diags:
             return self._result(value, schema_diags)
-        return self._result(value, self._semantic(value))
+        diagnostics = self._semantic(value)
+        _, pcvp_diagnostics = inspect_optional_pcvp_carrier(
+            value,
+            repository_root=self.repo_root,
+        )
+        diagnostics.extend(
+            D(
+                item.code,
+                item.severity,
+                item.message,
+                item.path,
+                None,
+                **item.details,
+            )
+            for item in pcvp_diagnostics
+        )
+        return self._result(value, diagnostics)
 
     def _semantic(self, value: dict[str, Any]) -> list[Diagnostic]:
         out = self._forbidden(value)
