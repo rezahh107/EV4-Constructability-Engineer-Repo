@@ -107,20 +107,12 @@ def _profile_preauthorization_diagnostics(
     if not isinstance(authorizations, list) or not isinstance(effects, list):
         return []
 
-    auth_by_id = {
-        item.get("authorization_id"): item
-        for item in authorizations
-        if isinstance(item, dict) and isinstance(item.get("authorization_id"), str)
-    }
-    profile_authorized_effects = [
-        (index, effect, auth_by_id.get(effect.get("authorization_ref")))
-        for index, effect in enumerate(effects)
-        if isinstance(effect, dict)
-        and isinstance(auth_by_id.get(effect.get("authorization_ref")), dict)
-        and auth_by_id[effect.get("authorization_ref")].get("basis")
-        == "PROFILE_PREAUTHORIZED"
+    profile_authorizations = [
+        (index, item)
+        for index, item in enumerate(authorizations)
+        if isinstance(item, dict) and item.get("basis") == "PROFILE_PREAUTHORIZED"
     ]
-    if not profile_authorized_effects:
+    if not profile_authorizations:
         return []
 
     source_stage = continuation.get("source_stage")
@@ -150,15 +142,90 @@ def _profile_preauthorization_diagnostics(
             )
         ]
 
-    allowed_classes = {
-        item.get("effect_class")
-        for item in source_profile.get("preauthorized_effects") or []
-        if isinstance(item, dict) and isinstance(item.get("effect_class"), str)
-    }
+    profile_entries = source_profile.get("preauthorized_effects")
+    if not isinstance(profile_entries, list):
+        return [
+            diagnostic(
+                "CE_PCVP_SOURCE_PROFILE_PREAUTH_AMBIGUOUS",
+                "error",
+                "The canonical source-stage profile does not provide a deterministic preauthorized Effect-class/Scope mapping.",
+                "$.continuation_assurance.source_stage",
+                source_stage=source_stage,
+                source_profile_id=source_profile.get("profile_id"),
+                validator_layer="CANONICAL_PROFILE",
+            )
+        ]
+
+    profile_scope_by_class: dict[str, str] = {}
+    for entry_index, entry in enumerate(profile_entries):
+        effect_class = entry.get("effect_class") if isinstance(entry, dict) else None
+        scope = entry.get("scope") if isinstance(entry, dict) else None
+        if (
+            not isinstance(effect_class, str)
+            or not effect_class
+            or not isinstance(scope, str)
+            or not scope
+            or effect_class in profile_scope_by_class
+        ):
+            return [
+                diagnostic(
+                    "CE_PCVP_SOURCE_PROFILE_PREAUTH_AMBIGUOUS",
+                    "error",
+                    "The canonical source-stage profile must map each preauthorized Effect class to exactly one canonical Scope.",
+                    "$.continuation_assurance.source_stage",
+                    source_stage=source_stage,
+                    source_profile_id=source_profile.get("profile_id"),
+                    profile_entry_index=entry_index,
+                    effect_class=effect_class,
+                    validator_layer="CANONICAL_PROFILE",
+                )
+            ]
+        profile_scope_by_class[effect_class] = scope
+
     diagnostics: list[Diagnostic] = []
-    for effect_index, effect, authorization in profile_authorized_effects:
+    profile_auth_by_id = {
+        item.get("authorization_id"): (index, item)
+        for index, item in profile_authorizations
+        if isinstance(item.get("authorization_id"), str)
+    }
+
+    for authorization_index, authorization in profile_authorizations:
+        claimed_classes = authorization.get("allowed_effect_classes")
+        if not isinstance(claimed_classes, list):
+            continue
+        forbidden_classes = sorted(
+            {
+                item
+                for item in claimed_classes
+                if isinstance(item, str) and item not in profile_scope_by_class
+            }
+        )
+        if forbidden_classes:
+            diagnostics.append(
+                diagnostic(
+                    "CE_PCVP_PROFILE_PREAUTHORIZED_AUTH_CLASS_FORBIDDEN",
+                    "error",
+                    "PROFILE_PREAUTHORIZED Authorization cannot claim Effect classes absent from the canonical source-stage profile.",
+                    f"$.continuation_assurance.authorizations[{authorization_index}].allowed_effect_classes",
+                    authorization_id=authorization.get("authorization_id"),
+                    source_stage=source_stage,
+                    source_profile_id=source_profile.get("profile_id"),
+                    forbidden_effect_classes=forbidden_classes,
+                    preauthorized_effect_classes=sorted(profile_scope_by_class),
+                    validator_layer="CANONICAL_PROFILE",
+                )
+            )
+
+    for effect_index, effect in enumerate(effects):
+        if not isinstance(effect, dict):
+            continue
+        authorization_record = profile_auth_by_id.get(effect.get("authorization_ref"))
+        if authorization_record is None:
+            continue
+        _, authorization = authorization_record
         effect_class = effect.get("effect_class")
-        if effect_class not in allowed_classes:
+        canonical_scope = profile_scope_by_class.get(effect_class)
+        if canonical_scope is None:
             diagnostics.append(
                 diagnostic(
                     "CE_PCVP_PROFILE_PREAUTHORIZED_EFFECT_FORBIDDEN",
@@ -170,10 +237,33 @@ def _profile_preauthorization_diagnostics(
                     source_stage=source_stage,
                     source_profile_id=source_profile.get("profile_id"),
                     effect_class=effect_class,
-                    preauthorized_effect_classes=sorted(allowed_classes),
+                    preauthorized_effect_classes=sorted(profile_scope_by_class),
                     validator_layer="CANONICAL_PROFILE",
                 )
             )
+            continue
+
+        effect_scope = effect.get("permitted_scope")
+        authorization_scope = authorization.get("permitted_scope")
+        if effect_scope != canonical_scope or authorization_scope != canonical_scope:
+            diagnostics.append(
+                diagnostic(
+                    "CE_PCVP_PROFILE_PREAUTHORIZED_SCOPE_MISMATCH",
+                    "error",
+                    "PROFILE_PREAUTHORIZED Effect and Authorization Scope must exactly equal the canonical Scope for that Effect class.",
+                    f"$.continuation_assurance.effects[{effect_index}].permitted_scope",
+                    effect_id=effect.get("effect_id"),
+                    authorization_id=authorization.get("authorization_id"),
+                    source_stage=source_stage,
+                    source_profile_id=source_profile.get("profile_id"),
+                    effect_class=effect_class,
+                    expected_scope=canonical_scope,
+                    effect_scope=effect_scope,
+                    authorization_scope=authorization_scope,
+                    validator_layer="CANONICAL_PROFILE",
+                )
+            )
+
     return diagnostics
 
 
