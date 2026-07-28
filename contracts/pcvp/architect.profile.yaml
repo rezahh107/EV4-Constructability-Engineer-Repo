@@ -1,0 +1,47 @@
+continuation_profile:
+  profile_id: EV4-PCVP-PROFILE-ARCHITECT
+  profile_version: 1.0.0
+  profile_status: release_candidate
+  policy_id: EV4-PCVP
+  policy_version: 1.0.0
+  repository: rezahh107/EV4-Architect-Repo
+  stage_id: ARCHITECT
+  consumes_from:
+  - OWNER_PROJECT_INPUT
+  produces_for:
+  - CONSTRUCTABILITY_ENGINEER
+  - BUILDER_ASSISTANT
+  - RESPONSIVE_ARCHITECT
+  - PROJECT_GATE
+  preauthorized_effects:
+  - effect_class: REASONING_ONLY
+    bounded_output_types:
+    - decision_analysis
+    - candidate_comparison
+    - upstream_question
+    scope: current architecture decision only
+  - effect_class: DRAFT_ONLY
+    bounded_output_types:
+    - provisional_architecture_handoff
+    scope: discardable provisional handoff; no official validation claim
+  safe_reversible_default_enabled: true
+  safe_reversible_default_effect_classes:
+  - REASONING_ONLY
+  - DRAFT_ONLY
+  verified_only_boundaries:
+  - official runtime result
+  - validator PASS
+  - exact-head verification
+  - production-ready claim
+  - merge-ready claim
+  - authority-bearing architecture lock change
+  upstream_supplement_request_format: structured owner-input request with one missing
+    decision or evidence item
+  new_blocker_examples:
+  - new owner decision changes selected candidate
+  - new evidence contradicts a critical architecture claim
+  - scope expands to a new authority boundary
+  non_blocker_examples:
+  - same unavailable runtime already disclosed
+  - same provisional assumption inside unchanged scope
+  owner_facing_language: fa
