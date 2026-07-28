@@ -25,6 +25,18 @@
     "sha256": "00b5e3a1b3490f9b81ef8e81fc1b51b8899f2dd6ba5ba416b38a47a270488461",
     "local_copy_authoritative": false
   },
+  "source_profiles": {
+    "ARCHITECT": {
+      "profile_id": "EV4-PCVP-PROFILE-ARCHITECT",
+      "profile_version": "1.0.0",
+      "repository": "rezahh107/EV4-Architect-Repo",
+      "stage_id": "ARCHITECT",
+      "canonical_path": "kernel/pcvp/v1.0.0/bundle/03-PROFILES/architect.profile.yaml",
+      "path": "contracts/pcvp/architect.profile.yaml",
+      "sha256": "a4fc9b2912eea0fcba06880759f246c019f3d36b181696824d8c8e54d39b5248",
+      "local_copy_authoritative": false
+    }
+  },
   "producer": {
     "repository": "rezahh107/EV4-Constructability-Engineer-Repo",
     "source_stage": "CONSTRUCTABILITY_ENGINEER",
