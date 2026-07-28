@@ -28,6 +28,14 @@ def main() -> int:
     ]
     pairs.extend(
         (
+            local_root / item.local_path,
+            canonical_root / item.canonical_path,
+            item.sha256,
+        )
+        for item in DESCRIPTOR.source_profiles
+    )
+    pairs.extend(
+        (
             local_root / DESCRIPTOR.local_schema_root / item.name,
             canonical_root / DESCRIPTOR.canonical_schema_root / item.name,
             item.sha256,
