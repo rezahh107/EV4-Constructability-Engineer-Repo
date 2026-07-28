@@ -62,7 +62,7 @@ def _owned_output(path: Path) -> bool:
     acquisition = value.get('acquisition_mode') if isinstance(value.get('acquisition_mode'), dict) else {}
     return value.get('schema_version') == PRODUCER_EXPORT_SCHEMA_ID and value.get('pipeline_id') == PIPELINE_ID and (producer.get('stage') == 'ce') and (producer.get('repository') == CE_REPOSITORY) and (acquisition.get('mode') == 'producer_emitted_gate_artifact') and (acquisition.get('silent_fallback_allowed') is False)
 
-def safe_output_path(repo_root: Path, output_path: Path, overwrite: bool, *, protected_inputs: Iterable[Path]=()) -> Path:
+def safe_output_path(repo_root: Path, output_path: Path, overwrite: bool, *, protected_inputs: Iterable[Path]=(), allow_absolute_external: bool=False) -> Path:
     try:
         root = repo_root.resolve(strict=True)
         output_is_absolute = output_path.is_absolute()
@@ -70,11 +70,11 @@ def safe_output_path(repo_root: Path, output_path: Path, overwrite: bool, *, pro
         if candidate.is_symlink():
             raise ExporterError(ExportDiagnostic('CE_EXPORT_OUTPUT_SYMLINK_FORBIDDEN', 'output_safety', 'Refusing to write through a symbolic link.', str(candidate), 'repository_owner'))
         resolved = candidate.resolve(strict=False)
-        if not output_is_absolute:
-            try:
-                resolved.relative_to(root)
-            except ValueError as exc:
-                raise ExporterError(ExportDiagnostic('CE_EXPORT_OUTPUT_OUTSIDE_REPOSITORY', 'output_safety', 'Relative output path must remain inside the CE repository.', str(output_path), 'repository_owner')) from exc
+        try:
+            resolved.relative_to(root)
+        except ValueError as exc:
+            if not (output_is_absolute and allow_absolute_external):
+                raise ExporterError(ExportDiagnostic('CE_EXPORT_OUTPUT_OUTSIDE_REPOSITORY', 'output_safety', 'Output path must remain inside the CE repository unless the verified exporter explicitly enables safe external publication.', str(output_path), 'repository_owner')) from exc
         if resolved == root or resolved.is_dir():
             raise ExporterError(ExportDiagnostic('CE_EXPORT_OUTPUT_IS_DIRECTORY', 'output_safety', 'Output path cannot be the repository root or a directory.', str(resolved), 'repository_owner'))
         for protected in protected_inputs:
