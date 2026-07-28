@@ -1,0 +1,300 @@
+name: validate-pcvp-dormant-ce-producer
+
+on:
+  pull_request:
+    paths:
+      - "contracts/pcvp/**"
+      - "contracts/CE_PCVP_DORMANT_PRODUCER_V1.md"
+      - "contracts/CE_PCVP_TOLERANT_CONSUMER_V1.md"
+      - "schemas/ce_architect_stage_intake.v1_1.schema.json"
+      - "validator/pcvp_identity.py"
+      - "validator/pcvp_carrier.py"
+      - "validator/_pcvp_carrier_impl.py"
+      - "validator/pcvp_dormant_producer.py"
+      - "validator/payload_assembler.py"
+      - "validator/verified_constructability.py"
+      - "scripts/validate-ce-architect-stage-intake.py"
+      - "scripts/validate-pcvp-canonical-bytes.py"
+      - "tests/test_ce_architect_stage_intake.py"
+      - "tests/test_pcvp_dormant_producer.py"
+      - "tests/test_pcvp_tolerant_intake.py"
+      - ".github/workflows/validate-pcvp-dormant-producer.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Assert exact PR-head identity
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test -z "$(git status --porcelain)"
+          printf 'tested_pr_head=%s\n' "$EXPECTED_HEAD_SHA"
+
+      - name: Checkout exact Decision Kernel canonical commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: rezahh107/EV4-Decision-Kernel
+          ref: 069a50fa243b01fa578a7c1bcb8864d9e796d34b
+          path: decision-kernel
+          persist-credentials: false
+
+      - name: Assert exact Decision Kernel identity
+        run: |
+          set -euo pipefail
+          test "$(git -C decision-kernel rev-parse HEAD)" = "069a50fa243b01fa578a7c1bcb8864d9e796d34b"
+          test -z "$(git -C decision-kernel status --porcelain)"
+
+      - name: Checkout exact Builder tolerant consumer
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: rezahh107/EV4-Builder-Assistant-Repo
+          ref: 1a794fbd2d1df909415741a415c7a212cdde35ef
+          path: builder-consumer
+          persist-credentials: false
+
+      - name: Assert exact Builder consumer identity
+        run: |
+          set -euo pipefail
+          test "$(git -C builder-consumer rev-parse HEAD)" = "1a794fbd2d1df909415741a415c7a212cdde35ef"
+          test -z "$(git -C builder-consumer status --porcelain)"
+          node --version
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.11"
+
+      - name: Install validation dependencies
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify exact canonical PCVP bytes
+        run: |
+          set -o pipefail
+          python scripts/validate-pcvp-canonical-bytes.py \
+            --repository-root . \
+            --canonical-root decision-kernel \
+            2>&1 | tee pcvp-canonical-bytes.log
+
+      - name: Validate Architect-stage intake suite
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          set -o pipefail
+          python scripts/validate-ce-architect-stage-intake.py \
+            2>&1 | tee architect-intake-cli.log
+          pytest -p no:cacheprovider -q tests/test_ce_architect_stage_intake.py \
+            2>&1 | tee architect-intake-tests.log
+
+      - name: Validate dormant producer and tolerant boundary
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          set -o pipefail
+          pytest -p no:cacheprovider -q \
+            tests/test_pcvp_dormant_producer.py \
+            tests/test_pcvp_tolerant_intake.py \
+            tests/test_ce_builder_producer_contract.py \
+            tests/test_verified_constructability_runtime.py \
+            2>&1 | tee pcvp-focused.log
+
+      - name: Upload focused validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pcvp-focused-${{ github.event.pull_request.head.sha }}
+          path: |
+            pcvp-canonical-bytes.log
+            architect-intake-cli.log
+            architect-intake-tests.log
+            pcvp-focused.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Generate replay-derived CE carrier for Builder validation
+        env:
+          PYTHONPATH: "tests:."
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from deterministic_runtime_support import (
+              canonical_bundle,
+              canonical_draft,
+              canonical_intake,
+          )
+          from validator.payload_assembler import canonical_bytes
+          from validator.pcvp_dormant_producer import derive_continuation_assurance
+
+          root = Path(".").resolve()
+          bundle = canonical_bundle()
+          intake = canonical_intake(bundle=bundle)
+          carrier = derive_continuation_assurance(
+              architect_intake=intake,
+              architect_intake_bytes=canonical_bytes(intake),
+              source_bundle=bundle,
+              source_bundle_bytes=canonical_bytes(bundle),
+              review_draft=canonical_draft(),
+              repository_root=root,
+          )
+          Path("builder-consumer/ce-pcvp-carrier.json").write_text(
+              json.dumps({"continuation_assurance": carrier}, sort_keys=True),
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Validate through exact Builder tolerant consumer
+        working-directory: builder-consumer
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { inspectOptionalPcvpCarrier } from './scripts/lib/pcvp-carrier.mjs';
+
+          const document = JSON.parse(readFileSync('ce-pcvp-carrier.json', 'utf8'));
+          const result = inspectOptionalPcvpCarrier(document, {
+            expectedSourceStages: ['CONSTRUCTABILITY_ENGINEER']
+          });
+          if (result.status !== 'validated') {
+            throw new Error(JSON.stringify(result.diagnostics));
+          }
+          if (JSON.stringify(result.carrier) !== JSON.stringify(document)) {
+            throw new Error('Builder tolerant consumer did not preserve the carrier losslessly.');
+          }
+          console.log(`BUILDER_PCVP_VALIDATED ${result.canonical_sha256}`);
+          NODE
+
+      - name: Compile affected Python surfaces and inspect patch whitespace
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          git diff --check "refs/remotes/origin/${BASE_REF}" HEAD
+          python -m py_compile \
+            validator/pcvp_identity.py \
+            validator/pcvp_carrier.py \
+            validator/_pcvp_carrier_impl.py \
+            validator/pcvp_dormant_producer.py \
+            validator/payload_assembler.py \
+            validator/verified_constructability.py \
+            scripts/validate-ce-architect-stage-intake.py \
+            scripts/validate-pcvp-canonical-bytes.py \
+            tests/test_pcvp_dormant_producer.py \
+            tests/test_pcvp_tolerant_intake.py
+
+  regression-inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head for live-base regression comparison
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve live base and assert candidate ancestry
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git fetch --no-tags origin \
+            "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          LIVE_BASE_SHA="$(git rev-parse "refs/remotes/origin/${BASE_REF}^{commit}")"
+          MERGE_BASE_SHA="$(git merge-base "$EXPECTED_HEAD_SHA" "$LIVE_BASE_SHA")"
+          if ! git merge-base --is-ancestor "$LIVE_BASE_SHA" "$EXPECTED_HEAD_SHA"; then
+            printf 'BRANCH_BEHIND_LIVE_BASE candidate_head=%s base_ref=%s live_base_sha=%s merge_base_sha=%s\n' \
+              "$EXPECTED_HEAD_SHA" "$BASE_REF" "$LIVE_BASE_SHA" "$MERGE_BASE_SHA" >&2
+            exit 1
+          fi
+          test -z "$(git status --porcelain)"
+          printf 'candidate_head_sha=%s\n' "$EXPECTED_HEAD_SHA"
+          printf 'base_ref=%s\n' "$BASE_REF"
+          printf 'live_base_sha=%s\n' "$LIVE_BASE_SHA"
+          printf 'merge_base_sha=%s\n' "$MERGE_BASE_SHA"
+          printf 'PCVP_LIVE_BASE_SHA=%s\n' "$LIVE_BASE_SHA" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.11"
+
+      - name: Install regression dependencies
+        run: python -m pip install -e '.[dev]'
+
+      - name: Run exact result-head repository regression
+        run: |
+          set +e
+          PYTHONPATH="$PWD" PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
+            2>&1 | tee result-regression.log
+          status=${PIPESTATUS[0]}
+          set -e
+          printf '%s\n' "$status" > result-regression.status
+          grep -E '^(FAILED|ERROR) ' result-regression.log \
+            | LC_ALL=C sort -u > result-regression.inventory || true
+
+      - name: Materialize exact live-base worktree read-only
+        run: |
+          set -euo pipefail
+          BASELINE_DIR="$RUNNER_TEMP/pcvp-live-base"
+          git worktree add --detach "$BASELINE_DIR" "$PCVP_LIVE_BASE_SHA"
+          test "$(git -C "$BASELINE_DIR" rev-parse HEAD)" = "$PCVP_LIVE_BASE_SHA"
+          printf 'PCVP_BASELINE_DIR=%s\n' "$BASELINE_DIR" >> "$GITHUB_ENV"
+
+      - name: Run exact live-base repository regression
+        run: |
+          set +e
+          (
+            cd "$PCVP_BASELINE_DIR"
+            PYTHONPATH="$PWD" PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q
+          ) 2>&1 | tee baseline-regression.log
+          status=${PIPESTATUS[0]}
+          set -e
+          printf '%s\n' "$status" > baseline-regression.status
+          grep -E '^(FAILED|ERROR) ' baseline-regression.log \
+            | LC_ALL=C sort -u > baseline-regression.inventory || true
+
+      - name: Require zero new failures versus live base
+        run: |
+          set -euo pipefail
+          comm -13 baseline-regression.inventory result-regression.inventory \
+            > new-regression-failures.inventory
+          if test -s new-regression-failures.inventory; then
+            printf 'NEW_FAILURES_VERSUS_LIVE_BASE live_base_sha=%s\n' "$PCVP_LIVE_BASE_SHA" >&2
+            cat new-regression-failures.inventory >&2
+            exit 1
+          fi
+          printf 'NO_NEW_FAILURES_VERSUS_LIVE_BASE\n'
+          printf 'live_base_sha=%s\n' "$PCVP_LIVE_BASE_SHA"
+          printf 'baseline_failure_count=%s\n' "$(wc -l < baseline-regression.inventory)"
+          printf 'result_failure_count=%s\n' "$(wc -l < result-regression.inventory)"
+          cat result-regression.inventory
+
+      - name: Upload exact regression evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pcvp-regression-${{ github.event.pull_request.head.sha }}
+          path: |
+            result-regression.log
+            result-regression.status
+            result-regression.inventory
+            baseline-regression.log
+            baseline-regression.status
+            baseline-regression.inventory
+            new-regression-failures.inventory
+          if-no-files-found: error
+          retention-days: 7

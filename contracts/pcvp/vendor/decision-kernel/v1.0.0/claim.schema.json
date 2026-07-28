@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ev4-pcvp/1.0.0/claim.schema.json",
+  "title": "EV4 PCVP Claim",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claim_id",
+    "statement",
+    "criticality",
+    "applicability_state",
+    "verification_state",
+    "lifecycle_state",
+    "evidence_refs",
+    "dependency_refs",
+    "assumption_refs"
+  ],
+  "properties": {
+    "claim_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "criticality": {
+      "enum": [
+        "CRITICAL",
+        "MATERIAL",
+        "INFORMATIONAL"
+      ]
+    },
+    "applicability_state": {
+      "enum": [
+        "APPLICABLE",
+        "NOT_APPLICABLE",
+        "UNDETERMINED"
+      ]
+    },
+    "verification_state": {
+      "enum": [
+        "VERIFIED",
+        "UNVERIFIED",
+        "CONTRADICTED"
+      ]
+    },
+    "lifecycle_state": {
+      "enum": [
+        "ACTIVE",
+        "COMPLETE"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "dependency_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "assumption_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  }
+}

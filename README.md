@@ -91,6 +91,9 @@ Behavior:
 - sending `شروع` first is optional;
 - `active_ce_run` is not an authorization gate;
 - a valid CE input can start intake directly;
+- an optional `EV4-PCVP@1.0.0` `continuation_assurance` carrier is dual-read
+  against the immutable Decision Kernel contract; absence preserves legacy
+  behavior and presence does not activate producer emission;
 - Schema and semantic validation remain mandatory;
 - multiple valid CE inputs block as ambiguous;
 - extra irrelevant, Receipt-like, malformed, legacy, or wrong-stage files produce a warning when one valid CE input exists;

@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ev4-pcvp/1.0.0/handoff.schema.json",
+  "title": "EV4 PCVP Continuation Assurance Handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "continuation_assurance"
+  ],
+  "properties": {
+    "continuation_assurance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "policy_version",
+        "source_stage",
+        "claims",
+        "effects",
+        "authorizations",
+        "unresolved_items",
+        "stage_summary"
+      ],
+      "properties": {
+        "policy_id": {
+          "const": "EV4-PCVP"
+        },
+        "policy_version": {
+          "const": "1.0.0"
+        },
+        "source_stage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "$ref": "claim.schema.json"
+          },
+          "uniqueItems": true
+        },
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "effect.schema.json"
+          },
+          "uniqueItems": true
+        },
+        "authorizations": {
+          "type": "array",
+          "items": {
+            "$ref": "authorization.schema.json"
+          },
+          "uniqueItems": true
+        },
+        "unresolved_items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "class",
+              "statement",
+              "impact"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "class": {
+                "enum": [
+                  "UPSTREAM_GENERATABLE",
+                  "OWNER_DECISION_REQUIRED",
+                  "VERIFICATION_PATH_UNAVAILABLE",
+                  "SAFE_DECLARED_ASSUMPTION",
+                  "MATERIAL_CONTRADICTION",
+                  "NON_RECOVERABLE_WITHOUT_FABRICATION",
+                  "APPLICABILITY_UNDETERMINED"
+                ]
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "impact": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "stage_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "owner_projection",
+            "yellow_substate",
+            "derived_from_claim_ids",
+            "current_effect_id",
+            "lifecycle_state",
+            "derivation_reason"
+          ],
+          "properties": {
+            "owner_projection": {
+              "enum": [
+                "GREEN",
+                "YELLOW",
+                "RED"
+              ]
+            },
+            "yellow_substate": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "enum": [
+                    "CONTINUATION_AVAILABLE",
+                    "OWNER_CHOICE_REQUIRED"
+                  ]
+                }
+              ]
+            },
+            "derived_from_claim_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "current_effect_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "lifecycle_state": {
+              "enum": [
+                "ACTIVE",
+                "COMPLETE"
+              ]
+            },
+            "derivation_reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "owner_projection": {
+                    "const": "YELLOW"
+                  }
+                },
+                "required": [
+                  "owner_projection"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "yellow_substate": {
+                    "enum": [
+                      "CONTINUATION_AVAILABLE",
+                      "OWNER_CHOICE_REQUIRED"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "owner_projection": {
+                    "enum": [
+                      "GREEN",
+                      "RED"
+                    ]
+                  }
+                },
+                "required": [
+                  "owner_projection"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "yellow_substate": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "x-pcvp-cross-record-invariants": [
+    "All claim_id, effect_id, and authorization_id values are unique within the carrier.",
+    "Every effect dependency resolves to an existing claim.",
+    "Every non-null authorization_ref resolves to an existing ACTIVE authorization.",
+    "The referenced authorization covers the effect by ID or class and its permitted scope.",
+    "The stage summary current_effect_id resolves to an existing effect.",
+    "The stage summary derived_from_claim_ids resolve to claims used by the current effect.",
+    "A critical contradicted dependent claim requires RED and blocks the dependent effect.",
+    "GREEN is invalid when a critical applicable dependent claim is unverified.",
+    "SAFE_REVERSIBLE_DEFAULT cannot authorize external or irreversible effects."
+  ]
+}
