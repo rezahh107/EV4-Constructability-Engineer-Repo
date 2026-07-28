@@ -176,8 +176,13 @@ jobs:
           NODE
 
       - name: Compile affected Python surfaces and inspect patch whitespace
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          git diff --check "${{ github.event.pull_request.base.sha }}" HEAD
+          set -euo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          git diff --check "refs/remotes/origin/${BASE_REF}" HEAD
           python -m py_compile \
             validator/pcvp_identity.py \
             validator/pcvp_carrier.py \
