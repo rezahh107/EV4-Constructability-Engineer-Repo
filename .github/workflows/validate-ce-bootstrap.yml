@@ -36,6 +36,7 @@ on:
       - 'tests/test_project_gate_exporter_post_merge_audit.py'
       - 'tests/test_ce_validation_transaction.py'
       - 'tests/test_ce_validation_transaction_rereview.py'
+      - 'tests/test_ce_external_output_boundary.py'
       - 'tests/test_ce_authority_mutation_harness.py'
       - 'tests/test_verified_constructability_runtime.py'
       - 'tests/test_ce_claim_policy_and_model_reduction.py'
@@ -109,6 +110,7 @@ jobs:
             tests/test_verified_constructability_runtime.py \
             tests/test_project_gate_exporter.py \
             tests/test_ce_validation_transaction.py \
+            tests/test_ce_external_output_boundary.py \
             tests/test_ce_pr45_main_reconciliation.py
 
       - name: Validate lean CE runtime contract
@@ -147,6 +149,9 @@ jobs:
       - name: Verify CE validation transaction rereview
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_validation_transaction_rereview.py
 
+      - name: Verify CE external output boundary
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/test_ce_external_output_boundary.py
+
       - name: Verify constructability proof authority
         run: |
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q \
@@ -169,6 +174,33 @@ jobs:
 
       - name: Verify reference paradigm lock
         run: npm run test:reference-paradigm-lock
+
+      - name: Reproduce and repair starting-head status baseline
+        env:
+          STARTING_HEAD_SHA: 0e7d8756c8452113d42e8f50fc9489b240a01bfe
+        run: |
+          set -euo pipefail
+          BASELINE_LOG="$RUNNER_TEMP/starting-status-baseline.log"
+          BASELINE_DIR="$RUNNER_TEMP/ce-starting-head"
+
+          pytest -q tests/test_status_pr37_reconciliation.py
+
+          git fetch --no-tags --depth=1 origin "$STARTING_HEAD_SHA"
+          git worktree add --detach "$BASELINE_DIR" "$STARTING_HEAD_SHA"
+          set +e
+          (
+            cd "$BASELINE_DIR"
+            python -m pytest -q tests/test_status_pr37_reconciliation.py
+          ) >"$BASELINE_LOG" 2>&1
+          BASELINE_EXIT=$?
+          set -e
+          test "$BASELINE_EXIT" -eq 1
+          grep -F "test_pr37_status_reconciliation_preserves_history_and_records_live_state" "$BASELINE_LOG"
+          grep -F "1 failed" "$BASELINE_LOG"
+          git worktree remove --force "$BASELINE_DIR"
+
+          printf 'starting_head_status_regression=reproduced\n'
+          printf 'current_head_status_regression=repaired\n'
 
       - name: Run repository regression suite
         run: pytest -q

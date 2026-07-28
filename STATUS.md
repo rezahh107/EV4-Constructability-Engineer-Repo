@@ -1,8 +1,8 @@
 # STATUS — EV4 Constructability Engineer Repo
 
-Version: 0.5.1  
-Status: pr45_merged_main_documentation_reconciled  
-Date: 2026-07-24  
+Version: 0.5.2  
+Status: external_output_boundary_draft_implemented_pending_exact_head_revalidation  
+Date: 2026-07-27  
 Authority role: canonical mutable repository status
 
 ## Authority order
@@ -27,7 +27,7 @@ PR_45_MERGED_RUNTIME:
   base_branch: main
   feature_branch: agent/verified-constructability-proof-runtime
   validated_pr_head_sha: 0608d9d47f6054fc2e1070c6cbeda6ddea87580c
-  implementation_merge_commit_sha: 3b681f190e81782887af4d8ee7670010e3666ea5
+  implementation_merge_commit_sha: 3b681f190e81782887af49532e14afe0e8a2af7
   merged_at: 2026-07-24T15:34:38Z
   main_reconciliation_commit_on_feature_branch: 197b5867f73ece06845af49532e14afe0e8a2af7
   integration_strategy: merge_main_then_semantic_reconciliation
@@ -135,6 +135,9 @@ No Browser, Elementor, accessibility, interaction, or QA runner currently exists
 ```yaml
 verified_exporter:
   entry_point: validator.verified_project_gate_exporter:main
+  public_exporter_id: ev4-producer-gate-export-validator
+  public_exporter_version: 1.1.0
+  producer_gate_envelope_validator_version: 1.0.0
   cli_options:
     - --review-draft
     - --source-intake
@@ -142,6 +145,12 @@ verified_exporter:
     - --output
     - --repo-root
     - --overwrite
+  output_paths:
+    relative: ce_repository_root_relative
+    absolute: safe_caller_selected_path_supported
+  direct_external_publication: ce_owned
+  workbench_side_artifact_construction: false
+  ce_local_copy_out_transport: false
   authoritative_intermediate_carrier_input: false
   sibling_file_discovery: false
   legacy_payload_route:
@@ -151,6 +160,32 @@ verified_exporter:
 ```
 
 The historical `validator.project_gate_exporter` and `scripts/export-ce-project-gate.py` path is not equivalent to the verified Review Draft exporter.
+
+## Draft PR #48 external-output repair
+
+```yaml
+CE_EXTERNAL_OUTPUT_BOUNDARY_WU1:
+  prompt_id: IMP-CE-EXTERNAL-OUTPUT-BOUNDARY-V1
+  work_unit_id: WU-CE-OUTPUT-BOUNDARY-001
+  pull_request: 48
+  pull_request_state: draft
+  branch: fix/ce-external-output-boundary
+  starting_main_head: 0e7d8756c8452113d42e8f50fc9489b240a01bfe
+  selected_method: M1-CE-DIRECT-CALLER-OUTPUT
+  conformance_lock: CL1-CE-DIRECT-CALLER-OUTPUT
+  implementation_scope:
+    - safe absolute external output acceptance
+    - relative output compatibility
+    - output safety and rollback regression coverage
+    - public exporter version 1.1.0
+  workbench_repository_modified: false
+  pr47_modified: false
+  exact_head_ci: pending_after_status_update
+  workbench_integration: deferred_to_WU-WORKBENCH-FINAL-002
+  merge_performed: false
+  approval_performed: false
+  production_ready: false
+```
 
 ## Validation evidence
 
@@ -236,10 +271,35 @@ project_status:
   role: implementation_strategy_gate
   repository_profile: personal_single_operator
   fail_closed_default: true
+  ce_project_gate_exporter_command: implemented_merged_pending_fresh_independent_rereview
+  ce_project_gate_exporter_post_merge_audit: repair_merged_content_equivalent_review_not_observed
+  ce_project_gate_exporter_exact_pr_head_validation: confirmed
+  ce_project_gate_exporter_exact_merged_main_ci: not_observed
+  ce_project_gate_exporter_post_merge_content_verification: confirmed_content_equivalent
+  ce_project_gate_exporter_fresh_independent_review: not_observed
+  ce_project_gate_exporter_findings_closed: false
   historical_ce_project_gate_exporter_command: merged_then_superseded_by_verified_review_draft_exporter
   historical_ce_project_gate_exporter_fresh_independent_review: not_observed
   historical_ce_project_gate_exporter_findings_closed: false
   production_ready: false
+```
+
+```yaml
+CE_02_POST_MERGE_EXPORTER_AUDIT:
+  prompt_id: P-004
+  task_id: CE-02
+  audited_default_branch: main
+  audited_main_commit: ebc73c28a154123b4c76f340ff0913934833789d
+  merged_pull_request: 36
+  merged_head_sha: 1804705c1ad86b4e414b2e5a40294bb8d1a9727a
+  merge_commit_content_delta_from_validated_head: none
+  repair_branch: audit/ce-02-exporter-audit-repair
+  exact_head_validation: pending
+  independent_repair_review: pending
+  repair_merged: false
+  project_gate_runtime_acceptance: unverified
+  cross_repository_e2e: unverified
+  builder_acceptance: unverified
 ```
 
 ```yaml
@@ -250,6 +310,26 @@ CE_02_POST_MERGE_STATUS_RECONCILIATION:
   merged_at: 2026-07-17T16:19:23Z
   validated_head_sha: 677ff32edc8bca3e4c4156031d72b89a9c0a26d5
   merge_commit_sha: 6650c31304e5a0472b276c36018c1df8f42ac983
+  current_main_sha_at_reconciliation: 6650c31304e5a0472b276c36018c1df8f42ac983
+  current_main_relationship_to_merge_commit: identical
+  merge_commit_file_delta_from_validated_head: none
+  exact_head_ci:
+    validate_fixtures:
+      run_id: 29563815214
+    verify_project_gate_contract:
+      run_id: 29563815485
+  exact_merged_main_ci: not_observed
+  implementation_merged: true
+  repair_merged: true
+  post_merge_content_verification: confirmed
+  fresh_independent_review_on_repaired_head: not_observed
+  independent_review: insufficient_evidence
+  findings_closed: false
+  project_gate_runtime_acceptance: unverified
+  real_non_synthetic_cross_repository_handoff: unverified
+  builder_acceptance: unverified
+  responsive_completion: unverified
+  deployment: unverified
   historical_record: true
   production_ready: false
 ```
