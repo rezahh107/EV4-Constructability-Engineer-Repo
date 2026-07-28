@@ -1001,6 +1001,7 @@ def export_verified_review_file(
             intake=intake_snapshot.value,
             intake_bytes=intake_snapshot.raw_bytes,
             source_ref=str(source_intake_path),
+            repo_root=root,
         )
         verified_bundle = verify_source_bundle(
             source_bundle=bundle_snapshot.value,

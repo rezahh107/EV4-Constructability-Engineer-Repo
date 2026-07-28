@@ -1,0 +1,44 @@
+continuation_profile:
+  profile_id: EV4-PCVP-PROFILE-CONSTRUCTABILITY
+  profile_version: 1.0.0
+  profile_status: release_candidate
+  policy_id: EV4-PCVP
+  policy_version: 1.0.0
+  repository: rezahh107/EV4-Constructability-Engineer-Repo
+  stage_id: CONSTRUCTABILITY_ENGINEER
+  consumes_from:
+  - ARCHITECT
+  produces_for:
+  - BUILDER_ASSISTANT
+  - RESPONSIVE_ARCHITECT
+  - PROJECT_GATE
+  preauthorized_effects:
+  - effect_class: REASONING_ONLY
+    bounded_output_types:
+    - constructability_analysis
+    - dependency_scoped_gap_classification
+    - architect_supplement_request
+    scope: current constructability evaluation only
+  - effect_class: DRAFT_ONLY
+    bounded_output_types:
+    - provisional_constructability_handoff
+    scope: discardable provisional handoff; no official feasibility claim
+  safe_reversible_default_enabled: true
+  safe_reversible_default_effect_classes:
+  - REASONING_ONLY
+  - DRAFT_ONLY
+  verified_only_boundaries:
+  - official constructability PASS
+  - runtime-derived feasibility
+  - exact consumer integration claim
+  - authority-bearing upstream correction
+  upstream_supplement_request_format: one bounded Architect Supplement request tied
+    to affected claim IDs
+  new_blocker_examples:
+  - missing owner decision not present in Architect handoff
+  - critical upstream contradiction
+  - required effect becomes externally mutating
+  non_blocker_examples:
+  - same known unverified Architect claim with valid authorization
+  - unrelated provisional claim outside current effect dependencies
+  owner_facing_language: fa

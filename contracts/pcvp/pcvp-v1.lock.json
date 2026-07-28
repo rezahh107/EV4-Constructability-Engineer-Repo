@@ -1,0 +1,74 @@
+{
+  "schema_version": "ev4-pcvp-contract-lock.v1",
+  "architecture_lock_id": "EV4-PCVP-ROLL-LOCK-20260727-R1",
+  "policy": {
+    "id": "EV4-PCVP",
+    "version": "1.0.0",
+    "adoption_status": "not_yet_adopted",
+    "activation": "NONE"
+  },
+  "canonical": {
+    "repository": "rezahh107/EV4-Decision-Kernel",
+    "commit_sha": "069a50fa243b01fa578a7c1bcb8864d9e796d34b",
+    "schema_root": "kernel/pcvp/v1.0.0/bundle/04-SCHEMAS",
+    "profile_path": "kernel/pcvp/v1.0.0/bundle/03-PROFILES/constructability.profile.yaml"
+  },
+  "profile": {
+    "profile_id": "EV4-PCVP-PROFILE-CONSTRUCTABILITY",
+    "profile_version": "1.0.0",
+    "repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+    "stage_id": "CONSTRUCTABILITY_ENGINEER",
+    "consumes_from": [
+      "ARCHITECT"
+    ],
+    "path": "contracts/pcvp/constructability.profile.yaml",
+    "sha256": "00b5e3a1b3490f9b81ef8e81fc1b51b8899f2dd6ba5ba416b38a47a270488461",
+    "local_copy_authoritative": false
+  },
+  "source_profiles": {
+    "ARCHITECT": {
+      "profile_id": "EV4-PCVP-PROFILE-ARCHITECT",
+      "profile_version": "1.0.0",
+      "repository": "rezahh107/EV4-Architect-Repo",
+      "stage_id": "ARCHITECT",
+      "canonical_path": "kernel/pcvp/v1.0.0/bundle/03-PROFILES/architect.profile.yaml",
+      "path": "contracts/pcvp/architect.profile.yaml",
+      "sha256": "a4fc9b2912eea0fcba06880759f246c019f3d36b181696824d8c8e54d39b5248",
+      "local_copy_authoritative": false
+    }
+  },
+  "producer": {
+    "repository": "rezahh107/EV4-Constructability-Engineer-Repo",
+    "source_stage": "CONSTRUCTABILITY_ENGINEER",
+    "consumer_stage": "BUILDER_ASSISTANT",
+    "carrier_path": "builder_executable_package.continuation_assurance",
+    "emission_enabled": false,
+    "caller_override_allowed": false
+  },
+  "vendored": {
+    "root": "contracts/pcvp/vendor/decision-kernel/v1.0.0",
+    "local_copy_authoritative": false
+  },
+  "files": [
+    {
+      "name": "authorization.schema.json",
+      "sha256": "8eba853834bc3881ae836857a5bef3d8cc8e7c9edecd535ba22fb58a26fa5ff9"
+    },
+    {
+      "name": "claim.schema.json",
+      "sha256": "7d4c686b983330c454d76ebc34ef97ca4c595dd77b221de194e6a75e41859a72"
+    },
+    {
+      "name": "effect.schema.json",
+      "sha256": "59c201b7277f3bf3488eb43afbd04f686efae25b9a143c73f97aca5f65a1bbeb"
+    },
+    {
+      "name": "handoff.schema.json",
+      "sha256": "dcc3189ef4662b27e440aee3d3c698d503e265f81fb71d5d1904972cfe8728da"
+    }
+  ],
+  "verification": {
+    "byte_equality_required": true,
+    "compare_against_moving_default_branch": false
+  }
+}

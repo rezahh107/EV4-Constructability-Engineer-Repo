@@ -18,6 +18,7 @@ from .payload_assembler import (
     sha256_json,
 )
 from .payload_fidelity import compare_persisted_payload, recompute_expected_payload
+from .pcvp_carrier import inspect_optional_pcvp_carrier
 from .runtime_execution import RuntimeExecutionBoundaryError
 
 
@@ -63,7 +64,11 @@ def validate_review_draft(draft: Mapping[str, Any], repo_root: Path) -> None:
 
 
 def verify_architect_intake(
-    *, intake: Mapping[str, Any], intake_bytes: bytes, source_ref: str
+    *,
+    intake: Mapping[str, Any],
+    intake_bytes: bytes,
+    source_ref: str,
+    repo_root: Path = Path("."),
 ) -> dict[str, Any]:
     if intake.get("schema_id") != "ev4-ce-architect-stage-intake@1.1.0":
         raise EvidenceVerificationError(
@@ -73,6 +78,18 @@ def verify_architect_intake(
         raise EvidenceVerificationError("Architect intake selected architecture is missing")
     if not isinstance(intake.get("structure_projection"), Mapping):
         raise EvidenceVerificationError("Architect intake structure projection is missing")
+    _, pcvp_diagnostics = inspect_optional_pcvp_carrier(
+        intake,
+        repository_root=repo_root,
+    )
+    pcvp_errors = [
+        item for item in pcvp_diagnostics if item.severity == "error"
+    ]
+    if pcvp_errors:
+        codes = ", ".join(sorted({item.code for item in pcvp_errors}))
+        raise EvidenceVerificationError(
+            f"Architect intake PCVP carrier is invalid: {codes}"
+        )
     observed_bytes = hashlib.sha256(intake_bytes).hexdigest()
     canonical_sha = sha256_json(intake)
     return {
