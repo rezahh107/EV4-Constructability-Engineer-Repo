@@ -4,6 +4,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -11,6 +12,7 @@ import pytest
 
 from validator.payload_assembler import canonical_bytes
 from validator.pcvp_carrier import (
+    ARCHITECT_PROFILE_SHA256,
     PROFILE_SHA256,
     canonical_sha256,
     inspect_optional_pcvp_carrier,
@@ -31,6 +33,7 @@ FIXTURE = (
 )
 LOCK_PATH = ROOT / "contracts" / "pcvp" / "pcvp-v1.lock.json"
 PROFILE_PATH = ROOT / "contracts" / "pcvp" / "constructability.profile.yaml"
+ARCHITECT_PROFILE_PATH = ROOT / "contracts" / "pcvp" / "architect.profile.yaml"
 VENDORED_ROOT = (
     ROOT / "contracts" / "pcvp" / "vendor" / "decision-kernel" / "v1.0.0"
 )
@@ -118,6 +121,12 @@ def _codes(result: dict) -> set[str]:
     return {item["code"] for item in result["diagnostics"]}
 
 
+def _mutate_profile_authorized_effect(intake: dict, effect_class: str) -> None:
+    carrier = intake["continuation_assurance"]
+    carrier["effects"][0]["effect_class"] = effect_class
+    carrier["authorizations"][0]["allowed_effect_classes"] = [effect_class]
+
+
 def test_legacy_intake_without_pcvp_remains_valid() -> None:
     intake = _intake()
     before = copy.deepcopy(intake)
@@ -164,6 +173,41 @@ def test_valid_pcvp_is_read_losslessly_without_activation_or_emission() -> None:
         "continuation_assurance"
     ]
     assert intake == before
+
+
+@pytest.mark.parametrize(
+    "effect_class",
+    [
+        "REVERSIBLE_LOCAL_CHANGE",
+        "EXTERNAL_MUTATION",
+        "IRREVERSIBLE_OR_AUTHORITY_BEARING",
+    ],
+)
+def test_architect_profile_preauthorization_rejects_effects_outside_profile(
+    effect_class: str,
+) -> None:
+    intake = _with_carrier()
+    _mutate_profile_authorized_effect(intake, effect_class)
+
+    projection, diagnostics = inspect_optional_pcvp_carrier(intake, ROOT)
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(intake)
+
+    assert projection["status"] == "invalid"
+    assert "CE_PCVP_PROFILE_PREAUTHORIZED_EFFECT_FORBIDDEN" in {
+        item.code for item in diagnostics
+    }
+    assert result["status"] == "invalid"
+    assert "CE_PCVP_PROFILE_PREAUTHORIZED_EFFECT_FORBIDDEN" in _codes(result)
+    with pytest.raises(
+        EvidenceVerificationError,
+        match="CE_PCVP_PROFILE_PREAUTHORIZED_EFFECT_FORBIDDEN",
+    ):
+        verify_architect_intake(
+            intake=intake,
+            intake_bytes=canonical_bytes(intake),
+            source_ref="architect-intake.json",
+            repo_root=ROOT,
+        )
 
 
 @pytest.mark.parametrize(
@@ -230,6 +274,51 @@ def test_malformed_or_mechanically_invalid_carriers_fail_closed(
         )
 
 
+@pytest.mark.parametrize("coordinated_lock_update", [False, True])
+def test_architect_source_profile_drift_cannot_create_new_preauthorization(
+    tmp_path: Path,
+    coordinated_lock_update: bool,
+) -> None:
+    test_root = tmp_path / "repo"
+    pcvp_root = test_root / "contracts" / "pcvp"
+    shutil.copytree(ROOT / "contracts" / "pcvp", pcvp_root)
+
+    profile_path = pcvp_root / "architect.profile.yaml"
+    profile_text = profile_path.read_text(encoding="utf-8")
+    marker = "  safe_reversible_default_enabled: true\n"
+    addition = (
+        "  - effect_class: EXTERNAL_MUTATION\n"
+        "    bounded_output_types:\n"
+        "    - mutated_external_action\n"
+        "    scope: mutated local mirror only\n"
+    )
+    assert marker in profile_text
+    profile_path.write_text(
+        profile_text.replace(marker, addition + marker, 1),
+        encoding="utf-8",
+    )
+
+    if coordinated_lock_update:
+        lock_path = pcvp_root / "pcvp-v1.lock.json"
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
+        lock["source_profiles"]["ARCHITECT"]["sha256"] = hashlib.sha256(
+            profile_path.read_bytes()
+        ).hexdigest()
+        lock_path.write_text(
+            json.dumps(lock, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+
+    intake = _with_carrier()
+    _mutate_profile_authorized_effect(intake, "EXTERNAL_MUTATION")
+    projection, diagnostics = inspect_optional_pcvp_carrier(intake, test_root)
+
+    assert projection["status"] == "invalid"
+    assert "CE_PCVP_CANONICAL_IDENTITY_MISMATCH" in {
+        item.code for item in diagnostics
+    }
+
+
 def test_pcvp_lock_covers_exact_non_authoritative_profile_and_schemas() -> None:
     lock = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
 
@@ -248,6 +337,22 @@ def test_pcvp_lock_covers_exact_non_authoritative_profile_and_schemas() -> None:
     assert lock["profile"]["consumes_from"] == ["ARCHITECT"]
     assert lock["profile"]["local_copy_authoritative"] is False
     assert hashlib.sha256(PROFILE_PATH.read_bytes()).hexdigest() == PROFILE_SHA256
+
+    architect = lock["source_profiles"]["ARCHITECT"]
+    assert architect == {
+        "profile_id": "EV4-PCVP-PROFILE-ARCHITECT",
+        "profile_version": "1.0.0",
+        "repository": "rezahh107/EV4-Architect-Repo",
+        "stage_id": "ARCHITECT",
+        "canonical_path": "kernel/pcvp/v1.0.0/bundle/03-PROFILES/architect.profile.yaml",
+        "path": "contracts/pcvp/architect.profile.yaml",
+        "sha256": ARCHITECT_PROFILE_SHA256,
+        "local_copy_authoritative": False,
+    }
+    assert (
+        hashlib.sha256(ARCHITECT_PROFILE_PATH.read_bytes()).hexdigest()
+        == ARCHITECT_PROFILE_SHA256
+    )
     assert {
         item["name"]: item["sha256"] for item in lock["files"]
     } == {
