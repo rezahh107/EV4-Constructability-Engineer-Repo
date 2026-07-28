@@ -177,25 +177,36 @@ def test_relative_outputs_remain_ce_root_relative(tmp_path: Path) -> None:
     assert observed == (ROOT / relative).resolve(strict=False)
 
     absolute = (tmp_path / "external-output.json").resolve()
-    assert safe_output_path(ROOT, absolute, False) == absolute
+    assert safe_output_path(
+        ROOT,
+        absolute,
+        False,
+        allow_absolute_external=True,
+    ) == absolute
 
 
 def test_external_output_safety_controls_remain_active(tmp_path: Path) -> None:
     external = (tmp_path / "external.json").resolve()
 
     with pytest.raises(ExporterError) as alias_error:
-        safe_output_path(ROOT, external, False, protected_inputs=(external,))
+        safe_output_path(
+            ROOT,
+            external,
+            False,
+            protected_inputs=(external,),
+            allow_absolute_external=True,
+        )
     assert alias_error.value.diagnostic.code == "CE_EXPORT_OUTPUT_ALIASES_INPUT"
 
     directory = tmp_path / "directory-target"
     directory.mkdir()
     with pytest.raises(ExporterError) as directory_error:
-        safe_output_path(ROOT, directory.resolve(), False)
+        safe_output_path(ROOT, directory.resolve(), False, allow_absolute_external=True)
     assert directory_error.value.diagnostic.code == "CE_EXPORT_OUTPUT_IS_DIRECTORY"
 
     external.write_text('{"foreign":true}\n', encoding="utf-8")
     with pytest.raises(ExporterError) as ownership_error:
-        safe_output_path(ROOT, external, True)
+        safe_output_path(ROOT, external, True, allow_absolute_external=True)
     assert ownership_error.value.diagnostic.code == "CE_EXPORT_OUTPUT_NOT_OWNED"
 
 
@@ -206,7 +217,7 @@ def test_external_output_symlink_is_rejected(tmp_path: Path) -> None:
     link.symlink_to(target)
 
     with pytest.raises(ExporterError) as symlink_error:
-        safe_output_path(ROOT, link, True)
+        safe_output_path(ROOT, link, True, allow_absolute_external=True)
     assert symlink_error.value.diagnostic.code == "CE_EXPORT_OUTPUT_SYMLINK_FORBIDDEN"
 
 

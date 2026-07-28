@@ -985,6 +985,7 @@ def export_verified_review_file(
                 source_intake_path,
                 source_bundle_path,
             ),
+            allow_absolute_external=True,
         )
         prior_output_bytes = _read_prior_owned_output(safe_output) if safe_output.exists() else None
         provenance = inspect_git_provenance(
