@@ -37,6 +37,7 @@ ARCHITECT_PROFILE_PATH = ROOT / "contracts" / "pcvp" / "architect.profile.yaml"
 VENDORED_ROOT = (
     ROOT / "contracts" / "pcvp" / "vendor" / "decision-kernel" / "v1.0.0"
 )
+ARCHITECT_DRAFT_SCOPE = "discardable provisional handoff; no official validation claim"
 
 spec = importlib.util.spec_from_file_location("ce_pcvp_intake_validator", SCRIPT)
 mod = importlib.util.module_from_spec(spec)
@@ -75,7 +76,7 @@ def _carrier() -> dict:
                 "continuation_state": "CONTINUE",
                 "authorization_ref": "AUTH-ARCH-001",
                 "blocker_reason": None,
-                "permitted_scope": "provisional architecture handoff only",
+                "permitted_scope": ARCHITECT_DRAFT_SCOPE,
             }
         ],
         "authorizations": [
@@ -91,7 +92,7 @@ def _carrier() -> dict:
                     "from": "ARCHITECT",
                     "through": "CONSTRUCTABILITY_ENGINEER",
                 },
-                "permitted_scope": "provisional architecture handoff only",
+                "permitted_scope": ARCHITECT_DRAFT_SCOPE,
                 "valid_until_events": [
                     "NEW_MATERIAL_BLOCKER",
                     "OWNER_REVOCATION",
@@ -125,6 +126,23 @@ def _mutate_profile_authorized_effect(intake: dict, effect_class: str) -> None:
     carrier = intake["continuation_assurance"]
     carrier["effects"][0]["effect_class"] = effect_class
     carrier["authorizations"][0]["allowed_effect_classes"] = [effect_class]
+
+
+def _assert_rejected_at_architect_boundaries(intake: dict, expected_code: str) -> None:
+    projection, diagnostics = inspect_optional_pcvp_carrier(intake, ROOT)
+    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(intake)
+
+    assert projection["status"] == "invalid"
+    assert expected_code in {item.code for item in diagnostics}
+    assert result["status"] == "invalid"
+    assert expected_code in _codes(result)
+    with pytest.raises(EvidenceVerificationError, match=expected_code):
+        verify_architect_intake(
+            intake=intake,
+            intake_bytes=canonical_bytes(intake),
+            source_ref="architect-intake.json",
+            repo_root=ROOT,
+        )
 
 
 def test_legacy_intake_without_pcvp_remains_valid() -> None:
@@ -189,25 +207,35 @@ def test_architect_profile_preauthorization_rejects_effects_outside_profile(
     intake = _with_carrier()
     _mutate_profile_authorized_effect(intake, effect_class)
 
-    projection, diagnostics = inspect_optional_pcvp_carrier(intake, ROOT)
-    result = mod.CEArchitectStageIntakeValidator(ROOT).validate_value(intake)
+    _assert_rejected_at_architect_boundaries(
+        intake,
+        "CE_PCVP_PROFILE_PREAUTHORIZED_EFFECT_FORBIDDEN",
+    )
 
-    assert projection["status"] == "invalid"
-    assert "CE_PCVP_PROFILE_PREAUTHORIZED_EFFECT_FORBIDDEN" in {
-        item.code for item in diagnostics
-    }
-    assert result["status"] == "invalid"
-    assert "CE_PCVP_PROFILE_PREAUTHORIZED_EFFECT_FORBIDDEN" in _codes(result)
-    with pytest.raises(
-        EvidenceVerificationError,
-        match="CE_PCVP_PROFILE_PREAUTHORIZED_EFFECT_FORBIDDEN",
-    ):
-        verify_architect_intake(
-            intake=intake,
-            intake_bytes=canonical_bytes(intake),
-            source_ref="architect-intake.json",
-            repo_root=ROOT,
-        )
+
+def test_architect_profile_preauthorization_rejects_broadened_scope() -> None:
+    intake = _with_carrier()
+    broadened_scope = "provisional architecture handoff including validation claims"
+    carrier = intake["continuation_assurance"]
+    carrier["effects"][0]["permitted_scope"] = broadened_scope
+    carrier["authorizations"][0]["permitted_scope"] = broadened_scope
+
+    _assert_rejected_at_architect_boundaries(
+        intake,
+        "CE_PCVP_PROFILE_PREAUTHORIZED_SCOPE_MISMATCH",
+    )
+
+
+def test_profile_preauthorized_authorization_cannot_claim_absent_class() -> None:
+    intake = _with_carrier()
+    intake["continuation_assurance"]["authorizations"][0][
+        "allowed_effect_classes"
+    ] = ["DRAFT_ONLY", "EXTERNAL_MUTATION"]
+
+    _assert_rejected_at_architect_boundaries(
+        intake,
+        "CE_PCVP_PROFILE_PREAUTHORIZED_AUTH_CLASS_FORBIDDEN",
+    )
 
 
 @pytest.mark.parametrize(
